@@ -21,6 +21,13 @@ import (
 // TestMain only starts a desktop when explicitly opted in, and deliberately
 // bypasses main.run: no official instance lock, credentials or live services.
 func TestMain(m *testing.M) {
+	if os.Getenv("RUNWAY_NATIVE_FLOATING_CHILD") == "1" {
+		if err := runNativeFloatingHost(); err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			os.Exit(1)
+		}
+		os.Exit(0)
+	}
 	if os.Getenv("RUNWAY_NATIVE_PANEL_HOST") != "1" {
 		os.Exit(m.Run())
 	}

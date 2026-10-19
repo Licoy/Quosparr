@@ -118,10 +118,17 @@ func (a *App) openFloating(prefs store.Preferences, w, h int) {
 		SkipTaskbar:       true,
 		Opacity:           float64(f.OpacityPercent()) / 100,
 		Content:           ui.View(a.floatingView),
+		// Below Windows' default minimum window size, which would widen
+		// the narrow styles and leave the card empty on the right. Windows
+		// still keeps it as tall as a caption, which frameless windows keep
+		// for the system shadow: the capsule draws centered in that.
+		MinWidth:  1,
+		MinHeight: 1,
 	})
-	a.floating.win, a.floating.w, a.floating.h = win, w, h
-	// The saved state brings back the last size too; the content decides it.
-	win.SetContentSize(w, h)
+	a.floating.win = win
+	// The saved state brings back the last size too; the content decides
+	// it, from the edge the window keeps when it resizes.
+	a.resizeFloating(w, h)
 	win.SetVisibleOnAllWorkspaces(true)
 	// The opposite of the setting, so that this sets the window up.
 	a.floating.overFullScreen = !f.OverFullScreen

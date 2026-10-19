@@ -86,6 +86,12 @@ jobs:
           go vet ./...
           go test -count=1 -timeout=5m ./...
           go test -tags=quosparr_dev_package -count=1 ./internal/app -run '^TestPackagedDevelopmentUpdate'
+      - name: Verify native floating window sizes
+        if: runner.os == 'Windows'
+        shell: bash
+        env:
+          RUNWAY_NATIVE_FLOATING_HOST: "1"
+        run: go test -count=1 -timeout=1m ./internal/app -run '^TestNativeFloatingWindowSizes$'
       - name: Build and verify development installer
         shell: bash
         env:
