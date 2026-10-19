@@ -120,8 +120,6 @@ func (a *App) openFloating(prefs store.Preferences, w, h int) {
 		Content:           ui.View(a.floatingView),
 		// Below Windows' default minimum window size, which would widen
 		// the narrow styles and leave the card empty on the right.
-		MinWidth:  1,
-		MinHeight: 1,
 	})
 	a.floating.win = win
 	// The saved state brings back the last size too; the content decides
