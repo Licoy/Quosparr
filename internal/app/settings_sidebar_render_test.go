@@ -57,7 +57,8 @@ func TestExportSettingsSidebarReview(t *testing.T) {
 				view.SetDark(dark)
 				exportReviewPNG(t, view, filepath.Join(output, names[tab]+"-"+appearance+".png"))
 			}
-			panel.SetSize(panelWidth, int(store.DefaultMainPanelHeight))
+			width, height := a.panelSizeWithin(1080, 1040)
+			panel.SetSize(width, height)
 			panel.SetDark(dark)
 			exportReviewPNG(t, panel, filepath.Join(output, "panel-codex-"+appearance+".png"))
 			a.settings.prefs.SelectedProvider = store.ProviderGrok

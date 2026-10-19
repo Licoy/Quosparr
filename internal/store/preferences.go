@@ -31,9 +31,10 @@ const (
 	DefaultRateLimitResetTodayRefreshIntervalSeconds = 300
 	MinRateLimitResetTodayRefreshIntervalSeconds     = 300
 	MaxRateLimitResetTodayRefreshIntervalSeconds     = 21_600
-	DefaultMainPanelHeight                           = 584.0
-	MinMainPanelHeight                               = 360.0
-	DefaultProxyTestURL                              = "https://github.com"
+	// Zero keeps the default height relative to the current screen.
+	DefaultMainPanelHeight = 0.0
+	MinMainPanelHeight     = 360.0
+	DefaultProxyTestURL    = "https://github.com"
 )
 
 // WidgetRefreshIntervalOptions are the intervals the settings UI offers for
@@ -352,10 +353,10 @@ func ClampRateLimitResetTodayRefreshInterval(seconds int) int {
 		min(MaxRateLimitResetTodayRefreshIntervalSeconds, seconds))
 }
 
-// ClampMainPanelHeight enforces the minimum; the UI caps the height to the
-// current screen so a saved height survives moving between displays.
+// ClampMainPanelHeight preserves the automatic default and enforces the
+// minimum for explicit heights; the UI resolves the screen-dependent size.
 func ClampMainPanelHeight(height float64) float64 {
-	if math.IsNaN(height) || math.IsInf(height, 0) {
+	if height == DefaultMainPanelHeight || math.IsNaN(height) || math.IsInf(height, 0) {
 		return DefaultMainPanelHeight
 	}
 	return max(MinMainPanelHeight, height)

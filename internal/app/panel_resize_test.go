@@ -11,7 +11,7 @@ import (
 
 func TestPanelResizeDragPersistsOnRelease(t *testing.T) {
 	a, tt := newPanel(t, nil, panelFixture(), PanelActions{})
-	tt.SetSize(panelWidth, int(store.DefaultMainPanelHeight))
+	tt.SetSize(panelWidth, 584)
 	tt.SetPreferences(ui.Preferences{ReduceMotion: true, TextScale: 1})
 	changes := 0
 	a.settings.OnChange(func() { changes++ })
@@ -27,7 +27,7 @@ func TestPanelResizeDragPersistsOnRelease(t *testing.T) {
 		t.Fatal("drag persisted before mouse-up")
 	}
 	tt.Release(x, y+120)
-	if changes != 1 || a.settings.Prefs().MainPanelHeight != store.DefaultMainPanelHeight+120 {
+	if changes != 1 || a.settings.Prefs().MainPanelHeight != 704 {
 		t.Fatalf("release changes=%d height=%v", changes, a.settings.Prefs().MainPanelHeight)
 	}
 	tt.Frame()
@@ -40,7 +40,7 @@ func TestPanelResizeDragPersistsOnRelease(t *testing.T) {
 
 func TestPanelResizeClickDoesNotPersist(t *testing.T) {
 	a, tt := newPanel(t, nil, panelFixture(), PanelActions{})
-	tt.SetSize(panelWidth, int(store.DefaultMainPanelHeight))
+	tt.SetSize(panelWidth, 584)
 	changes := 0
 	a.settings.OnChange(func() { changes++ })
 	if err := tt.Click("panel-resize-handle"); err != nil {
@@ -59,7 +59,7 @@ func TestPanelResizeDragClampsHeight(t *testing.T) {
 		height       float64
 	}{{1000, 2160, false, 1584}, {3000, 2160, false, 1620}, {-3000, 2160, true, 1620}, {1000, 1080, false, 810}, {-1000, 1080, false, store.MinMainPanelHeight}} {
 		a, tt := newPanel(t, nil, panelFixture(), PanelActions{})
-		tt.SetSize(panelWidth, int(store.DefaultMainPanelHeight))
+		tt.SetSize(panelWidth, 584)
 		a.panelResize.top = target.top
 		tt.Frame()
 		r, ok := tt.Find("panel-resize-handle")
@@ -89,12 +89,45 @@ func TestPanelHeightClampsToUsableScreen(t *testing.T) {
 		{900, 1080, 1040, 810}, {2000, 1440, 1400, 1080}, {3000, 2160, 2120, 1620},
 		{900, 1080, 700, 684}, {100, 1080, 700, 360}, {900, 400, 300, 360},
 		{900, 2160, 2000, 900}, {2000, 1081, 1040, 810},
-		{math.NaN(), 1080, 500, 484}, {math.Inf(1), 0, 0, store.DefaultMainPanelHeight}, {584.6, 0, 0, 585},
+		{584, 1080, 1040, 584},
+		{math.NaN(), 1080, 500, 484}, {math.Inf(1), 0, 0, store.MinMainPanelHeight}, {584.6, 0, 0, 585},
 	} {
 		if got := clampPanelHeight(tc.proposed, tc.screenHeight, tc.available); got != tc.want {
 			t.Fatalf("clamp(%v,%d,%d)=%v, want %v", tc.proposed, tc.screenHeight, tc.available, got, tc.want)
 		}
 	}
+}
+
+func TestPanelDefaultHeightTracksScreenUntilResized(t *testing.T) {
+	a, tt := newPanel(t, nil, panelFixture(), PanelActions{})
+	for _, tc := range []struct{ screen, available, want int }{
+		{1080, 1040, 702}, {1440, 1400, 936}, {2160, 2120, 1404},
+		{1081, 1040, 702}, {1080, 600, 584}, {400, 300, 360}, {0, 0, 360},
+	} {
+		width, height := a.panelSizeWithin(tc.screen, tc.available)
+		if width != panelWidth || height != tc.want {
+			t.Fatalf("screen %d: panel %dx%d, want %dx%d", tc.screen, width, height, panelWidth, tc.want)
+		}
+	}
+	if got := a.settings.Prefs().MainPanelHeight; got != store.DefaultMainPanelHeight {
+		t.Fatalf("opening saved a fixed height: %v", got)
+	}
+	tt.SetSize(a.panelSizeWithin(1080, 1040))
+	r, ok := tt.Find("panel-resize-handle")
+	if !ok {
+		t.Fatal("resize handle missing")
+	}
+	x, y := r.X+r.W/2, r.Y+r.H/2
+	tt.Press(x, y)
+	a.panelResize.screenHeight, a.panelResize.available = 1080, 1040
+	tt.Release(x, y-60)
+	if got := a.settings.Prefs().MainPanelHeight; got != 642 {
+		t.Fatalf("resized height = %v, want 642", got)
+	}
+	if _, height := a.panelSizeWithin(2160, 2120); height != 642 {
+		t.Fatalf("display change lost manual height: %d", height)
+	}
+	a.settings.Flush()
 }
 
 func TestPanelOpeningSizeFitsScreenWithoutChangingPreference(t *testing.T) {
@@ -118,7 +151,14 @@ func TestSettingsPanelHeightUsesDisplayLimit(t *testing.T) {
 	display := mygo.Display{Bounds: mygo.Rectangle{Height: 2160}, WorkArea: mygo.Rectangle{Height: 2120}}
 	u := newSettingsUI(e.s, SettingsOptions{PanelDisplay: func() mygo.Display { return display }})
 	tt := ui.NewTester(u.appearanceGroup, settingsWidth, settingsHeight)
+	if !tt.HasText("1404") || e.s.Prefs().MainPanelHeight != store.DefaultMainPanelHeight {
+		t.Fatal("settings must display the computed default without saving it")
+	}
 	focusSettingsAction(t, tt, tx(u.L(), xPanelHeight))
+	tt.Key(0, ui.KeyDown)
+	if got := e.s.Prefs().MainPanelHeight; got != 1403 {
+		t.Fatalf("adjusted default height = %v, want 1403", got)
+	}
 	tt.Key(0, ui.KeyEnd)
 	if got := e.s.Prefs().MainPanelHeight; got != 1620 {
 		t.Fatalf("large screen height = %v, want 1620", got)
@@ -146,7 +186,7 @@ func TestPanelResizeReleaseIncludesMovementAfterLastFrame(t *testing.T) {
 func testPanelResizeFinalMovement(t *testing.T, moveBeforeRelease bool) {
 	t.Helper()
 	a, tt := newPanel(t, nil, panelFixture(), PanelActions{})
-	tt.SetSize(panelWidth, int(store.DefaultMainPanelHeight))
+	tt.SetSize(panelWidth, 584)
 	changes := 0
 	a.settings.OnChange(func() { changes++ })
 	r, ok := tt.Find("panel-resize-handle")
@@ -159,15 +199,15 @@ func testPanelResizeFinalMovement(t *testing.T, moveBeforeRelease bool) {
 		tt.Move(x, y-40)
 	}
 	tt.Release(x, y-80) // A real native frame can see release before any held move frame.
-	if changes != 1 || a.settings.Prefs().MainPanelHeight != store.DefaultMainPanelHeight-80 {
-		t.Fatalf("coalesced release changes=%d height=%v, want one save at %v", changes, a.settings.Prefs().MainPanelHeight, store.DefaultMainPanelHeight-80)
+	if changes != 1 || a.settings.Prefs().MainPanelHeight != 504 {
+		t.Fatalf("coalesced release changes=%d height=%v, want one save at %v", changes, a.settings.Prefs().MainPanelHeight, 504)
 	}
 	a.settings.Flush()
 }
 
 func TestPanelResizeTopEdgeGrowsUpward(t *testing.T) {
 	a, tt := newPanel(t, nil, panelFixture(), PanelActions{})
-	tt.SetSize(panelWidth, int(store.DefaultMainPanelHeight))
+	tt.SetSize(panelWidth, 584)
 	a.panelResize.top = true
 	tt.Frame()
 	r, ok := tt.Find("panel-resize-handle")
@@ -181,8 +221,8 @@ func TestPanelResizeTopEdgeGrowsUpward(t *testing.T) {
 	tt.Press(x, y)
 	tt.Move(x, y-60)
 	tt.Release(x, y-100)
-	if got := a.settings.Prefs().MainPanelHeight; got != store.DefaultMainPanelHeight+100 {
-		t.Fatalf("height %v, want %v", got, store.DefaultMainPanelHeight+100)
+	if got := a.settings.Prefs().MainPanelHeight; got != 684 {
+		t.Fatalf("height %v, want %v", got, 684)
 	}
 	if !a.panelResize.top {
 		t.Fatal("drag dropped the top edge")

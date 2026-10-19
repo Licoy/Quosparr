@@ -108,7 +108,7 @@ func TestThirtyFourFieldsAllDifferFromDefaults(t *testing.T) {
 	}
 }
 
-func TestDefaultsMatchSwift(t *testing.T) {
+func TestDefaultsMatchSwiftExceptAutomaticPanelHeight(t *testing.T) {
 	d := DefaultPreferences()
 	if got := mustDecode(t, `{}`); !reflect.DeepEqual(got, d) {
 		t.Errorf("decoding {} = %+v, want defaults", got)
@@ -117,14 +117,25 @@ func TestDefaultsMatchSwift(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	sameJSON(t, enc, fixture(t, "swift_default.json"))
-	if !strings.Contains(string(enc), `"mainPanelHeight":584,`) {
-		t.Errorf("mainPanelHeight should encode as a plain number: %s", enc)
+	if !strings.Contains(string(enc), `"mainPanelHeight":0,`) {
+		t.Errorf("automatic mainPanelHeight should encode as zero: %s", enc)
 	}
+	if got := mustDecode(t, string(enc)); !reflect.DeepEqual(got, d) {
+		t.Errorf("default round trip = %+v, want %+v", got, d)
+	}
+	// Keep the historical fixture frozen; only the new height default differs.
+	d.MainPanelHeight = 584
+	legacy, err := EncodePreferences(d)
+	if err != nil {
+		t.Fatal(err)
+	}
+	sameJSON(t, legacy, fixture(t, "swift_default.json"))
 }
 
 func TestSwiftProducedFixtures(t *testing.T) {
-	if got := mustDecode(t, string(fixture(t, "swift_default.json"))); !reflect.DeepEqual(got, DefaultPreferences()) {
+	legacyDefault := DefaultPreferences()
+	legacyDefault.MainPanelHeight = 584
+	if got := mustDecode(t, string(fixture(t, "swift_default.json"))); !reflect.DeepEqual(got, legacyDefault) {
 		t.Errorf("swift_default.json decoded to %+v", got)
 	}
 	got := mustDecode(t, string(fixture(t, "swift_all.json")))
@@ -352,6 +363,8 @@ func TestIntFieldsDecodeLikeSwift(t *testing.T) {
 
 func TestClamping(t *testing.T) {
 	for doc, want := range map[string]float64{
+		`{"mainPanelHeight":0}`:     DefaultMainPanelHeight,
+		`{"mainPanelHeight":null}`:  DefaultMainPanelHeight,
 		`{"mainPanelHeight":100}`:   360,
 		`{"mainPanelHeight":359}`:   360,
 		`{"mainPanelHeight":360}`:   360,
@@ -359,7 +372,7 @@ func TestClamping(t *testing.T) {
 		`{"mainPanelHeight":900}`:   900,
 		`{"mainPanelHeight":1200}`:  1200, // The UI now applies the screen-dependent maximum.
 		`{"mainPanelHeight":-1}`:    360,
-		`{}`:                        584,
+		`{}`:                        DefaultMainPanelHeight,
 	} {
 		if got := mustDecode(t, doc).MainPanelHeight; got != want {
 			t.Errorf("%s: got %v, want %v", doc, got, want)

@@ -469,8 +469,8 @@ var extraTexts = map[textKey][7]string{
 		"Высота главной панели", "Hauteur du panneau principal",
 	},
 	xPanelHeightHint: {
-		"From 360 points to 75% of the screen height.", "最低 360 点，最高为屏幕高度的 75%。", "最低 360 點，最高為螢幕高度的 75%。",
-		"최소 360포인트, 최대 화면 높이의 75%입니다.", "最小360ポイント、最大で画面の高さの75%です。", "От 360 пунктов до 75% высоты экрана.", "De 360 points à 75 % de la hauteur de l’écran.",
+		"Defaults to 65% of the screen height; from 360 points up to 75%.", "默认为屏幕高度的 65%，最低 360 点，最高 75%。", "預設為螢幕高度的 65%，最低 360 點，最高 75%。",
+		"기본값은 화면 높이의 65%이며, 최소 360포인트에서 최대 75%까지 조절할 수 있습니다.", "初期値は画面の高さの65%、最小360ポイント、最大75%です。", "По умолчанию — 65% высоты экрана; от 360 пунктов до 75%.", "Par défaut, 65 % de la hauteur de l’écran ; de 360 points à 75 %.",
 	},
 	xMacOnly: {
 		"Applies to the macOS menu bar and panel only. Your saved choice is kept.",

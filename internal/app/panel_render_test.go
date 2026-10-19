@@ -37,7 +37,8 @@ func TestExportUIReview(t *testing.T) {
 		if err := a.settings.LoadProxy(); err != nil {
 			t.Fatal(err)
 		}
-		panel.SetSize(panelWidth, int(store.DefaultMainPanelHeight))
+		width, height := a.panelSizeWithin(1080, 1040)
+		panel.SetSize(width, height)
 		panel.SetDark(dark)
 		exportReviewPNG(t, panel, filepath.Join(dir, phase+"-panel-"+theme+".png"))
 		u := newSettingsUI(a.settings, SettingsOptions{Version: "1.0.0"})

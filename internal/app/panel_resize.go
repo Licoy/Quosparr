@@ -135,5 +135,10 @@ func panelHeightLimit(screenHeight, available int) float64 {
 }
 
 func clampPanelHeight(proposed float64, screenHeight, available int) float64 {
-	return math.Round(min(panelHeightLimit(screenHeight, available), store.ClampMainPanelHeight(proposed)))
+	height := store.ClampMainPanelHeight(proposed)
+	if height == store.DefaultMainPanelHeight {
+		// Before native display geometry is available, layout uses the minimum.
+		height = max(store.MinMainPanelHeight, math.Floor(float64(screenHeight)*0.65))
+	}
+	return math.Round(min(panelHeightLimit(screenHeight, available), height))
 }

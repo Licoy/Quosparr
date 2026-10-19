@@ -74,6 +74,9 @@ func (u *settingsUI) appearanceGroup(c *ui.Context) {
 				display = u.opts.PanelDisplay()
 			}
 			limit := panelHeightLimit(display.Bounds.Height, display.WorkArea.Height)
+			if h == store.DefaultMainPanelHeight {
+				h = clampPanelHeight(h, display.Bounds.Height, display.WorkArea.Height)
+			}
 			ui.Row(c).Gap(8).AlignItems(ui.Center).Children(func() {
 				ui.Text(c, strconv.Itoa(int(h+0.5))).FontSize(13).FontFeatures("tnum").SingleLine()
 				if ui.Stepper(c.Key("panel-height"), &h, store.MinMainPanelHeight, limit, 1).
