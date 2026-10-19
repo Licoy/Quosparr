@@ -119,7 +119,9 @@ func (a *App) openFloating(prefs store.Preferences, w, h int) {
 		Opacity:           float64(f.OpacityPercent()) / 100,
 		Content:           ui.View(a.floatingView),
 		// Below Windows' default minimum window size, which would widen
-		// the narrow styles and leave the card empty on the right.
+		// the narrow styles and leave the card empty on the right. Windows
+		// still keeps it as tall as a caption, which frameless windows keep
+		// for the system shadow: the capsule draws centered in that.
 		MinWidth:  1,
 		MinHeight: 1,
 	})

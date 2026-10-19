@@ -132,19 +132,24 @@ func (h *nativeFloatingHost) run() {
 		h.err = err
 		return
 	}
+	minH := nativeFloatingMinHeight(a)
+	if minH >= 48 {
+		h.err = fmt.Errorf("minimum content height = %d, want below 48, the shortest style but the capsule", minH)
+		return
+	}
 	for _, style := range store.FloatingStyles() {
 		a.settings.prefs.FloatingWindow.Style = style
 		a.snap.Floating.Providers = a.snap.Floating.Providers[:3]
 		w, height = a.floatingWindowSize(a.settings.Prefs())
 		a.resizeFloating(w, height)
-		if err := checkNativeFloatingSize(a, fmt.Sprintf("style %q with three providers", style), w, height); err != nil {
+		if err := checkNativeFloatingSize(a, fmt.Sprintf("style %q with three providers", style), w, max(height, minH)); err != nil {
 			h.err = err
 			return
 		}
 		a.snap.Floating.Providers = a.snap.Floating.Providers[:1]
 		w, height = a.floatingWindowSize(a.settings.Prefs())
 		a.resizeFloating(w, height)
-		if err := checkNativeFloatingSize(a, fmt.Sprintf("style %q with one provider", style), w, height); err != nil {
+		if err := checkNativeFloatingSize(a, fmt.Sprintf("style %q with one provider", style), w, max(height, minH)); err != nil {
 			h.err = err
 			return
 		}
@@ -156,7 +161,7 @@ func (h *nativeFloatingHost) run() {
 	a.closeFloating()
 	w, height = a.floatingWindowSize(a.settings.Prefs())
 	a.openFloating(a.settings.Prefs(), w, height)
-	if err := checkNativeFloatingSize(a, "reopened with saved single-provider size", w, height); err != nil {
+	if err := checkNativeFloatingSize(a, "reopened with saved single-provider size", w, max(height, minH)); err != nil {
 		h.err = err
 		return
 	}
@@ -171,6 +176,20 @@ func checkNativeFloatingSize(a *App, name string, wantW, wantH int) error {
 	}
 	fmt.Printf("native floating size: %s = %dx%d, want %dx%d\n", name, gotW, gotH, wantW, wantH)
 	return nil
+}
+
+// nativeFloatingMinHeight is the least content height the window takes.
+// Windows keeps a window with a caption, which frameless windows keep for
+// the system shadow, as tall as the caption: taller than the capsule, which
+// draws centered in it. Widths have no such floor.
+func nativeFloatingMinHeight(a *App) int {
+	win := a.floating.win
+	w, h := win.ContentSize()
+	win.SetContentSize(w, 1)
+	_, minH := win.ContentSize()
+	win.SetContentSize(w, h)
+	fmt.Printf("native floating minimum content height = %d\n", minH)
+	return minH
 }
 
 // checkNativeFloatingAnchor: a window restored on the right half keeps the
