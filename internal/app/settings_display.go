@@ -4,6 +4,7 @@ import (
 	"slices"
 	"strconv"
 
+	"github.com/egoist/mygo"
 	"github.com/egoist/mygo/ui"
 	"github.com/licoy/quosparr/internal/l10n"
 	"github.com/licoy/quosparr/internal/store"
@@ -68,9 +69,14 @@ func (u *settingsUI) appearanceGroup(c *ui.Context) {
 		})
 		row(tx(l, xPanelHeight), tx(l, xPanelHeightHint), func() {
 			h := p.MainPanelHeight
+			var display mygo.Display
+			if u.opts.PanelDisplay != nil {
+				display = u.opts.PanelDisplay()
+			}
+			limit := panelHeightLimit(display.Bounds.Height, display.WorkArea.Height)
 			ui.Row(c).Gap(8).AlignItems(ui.Center).Children(func() {
 				ui.Text(c, strconv.Itoa(int(h+0.5))).FontSize(13).FontFeatures("tnum").SingleLine()
-				if ui.Stepper(c.Key("panel-height"), &h, store.MinMainPanelHeight, store.MaxMainPanelHeight, 20).
+				if ui.Stepper(c.Key("panel-height"), &h, store.MinMainPanelHeight, limit, 1).
 					Label(tx(l, xPanelHeight)).Disabled(ro).Changed() {
 					s.SetMainPanelHeight(h)
 				}

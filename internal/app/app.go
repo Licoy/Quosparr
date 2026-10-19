@@ -94,28 +94,29 @@ type App struct {
 
 // panelSize is the flyout size in DIPs. Height follows the saved preference.
 func (a *App) panelSize() (int, int) {
-	available := 0
-	if runtime.GOOS == "darwin" && mygo.App.IsReady() {
-		display := mygo.Screen.PrimaryDisplay()
-		if a.panel != nil {
-			display = mygo.Screen.DisplayMatching(a.panel.Bounds())
-		} else if a.tray != nil {
-			display = mygo.Screen.DisplayMatching(a.tray.Bounds())
-		}
-		available = display.WorkArea.Height
-	}
-	return a.panelSizeWithin(available)
+	display := a.panelDisplay()
+	return a.panelSizeWithin(display.Bounds.Height, display.WorkArea.Height)
 }
 
-func (a *App) panelSizeWithin(available int) (int, int) {
+func (a *App) panelDisplay() mygo.Display {
+	if !mygo.App.IsReady() {
+		return mygo.Display{} // No native screen before startup or in UI tests.
+	}
+	if a.panel != nil {
+		return mygo.Screen.DisplayMatching(a.panel.Bounds())
+	}
+	if a.tray != nil {
+		return mygo.Screen.DisplayMatching(a.tray.Bounds())
+	}
+	return mygo.Screen.PrimaryDisplay()
+}
+
+func (a *App) panelSizeWithin(screenHeight, available int) (int, int) {
 	h := store.DefaultMainPanelHeight
 	if a.settings != nil {
 		h = a.settings.Prefs().MainPanelHeight
 	}
-	if h < store.MinMainPanelHeight || h > store.MaxMainPanelHeight {
-		h = store.DefaultMainPanelHeight
-	}
-	return panelWidth, int(clampPanelHeight(h, available))
+	return panelWidth, int(clampPanelHeight(h, screenHeight, available))
 }
 
 // Snapshot is the latest coordinator view. The zero value is what the
@@ -483,11 +484,12 @@ func (a *App) OpenSettings() {
 		actions.OpenFolder = openFolder
 	}
 	a.setUI = newSettingsUI(a.settings, SettingsOptions{
-		Version:  a.opts.Version,
-		Actions:  actions,
-		Skills:   func() SkillActions { return a.PanelActions().Skills },
-		Sessions: func() SessionActions { return a.PanelActions().Sessions },
-		MCP:      func() MCPActions { return a.PanelActions().MCP },
+		Version:      a.opts.Version,
+		Actions:      actions,
+		Skills:       func() SkillActions { return a.PanelActions().Skills },
+		Sessions:     func() SessionActions { return a.PanelActions().Sessions },
+		MCP:          func() MCPActions { return a.PanelActions().MCP },
+		PanelDisplay: a.panelDisplay,
 	})
 	a.setWin = mygo.NewWindow(mygo.WindowOptions{
 		StateKey:             "settings",

@@ -33,7 +33,6 @@ const (
 	MaxRateLimitResetTodayRefreshIntervalSeconds     = 21_600
 	DefaultMainPanelHeight                           = 584.0
 	MinMainPanelHeight                               = 360.0
-	MaxMainPanelHeight                               = 900.0
 	DefaultProxyTestURL                              = "https://github.com"
 )
 
@@ -353,13 +352,13 @@ func ClampRateLimitResetTodayRefreshInterval(seconds int) int {
 		min(MaxRateLimitResetTodayRefreshIntervalSeconds, seconds))
 }
 
-// ClampMainPanelHeight limits the height to 360...900; a non-finite value
-// becomes the default.
+// ClampMainPanelHeight enforces the minimum; the UI caps the height to the
+// current screen so a saved height survives moving between displays.
 func ClampMainPanelHeight(height float64) float64 {
 	if math.IsNaN(height) || math.IsInf(height, 0) {
 		return DefaultMainPanelHeight
 	}
-	return max(MinMainPanelHeight, min(MaxMainPanelHeight, height))
+	return max(MinMainPanelHeight, height)
 }
 
 // NormalizeModuleOrder drops duplicates and unknown modules, keeps the user's order, and puts each

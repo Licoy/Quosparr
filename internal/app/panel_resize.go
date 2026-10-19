@@ -14,8 +14,8 @@ type panelResizeState struct {
 	// top puts the handle on the top edge: the flyout hangs above a tray
 	// icon, as on a Windows taskbar at the bottom of the screen, so its
 	// bottom edge stays by the icon while the top edge moves.
-	top                             bool
-	x, y, bottom, chrome, available int
+	top                                           bool
+	x, y, bottom, chrome, available, screenHeight int
 }
 
 func panelResizeHandle(c *ui.Context, a *App) {
@@ -35,7 +35,9 @@ func panelResizeHandle(c *ui.Context, a *App) {
 			if a.panel != nil {
 				bounds := a.panel.Bounds()
 				s.x, s.y, s.bottom = bounds.X, bounds.Y, bounds.Y+bounds.Height
-				area := mygo.Screen.DisplayMatching(bounds).WorkArea
+				display := mygo.Screen.DisplayMatching(bounds)
+				area := display.WorkArea
+				s.screenHeight = display.Bounds.Height
 				s.chrome = max(0, bounds.Height-int(height))
 				s.available = max(1, area.Y+area.Height-bounds.Y-s.chrome)
 				if s.top {
@@ -99,7 +101,7 @@ func (a *App) syncPanelResizeEdge() {
 
 func (a *App) resizePanelHeight(proposed float64, persist bool) {
 	s := &a.panelResize
-	height := clampPanelHeight(proposed, s.available)
+	height := clampPanelHeight(proposed, s.screenHeight, s.available)
 	s.height = height
 	if panel := a.panel; panel != nil {
 		x, y := s.x, s.y
@@ -121,13 +123,17 @@ func (a *App) resizePanelHeight(proposed float64, persist bool) {
 	}
 }
 
-func clampPanelHeight(proposed float64, available int) float64 {
-	upper := float64(store.MaxMainPanelHeight)
+func panelHeightLimit(screenHeight, available int) float64 {
+	upper := math.Inf(1) // Headless UI tests have no display constraint.
+	if screenHeight > 0 {
+		upper = math.Floor(float64(screenHeight) * 0.75)
+	}
 	if available > 0 {
-		upper = min(upper, max(float64(store.MinMainPanelHeight), float64(available-16)))
+		upper = min(upper, float64(available-16))
 	}
-	if math.IsNaN(proposed) || math.IsInf(proposed, 0) {
-		proposed = store.DefaultMainPanelHeight
-	}
-	return math.Round(min(upper, max(float64(store.MinMainPanelHeight), proposed)))
+	return max(store.MinMainPanelHeight, upper)
+}
+
+func clampPanelHeight(proposed float64, screenHeight, available int) float64 {
+	return math.Round(min(panelHeightLimit(screenHeight, available), store.ClampMainPanelHeight(proposed)))
 }

@@ -432,7 +432,7 @@ func (s *Settings) SetAPICostRange(v store.CostRange) bool {
 	return s.Update(func(p *store.Preferences) { p.APICostSummaryRange = v })
 }
 
-// SetMainPanelHeight sets the main panel height (clamped to 360...900).
+// SetMainPanelHeight saves the preferred height; the UI applies screen limits.
 func (s *Settings) SetMainPanelHeight(h float64) bool {
 	return s.Update(func(p *store.Preferences) { p.MainPanelHeight = h })
 }

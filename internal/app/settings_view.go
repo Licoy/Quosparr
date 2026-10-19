@@ -54,6 +54,8 @@ type SettingsOptions struct {
 	Sessions func() SessionActions
 	// MCP returns read and delete operations for global native MCP entries.
 	MCP func() MCPActions
+	// PanelDisplay returns the display used by the main panel.
+	PanelDisplay func() mygo.Display
 }
 
 type settingsTab int

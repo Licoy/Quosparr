@@ -469,8 +469,8 @@ var extraTexts = map[textKey][7]string{
 		"Высота главной панели", "Hauteur du panneau principal",
 	},
 	xPanelHeightHint: {
-		"From 360 to 900 points.", "范围 360 至 900 点。", "範圍 360 至 900 點。",
-		"360~900 포인트입니다.", "360〜900 ポイントの範囲です。", "От 360 до 900 пунктов.", "De 360 à 900 points.",
+		"From 360 points to 75% of the screen height.", "最低 360 点，最高为屏幕高度的 75%。", "最低 360 點，最高為螢幕高度的 75%。",
+		"최소 360포인트, 최대 화면 높이의 75%입니다.", "最小360ポイント、最大で画面の高さの75%です。", "От 360 пунктов до 75% высоты экрана.", "De 360 points à 75 % de la hauteur de l’écran.",
 	},
 	xMacOnly: {
 		"Applies to the macOS menu bar and panel only. Your saved choice is kept.",

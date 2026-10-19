@@ -357,7 +357,7 @@ func TestClamping(t *testing.T) {
 		`{"mainPanelHeight":360}`:   360,
 		`{"mainPanelHeight":612.5}`: 612.5,
 		`{"mainPanelHeight":900}`:   900,
-		`{"mainPanelHeight":1200}`:  900, // Swift test mainPanelHeightBounds
+		`{"mainPanelHeight":1200}`:  1200, // The UI now applies the screen-dependent maximum.
 		`{"mainPanelHeight":-1}`:    360,
 		`{}`:                        584,
 	} {
@@ -571,7 +571,7 @@ func TestCloneIsDeep(t *testing.T) {
 
 func TestEncodeNormalizesAndValidates(t *testing.T) {
 	p := DefaultPreferences()
-	p.MainPanelHeight = 5000
+	p.MainPanelHeight = 100
 	p.WidgetRefreshIntervalSeconds = 1
 	p.RateLimitResetTodayRefreshIntervalSeconds = 1
 	p.MainPanelModuleOrder = []Module{ModuleAPICost}
@@ -580,10 +580,10 @@ func TestEncodeNormalizesAndValidates(t *testing.T) {
 		t.Fatal(err)
 	}
 	got := mustDecode(t, string(enc))
-	if got.MainPanelHeight != 900 || got.WidgetRefreshIntervalSeconds != 60 || got.RateLimitResetTodayRefreshIntervalSeconds != 300 || len(got.MainPanelModuleOrder) != len(Modules()) {
+	if got.MainPanelHeight != 360 || got.WidgetRefreshIntervalSeconds != 60 || got.RateLimitResetTodayRefreshIntervalSeconds != 300 || len(got.MainPanelModuleOrder) != len(Modules()) {
 		t.Errorf("not normalized: %+v", got)
 	}
-	if p.MainPanelHeight != 5000 {
+	if p.MainPanelHeight != 100 {
 		t.Error("EncodePreferences modified its argument")
 	}
 
@@ -606,7 +606,7 @@ func TestEncodeNormalizesAndValidates(t *testing.T) {
 }
 
 func TestEncodedFloatFormat(t *testing.T) {
-	for height, want := range map[float64]string{584: `"mainPanelHeight":584,`, 700.5: `"mainPanelHeight":700.5,`, 900: `"mainPanelHeight":900,`} {
+	for height, want := range map[float64]string{584: `"mainPanelHeight":584,`, 700.5: `"mainPanelHeight":700.5,`, 900: `"mainPanelHeight":900,`, 1620: `"mainPanelHeight":1620,`} {
 		p := DefaultPreferences()
 		p.MainPanelHeight = height
 		enc, err := EncodePreferences(p)
@@ -615,6 +615,9 @@ func TestEncodedFloatFormat(t *testing.T) {
 		}
 		if !strings.Contains(string(enc), want) {
 			t.Errorf("height %v: %s", height, enc)
+		}
+		if got := mustDecode(t, string(enc)).MainPanelHeight; got != height {
+			t.Errorf("height round trip = %v, want %v", got, height)
 		}
 	}
 }

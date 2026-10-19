@@ -410,11 +410,23 @@ func TestSettingsClampsOutOfRangeValues(t *testing.T) {
 	if got := e.s.Prefs().RefreshIntervalSeconds; got != 60 {
 		t.Errorf("interval = %d, want clamp to 60", got)
 	}
-	e.s.SetMainPanelHeight(5000)
-	if got := e.s.Prefs().MainPanelHeight; got > 900 {
-		t.Errorf("height = %v", got)
+	e.s.SetMainPanelHeight(100)
+	if got := e.s.Prefs().MainPanelHeight; got != store.MinMainPanelHeight {
+		t.Errorf("height = %v, want minimum", got)
 	}
 	e.settle()
+}
+
+func TestSettingsPreservesTallPanelHeight(t *testing.T) {
+	e := newEnv(t, nil)
+	if err := e.s.Load(); err != nil {
+		t.Fatal(err)
+	}
+	e.s.SetMainPanelHeight(1620)
+	e.settle()
+	if got := e.stored().MainPanelHeight; got != 1620 {
+		t.Fatalf("stored height = %v, want 1620", got)
+	}
 }
 
 func TestSettingsLaunchAtLoginReconcile(t *testing.T) {
