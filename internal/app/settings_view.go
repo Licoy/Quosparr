@@ -606,8 +606,18 @@ func (u *settingsUI) accountsPage(c *ui.Context) {
 func (u *settingsUI) advancedPage(c *ui.Context) {
 	s, l := u.s, u.L()
 	p := s.Prefs()
+	sys := s.System()
 	a := u.opts.Actions
 	settingsGroup(c, "", "", nil, func(row rowFunc) {
+		detail := tx(l, xDisablePanelAnimationHint)
+		if !sys.PanelAnimation {
+			detail = tx(l, xMacOnly)
+		}
+		row(tx(l, xDisablePanelAnimation), detail, func() {
+			if v, ok := toggle(c, "disable-panel-animation", tx(l, xDisablePanelAnimation), p.DisableMainPanelAnimation, s.ReadOnly() || !sys.PanelAnimation); ok {
+				s.SetDisableMainPanelAnimation(v)
+			}
+		})
 		row(l.Text(l10n.KeyRefresh), l.Text(l10n.KeyQuota), func() {
 			if PillButton(c, nil, l.Text(l10n.KeyRefresh), a.Refresh == nil).Clicked() {
 				a.Refresh()

@@ -35,10 +35,12 @@ type System struct {
 
 	// StatusBarStyles is true where the status item can show the styles of
 	// the status bar settings (the macOS menu bar). PanelBackground is
-	// true where the translucent/opaque choice applies. Widgets is true
-	// where home-screen widgets exist (macOS 14+).
+	// true where the translucent/opaque choice applies. PanelAnimation is
+	// true where the native panel can animate. Widgets is true where
+	// home-screen widgets exist (macOS 14+).
 	StatusBarStyles bool
 	PanelBackground bool
+	PanelAnimation  bool
 	Widgets         bool
 
 	// FontFamilies lists the installed font families the display font can
@@ -63,6 +65,7 @@ func DefaultSystem() System {
 		FontFamilies:       installedFontFamilies,
 		StatusBarStyles:    mac,
 		PanelBackground:    mac,
+		PanelAnimation:     mac,
 		Widgets:            mac && macOSAtLeast(14),
 	})
 }

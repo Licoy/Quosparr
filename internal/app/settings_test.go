@@ -71,6 +71,7 @@ func (f *fakeSys) system() System {
 		LoginSupported:     true,
 		StatusBarStyles:    true,
 		PanelBackground:    true,
+		PanelAnimation:     true,
 		OpenAtLogin:        func() (bool, error) { return f.login, nil },
 		SetOpenAtLogin: func(on bool) error {
 			f.loginSets = append(f.loginSets, on)
@@ -163,6 +164,7 @@ func TestSettingsEveryFieldHasItsControlSetter(t *testing.T) {
 		{"widget refresh", func(s *Settings) bool { return s.SetWidgetRefreshInterval(900) }, []string{"widgetRefreshIntervalSeconds"}},
 		{"cost range", func(s *Settings) bool { return s.SetAPICostRange(store.CostRangeThisMonth) }, []string{"apiCostSummaryRange"}},
 		{"panel height", func(s *Settings) bool { return s.SetMainPanelHeight(700) }, []string{"mainPanelHeight"}},
+		{"disable panel animation", func(s *Settings) bool { return s.SetDisableMainPanelAnimation(true) }, []string{"disableMainPanelAnimation"}},
 		{"module order", func(s *Settings) bool { return s.MoveMainPanelModule(store.ModuleAPICost, -1) }, []string{"mainPanelModuleOrder"}},
 		{"show quota", showFlip(store.ModuleQuota), []string{"showsQuotaSummary"}},
 		{"show reset credits", showFlip(store.ModuleResetCredits), []string{"showsResetCreditsSummary"}},
@@ -188,7 +190,7 @@ func TestSettingsEveryFieldHasItsControlSetter(t *testing.T) {
 		{"export status json", flip(func(p *store.Preferences) *bool { return &p.ExportsStatusJSON }, (*Settings).SetExportsStatusJSON), []string{"exportsStatusJSON"}},
 		{"account privacy", flip(func(p *store.Preferences) *bool { return &p.AccountPrivacyModeEnabled }, (*Settings).SetAccountPrivacyMode), []string{"accountPrivacyModeEnabled"}},
 	}
-	// The 36 stored fields are each reached by exactly one case above, the
+	// The 37 stored fields are each reached by exactly one case above, the
 	// login pair by one.
 	seen := map[string]bool{}
 	for _, c := range cases {
@@ -196,8 +198,8 @@ func TestSettingsEveryFieldHasItsControlSetter(t *testing.T) {
 			seen[f] = true
 		}
 	}
-	if len(seen) != 36 {
-		t.Errorf("cases cover %d preference fields, want 36", len(seen))
+	if len(seen) != 37 {
+		t.Errorf("cases cover %d preference fields, want 37", len(seen))
 	}
 
 	for _, c := range cases {

@@ -114,6 +114,64 @@ func TestSettingsViewExplainsUnsupportedPlatformSettings(t *testing.T) {
 	}
 }
 
+func TestSettingsViewSavesDisablePanelAnimation(t *testing.T) {
+	e := newEnv(t, nil)
+	_, tt := openSettingsView(t, e, tabAdvanced)
+	label := tx(e.s.L(), xDisablePanelAnimation)
+	row, ok := tt.Find(label)
+	if !ok {
+		t.Fatalf("missing %q", label)
+	}
+	click := func() { tt.ClickAt(settingsWidth-48, row.Y+row.H/2) }
+	if e.s.Prefs().DisableMainPanelAnimation {
+		t.Fatal("disabling panel animation should default off")
+	}
+	click()
+	e.settle()
+	if !e.stored().DisableMainPanelAnimation {
+		t.Fatal("disable-panel-animation choice was not saved")
+	}
+	reloaded := NewSettings(e.st, e.sys.system(), e.creds)
+	if err := reloaded.Load(); err != nil || !reloaded.Prefs().DisableMainPanelAnimation {
+		t.Fatalf("reload: disabled=%v err=%v", reloaded.Prefs().DisableMainPanelAnimation, err)
+	}
+	click()
+	e.settle()
+	if e.stored().DisableMainPanelAnimation {
+		t.Fatal("restored panel animation was not saved")
+	}
+}
+
+func TestSettingsViewDisablesPanelAnimationSettingWhenUnavailableOrReadOnly(t *testing.T) {
+	for _, tc := range []struct {
+		name string
+		seed func(*failDomain)
+		sys  System
+	}{
+		{"unsupported", nil, System{}},
+		{"read only", func(d *failDomain) { d.Put(store.KeyPreferences, []byte("{")) }, System{PanelAnimation: true}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			e := newEnv(t, tc.seed)
+			e.s = NewSettings(e.st, tc.sys, e.creds)
+			_, tt := openSettingsView(t, e, tabAdvanced)
+			label := tx(e.s.L(), xDisablePanelAnimation)
+			if tc.name == "unsupported" && !tt.HasText(tx(e.s.L(), xMacOnly)) {
+				t.Fatalf("missing macOS-only explanation: %q", tt.Texts())
+			}
+			row, ok := tt.Find(label)
+			if !ok {
+				t.Fatalf("missing %q", label)
+			}
+			tt.ClickAt(settingsWidth-48, row.Y+row.H/2)
+			e.settle()
+			if e.s.Prefs().DisableMainPanelAnimation || e.mem.Writes() != 0 {
+				t.Fatalf("disabled control changed preferences: disabled=%v writes=%d", e.s.Prefs().DisableMainPanelAnimation, e.mem.Writes())
+			}
+		})
+	}
+}
+
 func TestSettingsProxySaveButtonFollowsUnsavedChanges(t *testing.T) {
 	e := newEnv(t, nil)
 	u, tt := openSettingsView(t, e, tabGeneral)

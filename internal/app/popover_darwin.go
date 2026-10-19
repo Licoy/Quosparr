@@ -42,6 +42,7 @@ func observePanelPopover(a *App) func() {
 		// Dismissal follows the status toggle and outside-click monitors,
 		// including desktop clicks that do not deactivate an accessory app.
 		popover.Send(objc.RegisterName("setBehavior:"), int64(0)) // applicationDefined
+		popover.Send(objc.RegisterName("setAnimates:"), !a.settings.Prefs().DisableMainPanelAnimation)
 	})
 	token := center.Send(objc.RegisterName("addObserverForName:object:queue:usingBlock:"),
 		popoverWillShowNotification, objc.ID(0), objc.ID(0), block)

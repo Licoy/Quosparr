@@ -23,6 +23,8 @@ const (
 	xPanelHeight                  textKey = "panelHeight"
 	xPanelLoading                 textKey = "panelLoading"
 	xPanelHeightHint              textKey = "panelHeightDescription"
+	xDisablePanelAnimation        textKey = "disableMainPanelAnimation"
+	xDisablePanelAnimationHint    textKey = "disableMainPanelAnimationDescription"
 	xMacOnly                      textKey = "settingMacOnly"
 	xWidgetMac14                  textKey = "settingWidgetMac14"
 	xSettingsUnreadable           textKey = "settingsUnreadableTitle"
@@ -126,6 +128,18 @@ const (
 // Russian, French.
 var extraTexts = map[textKey][7]string{
 	xPanelLoading: {"Loading…", "加载中…", "載入中…", "불러오는 중…", "読み込み中…", "Загрузка…", "Chargement…"},
+	xDisablePanelAnimation: {
+		"Disable main panel animation", "关闭主弹窗动画效果", "關閉主彈窗動畫效果", "메인 패널 애니메이션 끄기", "メインポップアップのアニメーションをオフ", "Отключить анимацию главной панели", "Désactiver l’animation du panneau principal",
+	},
+	xDisablePanelAnimationHint: {
+		"Turn this on to open the main panel faster; takes effect the next time it opens",
+		"开启此项可更快打开主弹窗，下次打开时生效",
+		"開啟此項可更快開啟主彈窗，下次開啟時生效",
+		"켜면 메인 패널이 더 빠르게 열리며, 다음에 열 때 적용됩니다",
+		"オンにするとメインポップアップをすばやく開けます。次回開くときに反映されます",
+		"Включите, чтобы главная панель открывалась быстрее; изменение вступит в силу при следующем открытии",
+		"Activez cette option pour ouvrir le panneau principal plus vite ; elle prendra effet à la prochaine ouverture",
+	},
 	xThemeColor: {
 		"Theme color", "主题颜色", "主題顏色", "테마 색상", "テーマカラー", "Цвет темы", "Couleur du thème",
 	},

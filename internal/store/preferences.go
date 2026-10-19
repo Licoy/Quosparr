@@ -119,6 +119,9 @@ type Preferences struct {
 	// PanelProviders is Go-only: the providers the main panel offers, in
 	// Providers() order. Empty shows every provider and is not written.
 	PanelProviders []Provider `json:"panelProviders,omitempty"`
+	// DisableMainPanelAnimation is Go-only: skip the native macOS popover
+	// animation when it opens. It is omitted while off.
+	DisableMainPanelAnimation bool `json:"disableMainPanelAnimation,omitempty"`
 
 	// extra holds keys this version does not know, written back unchanged so
 	// that older and newer apps sharing the domain do not erase each other's

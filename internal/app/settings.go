@@ -437,6 +437,11 @@ func (s *Settings) SetMainPanelHeight(h float64) bool {
 	return s.Update(func(p *store.Preferences) { p.MainPanelHeight = h })
 }
 
+// SetDisableMainPanelAnimation skips or restores the native panel animation.
+func (s *Settings) SetDisableMainPanelAnimation(on bool) bool {
+	return s.Update(func(p *store.Preferences) { p.DisableMainPanelAnimation = on })
+}
+
 // MoveMainPanelModule moves a module up (-1) or down (+1) in the panel.
 func (s *Settings) MoveMainPanelModule(m store.Module, offset int) bool {
 	return s.Update(func(p *store.Preferences) { p.MoveMainPanelModule(m, offset) })

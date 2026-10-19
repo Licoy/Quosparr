@@ -95,7 +95,7 @@ func TestThirtyFourFieldsAllDifferFromDefaults(t *testing.T) {
 	typ := d.Type()
 	count := 0
 	for i := 0; i < typ.NumField(); i++ {
-		if typ.Field(i).Tag.Get("json") == "" || typ.Field(i).Name == "ThemeColor" || typ.Field(i).Name == "FontFamily" || typ.Field(i).Name == "QuotaResetTimeFormat" || typ.Field(i).Name == "ProxyTestURL" || typ.Field(i).Name == "ShowsSpeedAnalysis" || typ.Field(i).Name == "ShowsCreditsBalance" || typ.Field(i).Name == "ShowsSkills" || typ.Field(i).Name == "StatusBarProviders" || typ.Field(i).Name == "FloatingWindow" || typ.Field(i).Name == "PanelProviders" {
+		if typ.Field(i).Tag.Get("json") == "" || typ.Field(i).Name == "ThemeColor" || typ.Field(i).Name == "FontFamily" || typ.Field(i).Name == "QuotaResetTimeFormat" || typ.Field(i).Name == "ProxyTestURL" || typ.Field(i).Name == "ShowsSpeedAnalysis" || typ.Field(i).Name == "ShowsCreditsBalance" || typ.Field(i).Name == "ShowsSkills" || typ.Field(i).Name == "StatusBarProviders" || typ.Field(i).Name == "FloatingWindow" || typ.Field(i).Name == "PanelProviders" || typ.Field(i).Name == "DisableMainPanelAnimation" {
 			continue // the unexported extra map, and the keys only Go writes
 		}
 		count++
@@ -159,6 +159,42 @@ func TestOldPreferencesMissingKeysUseDefaults(t *testing.T) {
 	want.Language, want.Appearance = LanguageEnglish, AppearanceDark
 	if !reflect.DeepEqual(p, want) {
 		t.Errorf("got %+v, want %+v", p, want)
+	}
+}
+
+func TestDisableMainPanelAnimationPreference(t *testing.T) {
+	for name, doc := range map[string]string{
+		"missing": `{}`,
+		"null":    `{"disableMainPanelAnimation":null}`,
+		"false":   `{"disableMainPanelAnimation":false}`,
+	} {
+		if got := mustDecode(t, doc).DisableMainPanelAnimation; got {
+			t.Errorf("%s decoded to true", name)
+		}
+	}
+	p := mustDecode(t, `{"disableMainPanelAnimation":true}`)
+	if !p.DisableMainPanelAnimation {
+		t.Fatal("explicit true was not decoded")
+	}
+	enc, err := EncodePreferences(p)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(enc), `"disableMainPanelAnimation":true`) {
+		t.Fatalf("true was not encoded: %s", enc)
+	}
+	p.DisableMainPanelAnimation = false
+	enc, err = EncodePreferences(p)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(string(enc), "disableMainPanelAnimation") {
+		t.Fatalf("false was not omitted: %s", enc)
+	}
+	for _, bad := range []string{`0`, `"true"`, `[]`, `{}`} {
+		if _, err := DecodePreferences([]byte(`{"disableMainPanelAnimation":` + bad + `}`)); !errors.Is(err, ErrCorrupt) {
+			t.Errorf("value %s: err = %v, want ErrCorrupt", bad, err)
+		}
 	}
 }
 
