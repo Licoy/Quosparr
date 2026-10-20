@@ -71,7 +71,7 @@ type Alert struct {
 
 // Window is a quota window as far as alerts care.
 type Window struct {
-	UsedPercent int
+	UsedPercent float64
 	ResetsAt    *time.Time
 }
 
@@ -88,13 +88,10 @@ type QuotaInput struct {
 	Additional []NamedWindow
 }
 
-// QuotaThresholds are the used-percent steps that alert.
-var QuotaThresholds = []int{80, 95, 100}
-
 // QuotaAlerts returns one alert per window at or over a threshold, using the
 // highest threshold reached. The ID repeats until the window resets, so a
 // store keeps it from alerting again within the same window.
-func QuotaAlerts(q QuotaInput) []Alert {
+func QuotaAlerts(q QuotaInput, thresholds []int) []Alert {
 	rows := []NamedWindow{{"5-hour", q.Primary}}
 	if q.Secondary != nil {
 		rows = append(rows, NamedWindow{"Weekly", *q.Secondary})
@@ -102,13 +99,16 @@ func QuotaAlerts(q QuotaInput) []Alert {
 	rows = append(rows, q.Additional...)
 	var out []Alert
 	for _, row := range rows {
-		threshold := 0
-		for _, t := range QuotaThresholds {
-			if row.UsedPercent >= t {
+		threshold := -1
+		if math.IsNaN(row.UsedPercent) || math.IsInf(row.UsedPercent, 0) || row.UsedPercent < 0 {
+			continue
+		}
+		for _, t := range thresholds {
+			if t >= 0 && t <= 100 && row.UsedPercent >= float64(t) && t > threshold {
 				threshold = t
 			}
 		}
-		if threshold == 0 {
+		if threshold < 0 {
 			continue
 		}
 		var resetID int64

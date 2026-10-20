@@ -778,8 +778,8 @@ func TestQuotaAndCreditAlertsAreDedupedAcrossRefreshes(t *testing.T) {
 	if got := r.alertCount(); got != 2 {
 		t.Errorf("second refresh repeated alerts: %d", got)
 	}
-	if data, err := os.ReadFile(path); err != nil || !strings.Contains(string(data), "quota:") {
-		t.Errorf("alerts.json: %v %q", err, data)
+	if data, err := os.ReadFile(alerts.QuotaPath(path)); err != nil || !strings.Contains(string(data), "highest") {
+		t.Errorf("quota alert state: %v %q", err, data)
 	}
 	// A new service sharing the file does not repeat them either.
 	s2, r2 := newService(t, f, func(o *Options) {

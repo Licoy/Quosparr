@@ -86,10 +86,13 @@ type Preferences struct {
 	LaunchAtLoginEnabled                      bool       `json:"launchAtLoginEnabled"`
 	LaunchAtLoginInitialized                  bool       `json:"launchAtLoginInitialized"`
 	QuotaAlertsEnabled                        bool       `json:"quotaAlertsEnabled"`
-	ResetCreditAlertsEnabled                  bool       `json:"resetCreditAlertsEnabled"`
-	RateLimitResetTodayAlertsEnabled          bool       `json:"rateLimitResetTodayAlertsEnabled"`
-	ExportsStatusJSON                         bool       `json:"exportsStatusJSON"`
-	AccountPrivacyModeEnabled                 bool       `json:"accountPrivacyModeEnabled"`
+	// QuotaAlertThresholds contains used-quota percentages; default values
+	// are omitted from the stored document for Swift compatibility.
+	QuotaAlertThresholds             []int `json:"quotaAlertThresholds"`
+	ResetCreditAlertsEnabled         bool  `json:"resetCreditAlertsEnabled"`
+	RateLimitResetTodayAlertsEnabled bool  `json:"rateLimitResetTodayAlertsEnabled"`
+	ExportsStatusJSON                bool  `json:"exportsStatusJSON"`
+	AccountPrivacyModeEnabled        bool  `json:"accountPrivacyModeEnabled"`
 	// ThemeColor is the accent of the app's windows as "#RRGGBB", or empty
 	// for the brand brown. Only the Go app knows the key, so it is omitted
 	// while empty and an unreadable value falls back to the brand.
@@ -170,6 +173,7 @@ func DefaultPreferences() Preferences {
 		LaunchAtLoginEnabled:                      true,
 		LaunchAtLoginInitialized:                  false,
 		QuotaAlertsEnabled:                        false,
+		QuotaAlertThresholds:                      DefaultQuotaAlertThresholds(),
 		ResetCreditAlertsEnabled:                  false,
 		RateLimitResetTodayAlertsEnabled:          true,
 		ExportsStatusJSON:                         false,
@@ -183,6 +187,7 @@ func (p Preferences) Clone() Preferences {
 	p.StatusBarProviders = slices.Clone(p.StatusBarProviders)
 	p.FloatingWindow = p.FloatingWindow.clone()
 	p.PanelProviders = slices.Clone(p.PanelProviders)
+	p.QuotaAlertThresholds = slices.Clone(p.QuotaAlertThresholds)
 	p.extra = maps.Clone(p.extra)
 	return p
 }
@@ -226,7 +231,8 @@ func canonicalProviders(in []Provider, limit int) []Provider {
 }
 
 // Normalize applies the clamping and module-order repair the Swift initializer
-// and decoder apply. It does not touch enum fields; see Validate.
+// and decoder apply. It does not touch enum fields; see Validate. Quota alert
+// thresholds are sorted and deduplicated; invalid lists stay for Validate.
 func (p *Preferences) Normalize() {
 	p.WidgetRefreshIntervalSeconds = ClampWidgetRefreshInterval(p.WidgetRefreshIntervalSeconds)
 	p.MainPanelHeight = ClampMainPanelHeight(p.MainPanelHeight)
@@ -242,6 +248,11 @@ func (p *Preferences) Normalize() {
 	p.normalizeStatusBarProviders()
 	p.FloatingWindow.normalize()
 	p.normalizePanelProviders()
+	if p.QuotaAlertThresholds == nil {
+		p.QuotaAlertThresholds = DefaultQuotaAlertThresholds()
+	} else if thresholds, err := NormalizeQuotaAlertThresholds(p.QuotaAlertThresholds); err == nil {
+		p.QuotaAlertThresholds = thresholds
+	}
 }
 
 // PanelSelection is the providers the main panel offers: the chosen ones,

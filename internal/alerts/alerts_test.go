@@ -13,6 +13,8 @@ import (
 	"github.com/licoy/quosparr/internal/export/swiftjson"
 )
 
+var legacyQuotaThresholds = []int{80, 95, 100}
+
 func at(t testing.TB, s string) time.Time {
 	t.Helper()
 	v, err := time.Parse(time.RFC3339, s)
@@ -243,7 +245,7 @@ func TestQuotaAlertsUseHighestThreshold(t *testing.T) {
 			{"GPT-5.3-Codex-Spark", Window{96, nil}},
 			{"Other", Window{79, &reset}},
 		},
-	})
+	}, legacyQuotaThresholds)
 	var ids []string
 	for _, a := range got {
 		ids = append(ids, a.ID)
@@ -319,7 +321,7 @@ func TestStoreOnlyReturnsUnseen(t *testing.T) {
 	reset := time.Unix(2_000, 0)
 	expiry := time.Unix(1_000, 0).Add(2 * 24 * time.Hour)
 	alerts := append(
-		QuotaAlerts(QuotaInput{Primary: Window{96, &reset}}),
+		QuotaAlerts(QuotaInput{Primary: Window{96, &reset}}, legacyQuotaThresholds),
 		ResetCreditAlerts([]ResetCredit{{ID: ptr("credit-1"), Status: "available", ExpiresAt: &expiry, RemainingSeconds: 2 * 86400}})...)
 	first, err := store.Unseen(alerts)
 	if err != nil || len(first) != 2 {
@@ -454,7 +456,7 @@ func TestDecisionsMatchSwift(t *testing.T) {
 			{"GPT-5.3-Codex-Spark", Window{96, nil}},
 			{"Other", Window{79, &reset}},
 		},
-	})
+	}, legacyQuotaThresholds)
 	day := 24 * time.Hour
 	exp := func(d time.Duration) *time.Time { return ptr(now.Add(d)) }
 	decisions["resetCredit"] = ResetCreditAlerts([]ResetCredit{

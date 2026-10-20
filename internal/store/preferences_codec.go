@@ -72,6 +72,7 @@ func readPreferences(r *reader) Preferences {
 	p.LaunchAtLoginEnabled = r.bool("launchAtLoginEnabled", p.LaunchAtLoginEnabled)
 	p.LaunchAtLoginInitialized = r.bool("launchAtLoginInitialized", p.LaunchAtLoginInitialized)
 	p.QuotaAlertsEnabled = r.bool("quotaAlertsEnabled", p.QuotaAlertsEnabled)
+	p.QuotaAlertThresholds = readQuotaAlertThresholds(r)
 	p.ResetCreditAlertsEnabled = r.bool("resetCreditAlertsEnabled", p.ResetCreditAlertsEnabled)
 	p.RateLimitResetTodayAlertsEnabled = r.bool("rateLimitResetTodayAlertsEnabled", p.RateLimitResetTodayAlertsEnabled)
 	p.ExportsStatusJSON = r.bool("exportsStatusJSON", p.ExportsStatusJSON)
@@ -90,9 +91,8 @@ func readPreferences(r *reader) Preferences {
 	return p
 }
 
-// Validate reports the first enum field whose value the Swift app could not
-// decode. EncodePreferences refuses such values: writing one would make the
-// Swift app reset every setting.
+// Validate reports invalid enums and quota alert thresholds. EncodePreferences
+// refuses these values rather than silently replacing them with defaults.
 func (p Preferences) Validate() error {
 	checks := []struct {
 		key string
@@ -116,6 +116,9 @@ func (p Preferences) Validate() error {
 			return fmt.Errorf("preferences: invalid value for %q", c.key)
 		}
 	}
+	if _, err := NormalizeQuotaAlertThresholds(p.QuotaAlertThresholds); err != nil {
+		return fmt.Errorf("preferences: quotaAlertThresholds: %w", err)
+	}
 	return nil
 }
 
@@ -138,6 +141,9 @@ func EncodePreferences(p Preferences) ([]byte, error) {
 // the one the Swift app wrote: showsSpeedAnalysis is written only when off, and
 // the speedAnalysis module only where reading would not put it back anyway.
 func (p Preferences) omitGoOnlyDefaults(m fields) {
+	if slices.Equal(p.QuotaAlertThresholds, DefaultQuotaAlertThresholds()) {
+		delete(m, "quotaAlertThresholds")
+	}
 	if p.ShowsSpeedAnalysis {
 		delete(m, "showsSpeedAnalysis")
 	}

@@ -729,7 +729,7 @@ func (s *Service) scanAfterQuota(ctx context.Context, auth codex.Auth, gen uint6
 // ---- quota, credits, estimate ---------------------------------------------
 
 func toAlertWindow(w codexapi.RateWindow) alerts.Window {
-	out := alerts.Window{UsedPercent: w.UsedPercent}
+	out := alerts.Window{UsedPercent: w.UsedPercentExact}
 	if !w.ResetsAt.IsZero() {
 		t := w.ResetsAt
 		out.ResetsAt = &t
@@ -809,15 +809,13 @@ func (s *Service) fetchQuotaStep(ctx context.Context, auth codex.Auth, gen uint6
 		s.fail(&auth, gen, err, func() { s.quotaErr = s.errTextLocked(err) })
 		return q, err
 	}
-	var enabled bool
 	ok := s.apply(auth, gen, func() {
 		s.quota, s.quotaErr, s.statusFail, s.loggedOut = &q, "", false, false
-		enabled = s.prefs.QuotaAlertsEnabled
 	})
 	if !ok {
 		return q, context.Canceled
 	}
-	s.deliver(alerts.QuotaAlerts(quotaAlertInput(q)), enabled)
+	s.deliverQuota(auth, gen, q)
 	return q, nil
 }
 
@@ -990,17 +988,15 @@ func (s *Service) refreshQuotaNow(ctx context.Context) {
 		s.leaveAccount(busyEpoch, SectionQuota)
 		return
 	}
-	var enabled bool
 	ok := s.apply(auth, gen, func() {
 		s.quota, s.quotaErr, s.statusFail, s.loggedOut, s.lastErr = &q, "", false, false, ""
-		enabled = s.prefs.QuotaAlertsEnabled
 		s.exportStatusLocked()
 	})
 	s.leaveAccount(busyEpoch, SectionQuota)
 	if !ok {
 		return
 	}
-	s.deliver(alerts.QuotaAlerts(quotaAlertInput(q)), enabled)
+	s.deliverQuota(auth, gen, q)
 	s.mu.Lock()
 	want := s.prefs.ShowsQuotaEstimateSummary && s.panelLocalLocked(store.ProviderCodex) && s.quota != nil && s.auth != nil
 	s.mu.Unlock()

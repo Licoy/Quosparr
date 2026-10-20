@@ -432,4 +432,5 @@ func (u *settingsUI) notificationsGroup(c *ui.Context) {
 			}
 		})
 	})
+	u.quotaThresholdEditor(c)
 }

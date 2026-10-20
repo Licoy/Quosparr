@@ -161,7 +161,7 @@ func TestSampleTranslationsAreByteExact(t *testing.T) {
 		{TraditionalChinese, KeyNetworkProxy, "網路"},
 		{French, KeyNetworkProxyUsername, "Nom d’utilisateur"},
 		{English, KeyNetworkProxyTesting, "Testing…"},
-		{SimplifiedChinese, KeyQuotaAlertsDescription, "用量达到 80%、95% 或 100% 时提醒。"},
+		{SimplifiedChinese, KeyQuotaAlertsDescription, "Codex 已用配额达到设定阈值时提醒"},
 		{Russian, KeyAuto, tables[Russian][KeyAuto]},
 	}
 	for _, c := range cases {
