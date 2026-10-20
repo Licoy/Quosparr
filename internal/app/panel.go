@@ -15,6 +15,12 @@ import (
 // drops the footer.
 func (a *App) panelView(c *ui.Context) {
 	prefs := a.settings.Prefs()
+	if !prefs.ShowsCacheAnalysis && (a.panelState.cache.summary.cancel != nil || a.panelState.cache.detail.cancel != nil || a.panelState.detail == store.ModuleCacheAnalysis) {
+		a.panelState.cache.cancelAll()
+		if a.panelState.detail == store.ModuleCacheAnalysis {
+			a.panelState.detail = ""
+		}
+	}
 	a.syncPanelContext(prefs)
 	t := applyPanelTheme(c, prefs.MainPanelBackgroundStyle, prefs.ThemeColor, prefs.FontFamily)
 	l := a.L()
@@ -22,7 +28,11 @@ func (a *App) panelView(c *ui.Context) {
 	acts := a.PanelActions()
 	snap.Provider = prefs.SelectedProvider
 	a.syncPanelAccount(snap, prefs)
+	if a.panel != nil && prefs.ShowsCacheAnalysis {
+		a.syncCacheSummary(acts)
+	}
 	a.panelState.setChartStyle = func(s store.ChartStyle) { a.settings.SetTokenUsageChartStyle(s) }
+	a.panelState.cacheOwner = a
 	a.panelState.setResetTimeFormat = func(f store.ResetTimeFormat) { a.settings.SetQuotaResetTimeFormat(f) }
 	a.panelState.startReaction = a.startReaction
 	a.panelState.syncSkills = a.syncSkills

@@ -55,6 +55,8 @@ func panelModuleOn(m store.Module, p store.Preferences, grok bool) bool {
 		return p.ShowsQuotaEstimateSummary
 	case store.ModuleResetCredits:
 		return p.ShowsResetCreditsSummary
+	case store.ModuleCacheAnalysis:
+		return p.ShowsCacheAnalysis
 	case store.ModuleAPICost:
 		return p.ShowsCostSummary
 	case store.ModuleSessionRepair:
@@ -91,6 +93,8 @@ func panelModule(c *ui.Context, l l10n.Localizer, m store.Module, prefs store.Pr
 		panelEstimate(c, l, snap, acts, first, state)
 	case store.ModuleResetCredits:
 		panelCredits(c, l, snap, acts, first, state)
+	case store.ModuleCacheAnalysis:
+		panelCache(c, l, snap, acts, first, state)
 	case store.ModuleAPICost:
 		panelCost(c, l, snap, acts, first, state)
 	case store.ModuleSessionRepair:

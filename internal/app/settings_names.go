@@ -147,6 +147,8 @@ func moduleTexts(l l10n.Localizer, m store.Module) (title, subtitle string) {
 		return tx(l, xSpeedTitle), tx(l, xSpeedModuleDescription)
 	case store.ModuleSkills:
 		return tx(l, xSkillsTitle), tx(l, xSkillsModuleDescription)
+	case store.ModuleCacheAnalysis:
+		return tx(l, xCacheTitle), tx(l, xCacheModuleDescription)
 	}
 	info := moduleInfoOf(m)
 	return l.Text(info.title), l.Text(info.subtitle)
@@ -168,6 +170,8 @@ func moduleInfoOf(m store.Module) moduleInfo {
 		return moduleInfo{l10n.KeyQuotaEstimate, l10n.KeyModuleQuotaEstimateDescription, false, icFunction, true, false}
 	case store.ModuleResetCredits:
 		return moduleInfo{l10n.KeyResetCredits, l10n.KeyModuleResetCreditsDescription, true, icRefresh, false, false}
+	case store.ModuleCacheAnalysis:
+		return moduleInfo{"", "", true, icChart, false, false}
 	case store.ModuleAPICost:
 		return moduleInfo{l10n.KeyApiCost, l10n.KeyModuleAPICostDescription, true, icCoins, true, false}
 	case store.ModuleSessionRepair:

@@ -500,6 +500,8 @@ func moduleShown(p *store.Preferences, m store.Module) *bool {
 		return &p.ShowsQuotaEstimateSummary
 	case store.ModuleResetCredits:
 		return &p.ShowsResetCreditsSummary
+	case store.ModuleCacheAnalysis:
+		return &p.ShowsCacheAnalysis
 	case store.ModuleAPICost:
 		return &p.ShowsCostSummary
 	case store.ModuleSessionRepair:

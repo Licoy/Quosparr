@@ -22,16 +22,20 @@ import (
 const maxJSONLLine = 8 << 20
 
 type usageRecord struct {
-	sessionID string
-	at        time.Time
-	hasTime   bool
-	firstAt   time.Time
-	hasFirst  bool
-	parent    time.Time
-	hasParent bool
-	model     string
-	effort    string
-	parts     TokenParts
+	sessionID    string
+	at           time.Time
+	hasTime      bool
+	firstAt      time.Time
+	hasFirst     bool
+	parent       time.Time
+	hasParent    bool
+	model        string
+	effort       string
+	parts        TokenParts
+	cacheInput   int64
+	cacheRead    int64
+	cacheKnown   bool
+	cacheInvalid bool
 	// tier is the usage speed field: fast, standard, or unknown when absent.
 	tier speed.Tier
 	geo  string
@@ -318,14 +322,34 @@ func (sink *scanSink) consume(line []byte, mtime time.Time, parent *time.Time, h
 		sink.bad++
 		return
 	}
+	cacheInput, cacheRead, cacheKnown, cacheInvalid := cacheSample(row.Message.Usage, parts)
 	rec := usageRecord{
 		sessionID: sessionID, at: at, hasTime: hasTime, firstAt: at, hasFirst: hasTime,
 		parent: *parent, hasParent: *hasParent,
 		model: NormalizeModel(row.Message.Model), effort: strings.TrimSpace(row.Effort),
-		parts: parts, tier: speedTier(row.Message.Usage.Speed), geo: geoOf(row),
+		parts: parts, cacheInput: cacheInput, cacheRead: cacheRead, cacheKnown: cacheKnown, cacheInvalid: cacheInvalid,
+		tier: speedTier(row.Message.Usage.Speed), geo: geoOf(row),
 		toolUse: strings.TrimSpace(row.Message.StopReason) == "tool_use" || bytes.Contains(row.Message.Content, []byte(`"type":"tool_use"`)),
 	}
 	sink.keep(rec, requestOf(row))
+}
+
+func cacheSample(u *rawUsage, parts TokenParts) (int64, int64, bool, bool) {
+	if u.Input == nil || u.CacheRead == nil {
+		return 0, 0, false, false
+	}
+	writeKnown := u.CacheCreate != nil
+	if u.CacheCreation != nil && (u.CacheCreation.Five != nil || u.CacheCreation.Hour != nil) {
+		writeKnown = u.CacheCreation.Five != nil && u.CacheCreation.Hour != nil
+	}
+	if !writeKnown {
+		return 0, 0, false, false
+	}
+	if parts.Input > math.MaxInt64-parts.CacheWrite5m || parts.Input+parts.CacheWrite5m > math.MaxInt64-parts.CacheWrite1h ||
+		parts.Input+parts.CacheWrite5m+parts.CacheWrite1h > math.MaxInt64-parts.CacheRead {
+		return 0, 0, false, true
+	}
+	return parts.Input + parts.CacheWrite5m + parts.CacheWrite1h + parts.CacheRead, parts.CacheRead, true, false
 }
 
 // noteContext records the title and working directory. Title lines carry no

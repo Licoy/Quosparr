@@ -113,6 +113,7 @@ func (rt *liveApp) queryClaudeDetailCost(ctx context.Context, q CostQuery, now t
 
 func installDetailActions(rt *liveApp, a *PanelActions) {
 	a.QueryCost = rt.queryDetailCost
+	a.QueryCache = rt.queryCache
 	client := &resettoday.ReactionClient{Store: resettoday.DefaultReactionStore()}
 	a.QueryReaction = client.Fetch
 	a.React = client.Click

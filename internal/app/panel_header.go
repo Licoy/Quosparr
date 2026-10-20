@@ -168,6 +168,12 @@ func panelHeaderButtons(c *ui.Context, a *App, l l10n.Localizer, prefs store.Pre
 // cost query or reaction when a page that shows them is open.
 func refreshEverything(a *App, acts PanelActions) {
 	acts.Refresh()
+	if a.settings.Prefs().ShowsCacheAnalysis && acts.QueryCache != nil {
+		a.startCacheSummary(acts)
+		if a.panelState.detail == store.ModuleCacheAnalysis && !a.panelState.cache.detail.isToday() {
+			a.startCacheDetail(a.panelState.cache.detail.queryValue(), acts)
+		}
+	}
 	if a.panelState.detail == store.ModuleAPICost && a.panelState.cost.query != nil {
 		a.startCostQuery(*a.panelState.cost.query, acts)
 	}

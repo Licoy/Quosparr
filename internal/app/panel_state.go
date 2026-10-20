@@ -8,6 +8,7 @@ import (
 
 // panelState is ephemeral view state, owned by App on the UI thread.
 type panelState struct {
+	cacheOwner        *App
 	provider          store.Provider
 	detail            store.Module
 	scrollDetail      store.Module
@@ -17,6 +18,7 @@ type panelState struct {
 	account           string
 	accountGeneration uint64
 	cost              panelCostState
+	cache             panelCacheState
 	accounts          accountsState
 	reaction          panelReactionState
 	skills            panelSkillsState

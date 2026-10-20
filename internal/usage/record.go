@@ -18,13 +18,17 @@ type logRecord struct {
 	// ContextModel is the model that applies to the lines after this one.
 	ContextModel *string
 	SessionCWD   *string
+	SessionID    *string
 	Usage        *TokenUsage
+	CacheKnown   bool
+	TotalUsage   *usageFields
 	// CountsAsTurn is true for a Codex task_complete event, the user-visible
 	// turn.
 	CountsAsTurn bool
 }
 
 var errMalformed = errors.New("usage: malformed log line")
+var errInvalidCacheCounters = errors.New("usage: invalid cache-hit token counters")
 
 // maxJSONDepth is the deepest nesting the system decoder accepts, top-level
 // object included.
@@ -32,7 +36,8 @@ const maxJSONDepth = 512
 
 // recordParser decodes log lines. It is not safe for concurrent use.
 type recordParser struct {
-	loc *time.Location
+	loc         *time.Location
+	cacheFields bool
 }
 
 func newRecordParser(loc *time.Location) *recordParser {
@@ -62,7 +67,7 @@ func (p *recordParser) parse(line []byte) (logRecord, error) {
 	var (
 		timestamp   *string
 		typ         *string
-		payload     payloadFields
+		payload     = payloadFields{cacheFields: p.cacheFields}
 		turnContext turnContextFields
 	)
 	err := d.object(func(key string, first bool) error {
@@ -93,11 +98,17 @@ func (p *recordParser) parse(line []byte) (logRecord, error) {
 	if payload.usage != nil {
 		u, err := payload.usage.decoded()
 		if err != nil {
+			if p.cacheFields {
+				return logRecord{}, errInvalidCacheCounters
+			}
 			return logRecord{}, err
 		}
 		usage = &u
 	}
-	rec := logRecord{Timestamp: distantPast, Usage: usage}
+	rec := logRecord{Timestamp: distantPast, Usage: usage, TotalUsage: payload.totalUsage}
+	if payload.usage != nil {
+		rec.CacheKnown = payload.usage.input != nil && payload.usage.cached != nil
+	}
 	if timestamp != nil {
 		if ts, ok := parseTimestamp(*timestamp); ok {
 			rec.Timestamp = ts
@@ -111,6 +122,9 @@ func (p *recordParser) parse(line []byte) (logRecord, error) {
 		rec.ContextModel = turnContext.model
 	}
 	rec.SessionCWD = firstString(payload.cwd, turnContext.cwd)
+	if typ != nil && *typ == "session_meta" {
+		rec.SessionID = firstString(payload.id, payload.sessionID)
+	}
 	rec.CountsAsTurn = payload.typ != nil && *payload.typ == "task_complete"
 	return rec, nil
 }
@@ -138,8 +152,10 @@ func (t *turnContextFields) field(d *jsonDec, key string, first bool) error {
 }
 
 type payloadFields struct {
-	typ, model, cwd *string
-	usage           *usageFields
+	typ, model, cwd, id, sessionID *string
+	usage                          *usageFields
+	totalUsage                     *usageFields
+	cacheFields                    bool
 }
 
 func (p *payloadFields) field(d *jsonDec, key string, first bool) error {
@@ -153,39 +169,70 @@ func (p *payloadFields) field(d *jsonDec, key string, first bool) error {
 		return d.optString(&p.model)
 	case "cwd":
 		return d.optString(&p.cwd)
+	case "id":
+		if !p.cacheFields {
+			return d.skip()
+		}
+		return d.optString(&p.id)
+	case "session_id":
+		if !p.cacheFields {
+			return d.skip()
+		}
+		return d.optString(&p.sessionID)
 	case "info":
 		return d.optObject(func(k string, first bool) error {
-			if !first || k != "last_token_usage" {
+			if !first {
+				return d.skip()
+			}
+			var target **usageFields
+			switch k {
+			case "last_token_usage":
+				target = &p.usage
+			case "total_token_usage":
+				if !p.cacheFields {
+					return d.skip()
+				}
+				target = &p.totalUsage
+			default:
 				return d.skip()
 			}
 			return d.optObject(func(k string, first bool) error {
-				if p.usage == nil {
-					p.usage = &usageFields{}
+				if *target == nil {
+					*target = &usageFields{cacheFields: p.cacheFields}
 				}
-				return p.usage.field(d, k, first)
+				return (*target).field(d, k, first)
 			})
 		})
 	}
 	return d.skip()
 }
 
-type usageFields struct{ input, cached, output, reasoning *int64 }
+type usageFields struct {
+	input, cached, output, reasoning *int64
+	cacheFields                      bool
+}
 
 func (u *usageFields) field(d *jsonDec, key string, first bool) error {
 	if !first {
 		return d.skip()
 	}
+	var err error
 	switch key {
 	case "input_tokens":
-		return d.optInt(&u.input)
+		err = d.optInt(&u.input)
 	case "cached_input_tokens":
-		return d.optInt(&u.cached)
+		err = d.optInt(&u.cached)
 	case "output_tokens":
-		return d.optInt(&u.output)
+		err = d.optInt(&u.output)
 	case "reasoning_output_tokens":
-		return d.optInt(&u.reasoning)
+		err = d.optInt(&u.reasoning)
+	default:
+		return d.skip()
 	}
-	return d.skip()
+	if err != nil && u.cacheFields {
+		return errInvalidCacheCounters
+	}
+	return err
 }
 
 func orZero(v *int64) int64 {

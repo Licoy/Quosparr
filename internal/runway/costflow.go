@@ -18,6 +18,10 @@ import (
 // errHeatmap marks a handled profile failure inside the heatmap step.
 var errHeatmap = errors.New("runway: token heatmap unavailable")
 
+// ErrCycleUnavailable means the shown subscription did not report a usable
+// billing window. Callers must not invent one for range-specific analysis.
+var ErrCycleUnavailable = errors.New("runway: billing cycle unavailable")
+
 func decimalFloat(d decimal.Decimal) float64 {
 	f, _ := strconv.ParseFloat(d.String(), 64)
 	return f
@@ -622,9 +626,35 @@ func (s *Service) ResolvePreviousCycleRange(ctx context.Context) (usage.CostRang
 	return usage.PreviousCycle(full, s.opts.Location), nil
 }
 
+// ResolveCycleRange returns the reported current cycle so far, or the full
+// preceding cycle. API-key accounts use their established calendar-month
+// cycle. Unlike cost display refreshes, this never invents a seven-day range.
+func (s *Service) ResolveCycleRange(ctx context.Context, previous bool) (usage.CostRange, error) {
+	full, elapsed, err := s.resolveCycleWindows(ctx, s.now(), false)
+	if err != nil {
+		return usage.CostRange{}, err
+	}
+	if previous {
+		s.mu.Lock()
+		apiKey := s.keyModeLocked()
+		s.mu.Unlock()
+		if apiKey {
+			start := full.Start.In(s.opts.Location)
+			previousStart := start.AddDate(0, -1, 0)
+			return usage.RangeForWindow(usage.Window{Start: previousStart, End: start}, s.opts.Location), nil
+		}
+		return usage.PreviousCycle(full, s.opts.Location), nil
+	}
+	return usage.RangeForWindow(elapsed, s.opts.Location), nil
+}
+
 // ensureCycleWindows returns the quota cycle, fetching the quota when needed
 // and falling back to the last 7 days when the quota has no cycle.
 func (s *Service) ensureCycleWindows(ctx context.Context, now time.Time) (full, elapsed usage.Window, err error) {
+	return s.resolveCycleWindows(ctx, now, true)
+}
+
+func (s *Service) resolveCycleWindows(ctx context.Context, now time.Time, allowFallback bool) (full, elapsed usage.Window, err error) {
 	s.mu.Lock()
 	if s.keyModeLocked() {
 		f, e := monthWindows(now, s.opts.Location)
@@ -665,6 +695,9 @@ func (s *Service) ensureCycleWindows(ctx context.Context, now time.Time) (full, 
 	}
 	f, e, ok := cycleWindows(q, now)
 	if !ok {
+		if !allowFallback {
+			return usage.Window{}, usage.Window{}, ErrCycleUnavailable
+		}
 		f = usage.Window{Start: now.Add(-7 * 24 * time.Hour), End: now}
 		e = f
 	}

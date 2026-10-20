@@ -32,6 +32,7 @@ func (a *App) cancelPanelDetails() {
 		s.reaction.cancel()
 	}
 	s.cost = panelCostState{generation: s.cost.generation + 1}
+	s.cache.cancelAll()
 	s.reaction = panelReactionState{generation: s.reaction.generation + 1}
 	s.skills.closeItem() // the scan stays cached; it covers every provider
 }
@@ -123,6 +124,12 @@ func detailErrorText(l l10n.Localizer, err error) string {
 		return tx(l, xDetailUnavailable)
 	case errors.Is(err, errGrokCycleUnavailable):
 		return tx(l, xGrokCycleUnavailable)
+	case errors.Is(err, runway.ErrCycleUnavailable):
+		return tx(l, xCacheCodexCycleMissing)
+	case errors.Is(err, errClaudeCycleUnavailable):
+		return tx(l, xCacheClaudeCycleMissing)
+	case errors.Is(err, errInvalidCacheProvider):
+		return tx(l, xCacheProviderUnavailable)
 	case errors.Is(err, errInvalidCostRange):
 		return l.Text(l10n.KeyInvalidDateRange)
 	default:

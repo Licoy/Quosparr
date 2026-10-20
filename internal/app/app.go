@@ -13,6 +13,7 @@ import (
 
 	"github.com/egoist/mygo"
 	"github.com/egoist/mygo/ui"
+	"github.com/licoy/quosparr/internal/cachehit"
 	"github.com/licoy/quosparr/internal/l10n"
 	"github.com/licoy/quosparr/internal/resettoday"
 	"github.com/licoy/quosparr/internal/runway"
@@ -34,6 +35,7 @@ type PanelActions struct {
 	// local data loads only while it shows.
 	PanelShown    func(open bool)
 	QueryCost     func(context.Context, store.Provider, CostQuery) (usage.Summary, error)
+	QueryCache    func(context.Context, store.Provider, CostQuery) (cachehit.Report, error)
 	QueryReaction func(context.Context) (resettoday.ReactionSnapshot, error)
 	React         func(context.Context) (resettoday.ReactionPostResult, error)
 	// RepairSessions rebuilds the session index after a backup; the panel

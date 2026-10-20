@@ -16,6 +16,8 @@ func detailTitle(l l10n.Localizer, m store.Module) string {
 		return l.Text(l10n.KeyResetCreditDetails)
 	case store.ModuleAPICost:
 		return l.Text(l10n.KeyApiCost)
+	case store.ModuleCacheAnalysis:
+		return tx(l, xCacheTitle)
 	case store.ModuleQuotaEstimate:
 		return l.Text(l10n.KeyQuotaEstimate)
 	case store.ModuleSpeedAnalysis:
@@ -37,7 +39,7 @@ func (a *App) closeDetail() {
 // hairline and the page body. Unknown pages fall back to the main page.
 func (a *App) panelDetailPage(c *ui.Context, l l10n.Localizer, prefs store.Preferences, snap runway.Snapshot, acts PanelActions) {
 	switch a.panelState.detail {
-	case detailAccounts, store.ModuleResetCredits, store.ModuleAPICost, store.ModuleQuotaEstimate, store.ModuleSpeedAnalysis, store.ModuleSkills:
+	case detailAccounts, store.ModuleResetCredits, store.ModuleCacheAnalysis, store.ModuleAPICost, store.ModuleQuotaEstimate, store.ModuleSpeedAnalysis, store.ModuleSkills:
 	default:
 		a.panelState.detail = ""
 		a.panelMainPage(c, l, prefs, snap, acts)
@@ -61,6 +63,8 @@ func (a *App) panelDetailBody(c *ui.Context, l l10n.Localizer, prefs store.Prefe
 		a.skillsPage(c, l, prefs, acts)
 	case store.ModuleAPICost:
 		a.costDetailPage(c, l, prefs, snap, providerView(l, snap, prefs.APICostSummaryRange), acts)
+	case store.ModuleCacheAnalysis:
+		a.cacheDetailPage(c, l, acts)
 	default:
 		v := providerView(l, snap, prefs.APICostSummaryRange)
 		ui.Scroll(c.Key("panel-detail-scroll")).Grow(1).TrackScroll(&a.panelState.detailScroll).Children(func() {

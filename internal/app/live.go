@@ -171,6 +171,8 @@ type liveApp struct {
 	grok           *grokBridge
 	claudeMod      *claude.Module
 	claudeB        *claudeBridge
+	codexCache     usage.CacheScanCache
+	grokCache      grok.CacheScanCache
 	reset          *resetBridge
 	repo           *usage.Repository
 	widgets        *widgetCoordinator

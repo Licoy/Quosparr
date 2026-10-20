@@ -81,6 +81,7 @@ func readPreferences(r *reader) Preferences {
 	p.QuotaResetTimeFormat = readResetTimeFormat(r, "quotaResetTimeFormat")
 	p.ProxyTestURL = readProxyTestURL(r, "proxyTestURL")
 	p.ShowsSpeedAnalysis = r.bool("showsSpeedAnalysis", p.ShowsSpeedAnalysis)
+	p.ShowsCacheAnalysis = r.bool("showsCacheAnalysis", p.ShowsCacheAnalysis)
 	p.ShowsCreditsBalance = r.bool("showsCreditsBalance", p.ShowsCreditsBalance)
 	p.ShowsSkills = r.bool("showsSkills", p.ShowsSkills)
 	p.FloatingWindow = readFloatingWindow(r, "floatingWindow")
@@ -140,6 +141,9 @@ func (p Preferences) omitGoOnlyDefaults(m fields) {
 	if p.ShowsSpeedAnalysis {
 		delete(m, "showsSpeedAnalysis")
 	}
+	if p.ShowsCacheAnalysis {
+		delete(m, "showsCacheAnalysis")
+	}
 	if p.ShowsCreditsBalance {
 		delete(m, "showsCreditsBalance")
 	}
@@ -156,7 +160,7 @@ func (p Preferences) omitGoOnlyDefaults(m fields) {
 }
 
 // goOnlyModules are the modules the Swift app has no case for.
-var goOnlyModules = []Module{ModuleSpeedAnalysis, ModuleSkills}
+var goOnlyModules = []Module{ModuleSpeedAnalysis, ModuleCacheAnalysis, ModuleSkills}
 
 // wireModuleOrder is the order as written: a Go-only module that
 // NormalizeModuleOrder would put at its place again is left out, so the Swift

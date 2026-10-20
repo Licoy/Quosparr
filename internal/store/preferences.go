@@ -106,6 +106,9 @@ type Preferences struct {
 	// ShowsSpeedAnalysis is Go-only: the speed analysis module, on by default
 	// and written only when turned off.
 	ShowsSpeedAnalysis bool `json:"showsSpeedAnalysis"`
+	// ShowsCacheAnalysis is Go-only: the cache analysis module, on by default
+	// and written only when turned off.
+	ShowsCacheAnalysis bool `json:"showsCacheAnalysis"`
 	// ShowsCreditsBalance is Go-only: display ChatGPT credits balance as the
 	// last row of the Codex quota section when available. On by default and written only when
 	// turned off.
@@ -158,6 +161,7 @@ func DefaultPreferences() Preferences {
 		ShowsModelSpecificQuotaUsage:              false,
 		ShowsTokenUsageHeatmap:                    true,
 		ShowsSpeedAnalysis:                        true,
+		ShowsCacheAnalysis:                        true,
 		ShowsCreditsBalance:                       true,
 		ShowsSkills:                               true,
 		TokenUsageChartStyle:                      ChartStyleHeatmap,

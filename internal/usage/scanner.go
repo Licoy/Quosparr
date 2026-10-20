@@ -40,6 +40,8 @@ type Scanner struct {
 	// ChunkSize and MaxLineBytes tune the reader; zero uses the defaults.
 	ChunkSize    int
 	MaxLineBytes int
+	// Cache reuses window-independent cache-hit samples across range changes.
+	Cache *CacheScanCache
 }
 
 func (s Scanner) loc() *time.Location {

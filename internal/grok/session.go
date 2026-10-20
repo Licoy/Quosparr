@@ -118,6 +118,8 @@ type SessionScanner struct {
 	GrokHome string
 	// Location decides the calendar days; nil means time.Local.
 	Location *time.Location
+	// Cache reuses window-independent cache-hit samples across range changes.
+	Cache *CacheScanCache
 }
 
 // SessionScanOptions selects what Scan returns.

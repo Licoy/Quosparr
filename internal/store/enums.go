@@ -253,6 +253,7 @@ const (
 	ModuleRateLimitResetToday Module = "rateLimitResetToday"
 	ModuleQuotaEstimate       Module = "quotaEstimate"
 	ModuleResetCredits        Module = "resetCredits"
+	ModuleCacheAnalysis       Module = "cacheAnalysis"
 	ModuleAPICost             Module = "apiCost"
 	ModuleSessionRepair       Module = "sessionRepair"
 	ModuleRecentSessions      Module = "recentSessions"
@@ -263,7 +264,7 @@ const (
 func Modules() []Module {
 	return []Module{
 		ModuleQuota, ModuleTokenUsage, ModuleSpeedAnalysis, ModuleRateLimitResetToday, ModuleQuotaEstimate,
-		ModuleResetCredits, ModuleAPICost, ModuleSessionRepair, ModuleRecentSessions, ModuleSkills,
+		ModuleResetCredits, ModuleCacheAnalysis, ModuleAPICost, ModuleSessionRepair, ModuleRecentSessions, ModuleSkills,
 	}
 }
 

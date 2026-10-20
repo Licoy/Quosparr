@@ -97,6 +97,9 @@ func (s *logStream) read(ctx context.Context, req readRequest, onRecord func(par
 		}
 		rec, err := s.parser.parse(c.Data)
 		if err != nil {
+			if errors.Is(err, errInvalidCacheCounters) && (c.LFComplete || syntacticallyCompleteJSON(c.Data)) {
+				return err
+			}
 			res.MalformedLines++
 			if !c.LFComplete {
 				res.IncompleteMalformed++
@@ -195,6 +198,18 @@ func (s *logStream) read(ctx context.Context, req readRequest, onRecord func(par
 	}
 	res.ContentFingerprint = fp
 	return res, nil
+}
+
+func syntacticallyCompleteJSON(line []byte) bool {
+	d := &jsonDec{b: line}
+	if bytes.HasPrefix(d.b, []byte{0xEF, 0xBB, 0xBF}) {
+		d.i = 3
+	}
+	if err := d.skip(); err != nil {
+		return false
+	}
+	d.skipSpace()
+	return d.i == len(d.b)
 }
 
 // candidateLine is a line that passed the prefilter.
