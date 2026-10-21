@@ -23,6 +23,7 @@ const (
 	accountKindCodex = iota
 	accountKindClaude
 	accountKindGrok
+	accountKindCursor
 )
 
 // accountsPage is wired from settings_view.go.
@@ -40,6 +41,8 @@ func renderAccountsPage(c *ui.Context, u *settingsUI) {
 		renderCodexAccounts(c, u, f, rt)
 	case accountKindGrok:
 		renderGrokAccounts(c, u, f, rt)
+	case accountKindCursor:
+		renderCursorAccount(c, u, rt.svc.Snapshot().Cursor, func() { rt.svc.RefreshCursor(true) })
 	default:
 		renderClaudeAccounts(c, u, f, rt)
 	}
@@ -162,7 +165,8 @@ func (u *settingsUI) previewClaudeFile(f *accountForm, rt *liveApp) {
 func accountProviderHeader(c *ui.Context, u *settingsUI, f *accountForm) {
 	l := u.L()
 	ui.Row(c).Children(func() {
-		if ProviderTabs(c.Key("accounts-provider"), &f.kind, f.busy, providerTabLabels(l)...) {
+		providers := store.Providers()
+		if providerTabsOf(c.Key("accounts-provider"), providers, &f.kind, f.busy, providerLabels(l, providers)...) {
 			f.mode, f.paste = "", ""
 			f.selection, f.api = nil, apiDraft{}
 		}

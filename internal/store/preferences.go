@@ -119,6 +119,8 @@ type Preferences struct {
 	// ShowsSkills is Go-only: the skills module, on by default and written
 	// only when turned off.
 	ShowsSkills bool `json:"showsSkills"`
+	// CursorMonitoringEnabled opts in to read-only access to Cursor's current login.
+	CursorMonitoringEnabled bool `json:"cursorMonitoringEnabled,omitempty"`
 	// FloatingWindow is Go-only: the desktop floating window, omitted while
 	// it is at its default.
 	FloatingWindow FloatingWindow `json:"floatingWindow,omitzero"`

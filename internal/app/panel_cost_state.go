@@ -83,6 +83,8 @@ func (a *App) startCostQuery(q CostQuery, acts PanelActions) {
 
 func activePanelAccount(s runway.Snapshot, p store.Provider) string {
 	switch p {
+	case store.ProviderCursor:
+		return s.Cursor.IdentityID
 	case store.ProviderGrok:
 		return s.Grok.Accounts.ActiveID
 	case store.ProviderClaude:

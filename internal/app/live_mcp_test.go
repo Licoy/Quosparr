@@ -56,7 +56,7 @@ func TestMCPActionsUseConfiguredGlobalFiles(t *testing.T) {
 
 func TestMCPActionsMissingConfigAndUnknownProvider(t *testing.T) {
 	rt, _ := sessionTestRuntime(t)
-	for _, provider := range store.Providers() {
+	for _, provider := range store.CLIProviders() {
 		snapshot, err := rt.queryMCP(context.Background(), provider)
 		if err != nil || snapshot.Path == "" || len(snapshot.Servers) != 0 {
 			t.Fatalf("queryMCP(%s) missing config = %#v, %v", provider, snapshot, err)

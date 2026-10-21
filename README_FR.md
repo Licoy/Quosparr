@@ -40,9 +40,16 @@ Quosparr est une application native de barre de menus / zone de notification pou
 - Plusieurs comptes OAuth / SuperGrok avec connexion isolée, import de la connexion actuelle, collage d’identifiants, actualisation, alias, ordre et basculement explicite.
 - Sessions récentes issues des journaux locaux du CLI Grok.
 
-**Tous les fournisseurs**
+**Cursor**
 
-- Onglets `Codex | Claude | Grok` toujours visibles. La barre de menus peut suivre le panneau ou afficher au plus deux fournisseurs. Un widget ou un choix déjà enregistré « Codex + Grok » conserve cette paire.
+- Suivi expérimental du quota de la connexion actuelle à Cursor : à activer dans l’onglet Cursor, les réglages d’affichage ou « Comptes fournisseurs → Cursor ». Comme la page d’utilisation officielle, le panneau distingue les modèles Cursor et les autres modèles, avec les dépenses du cycle et un plafond estimé (dépenses ÷ pourcentage utilisé, signalé comme estimation), ainsi que les réinitialisations, les dépenses supplémentaires et les soldes de crédits. Les jauges sont aussi disponibles dans la barre de menus et la fenêtre flottante. Les requêtes suivent le proxy de l’application.
+- Seules les clés de connexion nécessaires sont lues dans SQLite, sans changer de compte, renouveler de jeton, lire les conversations ni copier les identifiants. Les connexions chiffrées, uniquement en mémoire ou liées à un déploiement distinct ne sont pas encore prises en charge. L’API interne peut changer ; un compte Team a été vérifié avec la page d’utilisation officielle ; les autres offres et l’installation sur les trois plateformes restent à valider. Cursor ne propose pas encore de widgets ni de gestion CLI.
+
+**Affichage et outils CLI**
+
+Les statistiques locales et les fonctions de gestion ci-dessous concernent Codex, Claude et Grok. Cursor propose uniquement le suivi des quotas pour le moment.
+
+- Onglets `Codex | Claude | Grok | Cursor` toujours visibles. La barre de menus peut suivre le panneau ou afficher au plus deux fournisseurs. Un widget ou un choix déjà enregistré « Codex + Grok » conserve cette paire.
 - Une fenêtre flottante facultative, toujours au premier plan, affiche le quota restant d’au plus trois fournisseurs dans quatre styles : capsule, carte, anneaux ou batterie. Un clic ouvre le panneau, un glisser la déplace et un clic droit affiche plus d’options. L’opacité, le verrouillage de la position et l’affichage au-dessus des apps en plein écran sont réglables.
 - Coût équivalent API et usage de jetons pour aujourd’hui, le cycle actuel, le cycle précédent, ce mois-ci ou une plage personnalisée.
 - Graphique d’usage des jetons depuis le début de l’année, en carte de chaleur, en ligne ou en barres (quotidien / hebdomadaire / cumulé).

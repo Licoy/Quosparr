@@ -47,6 +47,7 @@ type Snapshot struct {
 	Codex      CodexView
 	Grok       GrokState
 	Claude     ClaudeState
+	Cursor     CursorState
 	ResetToday ResetTodayState
 	Refresh    RefreshView
 	StatusBar  StatusBarView

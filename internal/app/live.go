@@ -171,6 +171,7 @@ type liveApp struct {
 	grok           *grokBridge
 	claudeMod      *claude.Module
 	claudeB        *claudeBridge
+	cursorB        *cursorBridge
 	codexCache     usage.CacheScanCache
 	grokCache      grok.CacheScanCache
 	reset          *resetBridge
@@ -227,6 +228,7 @@ func newRuntime(opts BackgroundOptions) *liveApp {
 		log.Println("claude accounts: load failed")
 	}
 	cbridge.reload(false)
+	cursorB := newCursorBridge(home, prefs, langs)
 	reset := newResetBridge(opts.Settings, prefs, langs)
 	repo := openUsage(home)
 	widgetRequirements := initialWidgetRequirements(opts.Settings)
@@ -261,6 +263,7 @@ func newRuntime(opts BackgroundOptions) *liveApp {
 		StatusPath:          export.DefaultStatusPath(home),
 		Grok:                bridge,
 		Claude:              cbridge,
+		Cursor:              cursorB,
 		ResetToday:          reset,
 		WidgetRequirements:  widgetRequirements,
 		WidgetSink:          widgets.publish,
@@ -274,7 +277,7 @@ func newRuntime(opts BackgroundOptions) *liveApp {
 		SystemLanguages: langs,
 	})
 	rt := &liveApp{
-		svc: svc, codex: codexStore, grokMod: mod, grok: bridge, claudeMod: cmod, claudeB: cbridge, reset: reset,
+		svc: svc, codex: codexStore, grokMod: mod, grok: bridge, claudeMod: cmod, claudeB: cbridge, cursorB: cursorB, reset: reset,
 		repo: repo, widgets: widgets, dispatch: dispatch, widgetDispatch: widgetUI, alertDispatch: alertUI, version: opts.Version, langs: langs,
 	}
 	widgets.onRequirements = svc.SetWidgetRequirements
@@ -316,6 +319,11 @@ func (rt *liveApp) panelActions(s *Settings) PanelActions {
 	actions := PanelActions{
 		Refresh:        func() { rt.requestRefresh(s, "") },
 		RefreshSection: func(sec runway.Section) { rt.requestRefresh(s, sec) },
+		SetCursorMonitoring: func(on bool) {
+			if s != nil {
+				s.SetCursorMonitoringEnabled(on)
+			}
+		},
 		SwitchAccount: func(id string) {
 			p := store.DefaultPreferences()
 			p.SelectedProvider = svc.Snapshot().Provider
@@ -371,6 +379,12 @@ func (rt *liveApp) panelActions(s *Settings) PanelActions {
 }
 
 func refreshSection(s *runway.Service, sec runway.Section) {
+	if s.Preferences().SelectedProvider == store.ProviderCursor {
+		if sec == runway.SectionQuota {
+			s.RefreshCursor(true)
+		}
+		return
+	}
 	if p := s.Preferences().SelectedProvider; p == store.ProviderGrok || p == store.ProviderClaude {
 		switch sec {
 		case runway.SectionQuotaEstimate, runway.SectionSessionRepair:

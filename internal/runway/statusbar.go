@@ -167,6 +167,7 @@ type StatusInputs struct {
 	Grok GrokState
 	// Claude side. The preferred status window is 5 hours, then 7 days.
 	Claude ClaudeState
+	Cursor CursorState
 	Now    time.Time
 }
 
@@ -205,6 +206,8 @@ func statusProviders(in StatusInputs) []store.Provider {
 
 func statusTextFor(lc l10n.Localizer, in StatusInputs, p store.Provider) string {
 	switch p {
+	case store.ProviderCursor:
+		return CursorStatusText(lc, in.Cursor)
 	case store.ProviderGrok:
 		return GrokStatusText(lc, in.Grok, in.Now)
 	case store.ProviderClaude:
@@ -270,6 +273,9 @@ func SelectedMeters(lc l10n.Localizer, in StatusInputs) []Meter {
 		return combinedMeters(lc, in, picked[0], picked[1])
 	}
 	switch picked[0] {
+	case store.ProviderCursor:
+		m := in.Cursor.LiveMeters()
+		return m[:min(2, len(m))]
 	case store.ProviderCodex:
 		return in.CodexMeters
 	case store.ProviderGrok:
@@ -312,6 +318,8 @@ func combinedMeters(lc l10n.Localizer, in StatusInputs, a, b store.Provider) []M
 
 func metersOf(in StatusInputs, p store.Provider) []Meter {
 	switch p {
+	case store.ProviderCursor:
+		return in.Cursor.LiveMeters()
 	case store.ProviderGrok:
 		return in.Grok.Meters
 	case store.ProviderClaude:
@@ -323,6 +331,8 @@ func metersOf(in StatusInputs, p store.Provider) []Meter {
 
 func preferredOf(p store.Provider) []int {
 	switch p {
+	case store.ProviderCursor:
+		return nil
 	case store.ProviderGrok:
 		return grokPreferredWindows
 	case store.ProviderClaude:
@@ -334,6 +344,8 @@ func preferredOf(p store.Provider) []int {
 
 func providerStatusKey(p store.Provider) l10n.Key {
 	switch p {
+	case store.ProviderCursor:
+		return l10n.KeyProviderCursor
 	case store.ProviderGrok:
 		return l10n.KeyProviderGrok
 	case store.ProviderClaude:

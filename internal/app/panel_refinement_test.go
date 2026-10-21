@@ -13,7 +13,7 @@ import (
 )
 
 func TestPanelIdentityWholeRowIsClickable(t *testing.T) {
-	for _, provider := range store.Providers() {
+	for _, provider := range store.CLIProviders() {
 		t.Run(string(provider), func(t *testing.T) {
 			a, tt := newPanel(t, func(p *store.Preferences) { p.SelectedProvider = provider }, panelFixture(), PanelActions{})
 			label := a.L().Text(l10n.KeyAccounts)

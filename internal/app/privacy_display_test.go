@@ -82,7 +82,7 @@ func TestAccountsProviderHeaderHasNoOuterTrackOrPrivacyControl(t *testing.T) {
 }
 
 func TestDisplayPrivacySwitchUpdatesBothProviderPanels(t *testing.T) {
-	for _, provider := range store.Providers() {
+	for _, provider := range store.CLIProviders() {
 		snap := panelFixture()
 		snap.Grok.Accounts = snap.Accounts
 		snap.Grok.Accounts.Display.DisplayName = "Ada Lovelace"

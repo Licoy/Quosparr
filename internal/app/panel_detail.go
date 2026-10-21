@@ -16,6 +16,9 @@ import (
 // providerView reuses Codex display widgets with the same typed Grok and
 // Claude data.
 func providerView(l l10n.Localizer, snap runway.Snapshot, displayRange store.CostRange) runway.CodexView {
+	if snap.Provider == store.ProviderCursor {
+		return runway.CodexView{Meters: snap.Cursor.Meters}
+	}
 	if snap.Provider == store.ProviderClaude {
 		return claudeAsCodexView(l, snap.Claude, displayRange)
 	}

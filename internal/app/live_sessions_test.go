@@ -15,7 +15,7 @@ import (
 
 func TestSessionActionsScanAllConfiguredProviders(t *testing.T) {
 	rt, wantRoots := sessionTestRuntime(t)
-	for _, provider := range store.Providers() {
+	for _, provider := range store.CLIProviders() {
 		got, err := rt.queryManagedSessions(context.Background(), provider)
 		if err != nil || len(got) != 0 {
 			t.Fatalf("queryManagedSessions(%s) = %#v, %v", provider, got, err)

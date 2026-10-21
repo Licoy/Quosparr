@@ -22,6 +22,11 @@ func sectionBlock(c *ui.Context, first *bool, body func()) {
 
 // panelBody follows the saved module order and provider support.
 func panelBody(c *ui.Context, l l10n.Localizer, prefs store.Preferences, snap runway.Snapshot, acts PanelActions, state *panelState) {
+	if prefs.SelectedProvider == store.ProviderCursor {
+		first := true
+		panelCursorQuota(c, l, prefs, snap.Cursor, acts, &first, state)
+		return
+	}
 	snap.Provider = prefs.SelectedProvider
 	snap.Codex = providerView(l, snap, prefs.APICostSummaryRange)
 	grok := prefs.SelectedProvider == store.ProviderGrok
@@ -121,6 +126,8 @@ func sectionRefreshing(snap runway.Snapshot, section runway.Section) bool {
 		return true
 	}
 	switch snap.Provider {
+	case store.ProviderCursor:
+		return snap.Cursor.Refreshing
 	case store.ProviderGrok:
 		return snap.Grok.Refreshing
 	case store.ProviderClaude:

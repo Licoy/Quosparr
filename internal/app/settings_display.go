@@ -15,6 +15,7 @@ import (
 func (u *settingsUI) displayPage(c *ui.Context) {
 	u.appearanceGroup(c)
 	u.privacyGroup(c)
+	u.cursorGroup(c)
 }
 
 func (u *settingsUI) privacyGroup(c *ui.Context) {

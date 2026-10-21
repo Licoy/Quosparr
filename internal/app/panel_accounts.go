@@ -16,6 +16,8 @@ func (a *App) accountsPage(c *ui.Context, l l10n.Localizer, prefs store.Preferen
 	a.panelState.accounts.page = prefs.SelectedProvider
 	defer a.accountsNoticeDialog(c, l)
 	switch prefs.SelectedProvider {
+	case store.ProviderCursor:
+		return
 	case store.ProviderGrok:
 		a.grokAccountsPage(c, l, prefs, snap, acts)
 	case store.ProviderClaude:

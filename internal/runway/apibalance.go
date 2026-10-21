@@ -87,7 +87,7 @@ func APIBalanceMeter(lc l10n.Localizer, q apiquota.Quota) (Meter, bool) {
 // meterTitle is the short status title: the window name, or the balance
 // meter's own title.
 func meterTitle(lc l10n.Localizer, m Meter) string {
-	if m.Balance {
+	if m.Balance || m.PreserveTitle {
 		return m.Title
 	}
 	return ShortWindowTitle(lc, m.WindowMinutes)

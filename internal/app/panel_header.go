@@ -30,6 +30,10 @@ func panelHeader(c *ui.Context, a *App, l l10n.Localizer, prefs store.Preference
 		if providers := prefs.PanelSelection(); len(providers) > 1 {
 			providerStrip(c, a, l, snap, providers, prefs.SelectedProvider, acts.SelectProvider)
 		}
+		if prefs.SelectedProvider == store.ProviderCursor {
+			cursorIdentityRow(c, l, prefs, snap.Cursor)
+			return
+		}
 		if grokView {
 			grokIdentityRow(c, a, l, prefs, snap)
 			return
@@ -46,6 +50,9 @@ func panelHeader(c *ui.Context, a *App, l l10n.Localizer, prefs store.Preference
 }
 
 func panelBusy(snap runway.Snapshot, grokView bool) bool {
+	if snap.Provider == store.ProviderCursor {
+		return snap.Cursor.Refreshing
+	}
 	if grokView && snap.Grok.Refreshing {
 		return true
 	}
@@ -101,6 +108,8 @@ func providerStrip(c *ui.Context, a *App, l l10n.Localizer, snap runway.Snapshot
 
 func providerMeters(snap runway.Snapshot, p store.Provider) []runway.Meter {
 	switch p {
+	case store.ProviderCursor:
+		return snap.Cursor.LiveMeters()
 	case store.ProviderGrok:
 		return snap.Grok.Meters
 	case store.ProviderClaude:
@@ -167,6 +176,12 @@ func panelHeaderButtons(c *ui.Context, a *App, l l10n.Localizer, prefs store.Pre
 // refreshEverything is the header refresh: all sections, plus the open
 // cost query or reaction when a page that shows them is open.
 func refreshEverything(a *App, acts PanelActions) {
+	if a.settings.Prefs().SelectedProvider == store.ProviderCursor {
+		if acts.RefreshSection != nil {
+			acts.RefreshSection(runway.SectionQuota)
+		}
+		return
+	}
 	acts.Refresh()
 	if a.settings.Prefs().ShowsCacheAnalysis && acts.QueryCache != nil {
 		a.startCacheSummary(acts)

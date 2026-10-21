@@ -20,7 +20,7 @@ func TestSettingsQuotaUsesMainBranchSummaries(t *testing.T) {
 	acc := codex.ManagedAccount{ID: "one", DisplayName: "Personal", Email: "personal@example.com", CachedQuota: &codex.CachedAccountQuota{PrimaryUsedPercent: 49, PrimaryResetsAt: &reset, UpdatedAt: now}}
 	q := runway.GrokAccountQuota{Plan: "SuperGrok", UsedPercent: 49, ResetsAt: reset, IncludedUSD: "$73.50 / $150.00", UpdatedAt: now}
 	cq := runway.ClaudeAccountQuota{Plan: "Max 20x", Title: l.Text(l10n.KeyFiveHourUsage), UsedPercent: 49, ResetsAt: reset, ExtraUsage: "10 / 1234 USD", UpdatedAt: now}
-	for _, provider := range store.Providers() {
+	for _, provider := range store.CLIProviders() {
 		v := accountIdentityView{account: acc, current: true, provider: provider, grokQuota: &q, claudeQuota: &cq}
 		tt := ui.NewTester(func(c *ui.Context) {
 			ui.Column(c).Fill().Padding(16).Children(func() { accountSettingsIdentity(c, l, v) })

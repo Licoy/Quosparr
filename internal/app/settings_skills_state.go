@@ -179,8 +179,8 @@ func skillIssuesOf(sum skills.Summary, sk skills.Skill) []skills.Issue {
 
 // trashMatches filters the trash by provider (0 is all) and text.
 func trashMatches(e skills.TrashEntry, provider int, search string) bool {
-	if provider > 0 && provider <= len(store.Providers()) {
-		p := skills.Provider(store.Providers()[provider-1])
+	if provider > 0 && provider <= len(store.CLIProviders()) {
+		p := skills.Provider(store.CLIProviders()[provider-1])
 		if e.Provider != p && !slices.Contains(e.SharedWith, p) {
 			return false
 		}
@@ -228,7 +228,7 @@ func (tr *skillTrashState) shown() []skills.TrashEntry {
 
 // settingsSkills is the state of the settings skills page.
 type settingsSkills struct {
-	tab    int // index into store.Providers(), or skillsTrashTab
+	tab    int // index into store.CLIProviders(), or skillsTrashTab
 	filter [skillsTrashTab]skillFilter
 	open   string // ID of the skill page; "" shows the list
 	// confirm is the delete confirmation that is open.
@@ -277,7 +277,7 @@ func (u *settingsUI) skillActions() SkillActions {
 }
 
 func (s *settingsSkills) provider() store.Provider {
-	ps := store.Providers()
+	ps := store.CLIProviders()
 	if s.tab >= 0 && s.tab < len(ps) {
 		return ps[s.tab]
 	}
@@ -286,7 +286,7 @@ func (s *settingsSkills) provider() store.Provider {
 
 // selectProvider shows a provider's tab with its list.
 func (s *settingsSkills) selectProvider(p store.Provider) {
-	if i := slices.Index(store.Providers(), p); i >= 0 {
+	if i := slices.Index(store.CLIProviders(), p); i >= 0 {
 		s.tab = i
 	}
 	s.closeItem()

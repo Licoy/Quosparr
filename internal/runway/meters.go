@@ -60,6 +60,8 @@ type Meter struct {
 	// ValueText replaces the percentage in captions ("$12.34"); set on the
 	// balance meter of an API relay account.
 	ValueText string
+	// PreserveTitle keeps a provider-defined pool name in compact displays.
+	PreserveTitle bool
 	// Balance marks that meter: it has no window and keeps its own title.
 	Balance bool
 }

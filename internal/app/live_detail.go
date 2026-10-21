@@ -27,6 +27,8 @@ var (
 func (rt *liveApp) queryDetailCost(ctx context.Context, provider store.Provider, q CostQuery) (usage.Summary, error) {
 	now := time.Now()
 	switch provider {
+	case store.ProviderCursor:
+		return usage.Summary{}, errDetailUnavailable
 	case store.ProviderGrok:
 		return rt.queryGrokDetailCost(ctx, q, now)
 	case store.ProviderClaude:

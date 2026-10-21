@@ -85,6 +85,7 @@ func readPreferences(r *reader) Preferences {
 	p.ShowsCacheAnalysis = r.bool("showsCacheAnalysis", p.ShowsCacheAnalysis)
 	p.ShowsCreditsBalance = r.bool("showsCreditsBalance", p.ShowsCreditsBalance)
 	p.ShowsSkills = r.bool("showsSkills", p.ShowsSkills)
+	p.CursorMonitoringEnabled = r.bool("cursorMonitoringEnabled", false)
 	p.FloatingWindow = readFloatingWindow(r, "floatingWindow")
 	p.PanelProviders = readPanelProviders(r, "panelProviders")
 	p.DisableMainPanelAnimation = r.bool("disableMainPanelAnimation", p.DisableMainPanelAnimation)

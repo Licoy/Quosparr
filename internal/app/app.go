@@ -27,10 +27,11 @@ const panelWidth = 400
 // PanelActions are the panel and accounts controls. A nil func disables
 // that control. The live service installs them; tests leave them nil.
 type PanelActions struct {
-	Refresh        func()
-	RefreshSection func(runway.Section)
-	SwitchAccount  func(id string)
-	SelectProvider func(store.Provider)
+	Refresh             func()
+	RefreshSection      func(runway.Section)
+	SwitchAccount       func(id string)
+	SelectProvider      func(store.Provider)
+	SetCursorMonitoring func(bool)
 	// PanelShown reports the panel opening and closing; the panel provider's
 	// local data loads only while it shows.
 	PanelShown    func(open bool)

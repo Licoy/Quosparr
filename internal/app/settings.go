@@ -319,6 +319,11 @@ func (s *Settings) SetPanelProviders(providers []store.Provider) bool {
 	return s.Update(func(p *store.Preferences) { p.PanelProviders = slices.Clone(providers) })
 }
 
+// SetCursorMonitoringEnabled opts in to reading the current Cursor login.
+func (s *Settings) SetCursorMonitoringEnabled(on bool) bool {
+	return s.Update(func(p *store.Preferences) { p.CursorMonitoringEnabled = on })
+}
+
 // SetLanguage selects the language; it takes effect at once.
 func (s *Settings) SetLanguage(v store.Language) bool {
 	return s.Update(func(p *store.Preferences) { p.Language = v })

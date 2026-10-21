@@ -40,9 +40,16 @@ Quosparr is a native menu bar / system tray app for macOS, Windows, and Linux. I
 - Multiple OAuth / SuperGrok accounts with isolated sign-in, current-login import, credential paste, refresh, aliases, ordering, and explicit switching.
 - Recent sessions from local Grok CLI logs.
 
-**All providers**
+**Cursor**
 
-- Always-visible `Codex | Claude | Grok` tabs. The menu bar can follow the panel or show up to two providers. An existing “Codex + Grok” choice stays that pair.
+- Experimental quota monitoring for the current Cursor desktop login: opt in from the Cursor tab, Display settings or Provider Accounts → Cursor. Like the official usage page, the panel shows Cursor models and other models separately, with this cycle's spend, an estimated cap (spend ÷ used percentage, marked as an estimate), reset times, additional spend and credit balances; quota meters also support the menu bar and floating window. Requests follow the application proxy.
+- Reads only the necessary login keys from the desktop SQLite store; no account switching, token refresh, conversation scanning or credential copies. Encrypted, memory-only and isolated-deployment logins are not supported yet. The internal API can change; a Team account has been verified against the official usage page; other plans and three-platform installation acceptance remain pending. Cursor is not yet available in widgets or CLI management.
+
+**Display and CLI tools**
+
+Local statistics and management below apply to Codex, Claude and Grok. Cursor currently provides quota monitoring only.
+
+- Always-visible `Codex | Claude | Grok | Cursor` tabs. The menu bar can follow the panel or show up to two providers. An existing “Codex + Grok” choice stays that pair.
 - An optional always-on-top desktop floating window shows the remaining quota of up to three providers in four styles: capsule, card, rings, or battery. Click it to open the panel, drag it to move it, and right-click it for more options. Opacity, position lock, and whether it stays above full-screen apps are configurable.
 - API-equivalent cost and token usage for today, the current cycle, the previous cycle, this month, or a custom range.
 - Year-to-date token usage chart as a heatmap, line, or bar chart (daily / weekly / cumulative).

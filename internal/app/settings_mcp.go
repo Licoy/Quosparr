@@ -45,7 +45,7 @@ func (u *settingsUI) mcpPage(c *ui.Context) {
 
 func (u *settingsUI) mcpProviderTabs(c *ui.Context, actions MCPActions) {
 	s, l, t := u.mcpState(), u.L(), c.Theme()
-	providers := store.Providers()
+	providers := store.CLIProviders()
 	selected := slicesIndexProvider(providers, s.provider)
 	ui.Row(c).Gap(8).AlignItems(ui.Center).Children(func() {
 		seg := ui.SegmentedBase(c.Key("mcp-providers"), &selected, len(providers))

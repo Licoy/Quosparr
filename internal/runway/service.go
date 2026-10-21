@@ -40,9 +40,10 @@ type Options struct {
 	CostCachePath       string // api-equivalent-cost.json
 	StatusPath          string // status.json (written when ExportsStatusJSON)
 
-	// Grok, Claude and ResetToday are optional providers (see providers.go).
+	// Grok, Claude, Cursor and ResetToday are optional providers.
 	Grok       GrokProvider
 	Claude     ClaudeProvider
+	Cursor     CursorProvider
 	ResetToday ResetTodayProvider
 
 	// WidgetSink receives the widget snapshot when the widget schedule is
@@ -232,6 +233,9 @@ func New(o Options) *Service {
 	}
 	if o.Claude != nil {
 		o.Claude.SetOnChange(s.publish)
+	}
+	if o.Cursor != nil {
+		o.Cursor.SetOnChange(s.publish)
 	}
 	if o.ResetToday != nil {
 		o.ResetToday.SetOnChange(s.publish)
@@ -454,11 +458,13 @@ func (s *Service) SetPreferences(p store.Preferences) {
 	old := s.prefs
 	hadGrok := s.quotaWantedLocked(store.ProviderGrok)
 	hadClaude := s.quotaWantedLocked(store.ProviderClaude)
+	hadCursor := s.quotaWantedLocked(store.ProviderCursor)
 	s.prefs = p.Clone()
 	s.lc = s.localizer()
 	// A provider shown again fetches its quota now instead of at the next tick.
 	grokBack := !hadGrok && s.quotaWantedLocked(store.ProviderGrok)
 	claudeBack := !hadClaude && s.quotaWantedLocked(store.ProviderClaude)
+	cursorBack := !hadCursor && s.quotaWantedLocked(store.ProviderCursor)
 	now := s.now()
 	s.refreshIntervalChangedLocked(now)
 	if old.QuotaEstimateWindowMode != p.QuotaEstimateWindowMode && s.est != nil && s.quota != nil && s.estDaily != nil {
@@ -490,6 +496,9 @@ func (s *Service) SetPreferences(p store.Preferences) {
 	}
 	if claudeBack {
 		s.refreshClaude(false)
+	}
+	if cursorBack {
+		s.RefreshCursor(false)
 	}
 	if p.SelectedProvider == store.ProviderGrok && (rangeChanged && p.ShowsCostSummary || costOn || heatOn || recentOn || speedOn) {
 		s.refreshGrokLocal()

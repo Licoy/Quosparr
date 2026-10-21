@@ -58,7 +58,7 @@ func (u *settingsUI) sessionListHeader(c *ui.Context, actions SessionActions) {
 
 func (u *settingsUI) sessionProviderTabs(c *ui.Context, actions SessionActions) {
 	s, l, t := u.sessionsState(), u.L(), c.Theme()
-	providers := store.Providers()
+	providers := store.CLIProviders()
 	selected := 0
 	for i, provider := range providers {
 		if provider == s.provider {

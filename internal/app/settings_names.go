@@ -10,6 +10,8 @@ import (
 
 func providerKey(v store.Provider) l10n.Key {
 	switch v {
+	case store.ProviderCursor:
+		return l10n.KeyProviderCursor
 	case store.ProviderGrok:
 		return l10n.KeyProviderGrok
 	case store.ProviderClaude:
@@ -19,7 +21,7 @@ func providerKey(v store.Provider) l10n.Key {
 	}
 }
 
-func providerTabLabels(l l10n.Localizer) []string { return providerLabels(l, store.Providers()) }
+func providerTabLabels(l l10n.Localizer) []string { return providerLabels(l, store.CLIProviders()) }
 
 func providerLabels(l l10n.Localizer, providers []store.Provider) []string {
 	labels := make([]string, 0, len(providers))

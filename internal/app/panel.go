@@ -28,7 +28,7 @@ func (a *App) panelView(c *ui.Context) {
 	acts := a.PanelActions()
 	snap.Provider = prefs.SelectedProvider
 	a.syncPanelAccount(snap, prefs)
-	if a.panel != nil && prefs.ShowsCacheAnalysis {
+	if a.panel != nil && prefs.ShowsCacheAnalysis && prefs.SelectedProvider != store.ProviderCursor {
 		a.syncCacheSummary(acts)
 	}
 	a.panelState.setChartStyle = func(s store.ChartStyle) { a.settings.SetTokenUsageChartStyle(s) }
@@ -90,6 +90,8 @@ func (a *App) panelMainPage(c *ui.Context, l l10n.Localizer, prefs store.Prefere
 func panelStatusLines(c *ui.Context, l l10n.Localizer, prefs store.Preferences, snap runway.Snapshot) {
 	message, failure := snap.Accounts.Message, snap.Codex.LastError
 	switch prefs.SelectedProvider {
+	case store.ProviderCursor:
+		message, failure = "", snap.Cursor.LastError
 	case store.ProviderGrok:
 		message, failure = snap.Grok.Accounts.Message, snap.Grok.LastError
 	case store.ProviderClaude:

@@ -283,13 +283,16 @@ func (s *Service) providerWantedLocked(p store.Provider) bool {
 // showsProviderLocked reports whether the panel, the status item or a widget
 // shows the provider in full. Only a shown provider reports its errors.
 func (s *Service) showsProviderLocked(p store.Provider) bool {
-	return s.providerWantedLocked(p) || s.widgetNeedsLocked()
+	return s.providerWantedLocked(p) || (p != store.ProviderCursor && s.widgetNeedsLocked())
 }
 
 // quotaWantedLocked reports whether the provider's quota refreshes: it is
 // shown, or it has a tab in the panel's provider strip. A provider the panel
 // hides and nothing else shows is not fetched.
 func (s *Service) quotaWantedLocked(p store.Provider) bool {
+	if p == store.ProviderCursor && !s.prefs.CursorMonitoringEnabled {
+		return false
+	}
 	return s.showsProviderLocked(p) || slices.Contains(s.prefs.PanelSelection(), p)
 }
 
@@ -379,6 +382,8 @@ func (s *Service) refreshPanelLocal() {
 	estimateDue := p.ShowsQuotaEstimateSummary && (s.est == nil || !s.now().Before(s.estAt.Add(s.refreshInterval())))
 	s.mu.Unlock()
 	switch p.SelectedProvider {
+	case store.ProviderCursor:
+		return
 	case store.ProviderGrok:
 		s.refreshGrokLocal()
 	case store.ProviderClaude:
@@ -468,6 +473,7 @@ func (s *Service) startFull(policy usage.RefreshPolicy, widgets bool) <-chan str
 		showsClaude := s.showsProviderLocked(store.ProviderClaude)
 		wantsGrok := s.quotaWantedLocked(store.ProviderGrok)
 		wantsClaude := s.quotaWantedLocked(store.ProviderClaude)
+		wantsCursor := s.quotaWantedLocked(store.ProviderCursor)
 		// Local data is the open panel's provider only, or every provider
 		// when this refresh carries a widget write that needs it.
 		widgetLocal := widgets && s.widgetLocalLocked()
@@ -502,6 +508,10 @@ func (s *Service) startFull(policy usage.RefreshPolicy, widgets bool) <-chan str
 			if claudeLocal {
 				report(c.RefreshLocal(ctx), showsClaude)
 			}
+		}
+		// Only Cursor's own manual refresh may skip its minimum interval.
+		if c := s.opts.Cursor; c != nil && wantsCursor {
+			_ = c.Refresh(ctx, false)
 		}
 		s.refreshNow(ctx, policy, local)
 		cancel()
@@ -959,6 +969,7 @@ func (s *Service) RefreshQuota() <-chan struct{} {
 	if wantsClaude {
 		s.refreshClaude(true)
 	}
+	s.RefreshCursor(false)
 	return s.runAccountScoped(s.refreshQuotaNow)
 }
 

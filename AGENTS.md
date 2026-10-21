@@ -2,7 +2,7 @@
 
 ## 项目定位
 
-Quosparr 是 macOS、Windows、Linux 原生菜单栏 / 系统托盘应用，用 Go + mygo/ui 实现，读取本机 Codex / Grok / Claude Code 配置和会话数据，展示配额、reset credits、API 等价成本，并修复本机会话索引。
+Quosparr 是 macOS、Windows、Linux 原生菜单栏 / 系统托盘应用，用 Go + mygo/ui 实现，读取本机 Codex / Grok / Claude Code 配置和会话数据，展示配额、reset credits、API 等价成本，并修复本机会话索引；另以实验性方式只读监控 Cursor 桌面当前登录的额度。
 
 v1 已正式发布（`v1.0.0`、`v1.0.1`）；macOS 仅保留 Swift WidgetKit 扩展（`Sources/QuosparrWidget`）与系统桥接（`Sources/QuosparrWidgetBridge`）；Swift 主应用、`Package.swift`、`Tests/` 和应急回滚链已移除，不再恢复；后续版本公开发布前仍须完成隔离安装升级验收
 
@@ -41,12 +41,13 @@ v1 已正式发布（`v1.0.0`、`v1.0.1`）；macOS 仅保留 Swift WidgetKit �
 - Claude 会话扫描只读 `projects/**`，不读取 `last-prompt` 等独立缓存；仅在用户打开详情时读取所选会话日志中的对话原文，仅上述用户主动确认的会话删除例外可把已归属同一会话的主日志与配套日志逐项移到系统回收站。
 - Skill 管理只扫描全局级别（不含项目级与旧版 Claude `commands/*.md`），按各 CLI 自身的发现规则读取 SKILL.md 的 frontmatter，正文只在用户展开时读取前 256 KB，不跟随指向凭据文件的链接；跨供应商复制到目标 CLI 的原生用户 skills 目录并尊重自定义主目录，同名目标拒绝覆盖，只有可独立删除的用户 skill 能移动，完整复制后才将原件移入自有回收站，归档失败须明确报告部分完成；删除仅限用户 skills 目录，删除前重新校验路径、类型与所属根目录，先移入 Quosparr 自有回收站 `~/.quosparr/skills-trash/<id>/`（目录私有，`meta.json` 为 `0600`，只含非密钥元数据与 `item/` 原件），可在设置中原位恢复（恢复前再次校验原父目录与根目录、不覆盖已有内容），彻底删除与清空经系统回收站移除，跨卷无法移入时直接退到系统回收站并单独提示，不得直接删除或递归删除，符号链接只移除链接本身；诊断中的一键修复须先展示改动与风险并经用户确认：嵌套的 Claude 用户 skill 以顶层外层目录为单位修复：仅当外层目录中扫描到的 skill 全部是未加载的嵌套 skill、互不包含、目录名不重复、所在位置扫描未截断，且各自顶层同名位置空闲（或就是外层本身）时，先逐个完整复制到用户 skills 顶层，再把外层目录（或仅其链接）移入自有回收站，失败时撤回已放置的副本、恢复外层并清理副本；重名时被覆盖的副本可移入回收站，或仅 Codex 按路径停用（Claude、Grok 的开关按名称，不提供）；缺少描述的用户 skill 只在 SKILL.md frontmatter 中补写 `description`，写入前复核文件身份与修改时间，备份为 `~/.quosparr/backups` 下的 `skill-md-`（保留最近 10 份），不改正文与其他字段；失效链接的修复即移除链接本身；列表可多选后批量删除或批量修复，批量操作同样先汇总改动与风险并经一次确认，逐项执行并报告成功与失败数，批量修复对每个 skill 只采用其首选修复，补写描述时使用建议文字；来源识别只读 `~/.agents/.skill-lock.json`、skill 所在 git 仓库的配置、插件清单与 frontmatter，仓库 URL 去除凭据后才展示；系统、bundled、管理员、插件与 claude.ai 同步目录只读；启停只在用户主动操作时写各家官方开关：Codex `config.toml` 的 `[[skills.config]]`（按 SKILL.md 路径）、Claude `settings.json` 的 `skillOverrides`、Grok `config.toml` 的 `[skills].disabled`，写入前分别备份为 `~/.quosparr/backups` 下的 `codex-config-`、`claude-settings-`、`grok-config-`（各保留最近 10 份），只做逐项编辑并保留其他内容
 - MCP 管理只读取三家原生用户级配置：Codex 与 Grok 的 `config.toml` 顶层 `mcp_servers`、Claude 用户状态文件顶层 `mcpServers`；尊重 `CODEX_HOME`、`GROK_HOME`、`CLAUDE_CONFIG_DIR`，自定义 Claude 配置目录不得回退读取默认账号的 `.claude.json`。不扫描或删除项目级、插件、兼容导入或管理员托管 MCP，不连接 MCP、不执行命令、不探测网络；列表与错误仅展示脱敏后的命令、站点和结构摘要，不展示 env、headers 的值、URL userinfo/query/fragment 或响应正文。删除只在用户批量选择并确认后进行，提交前复核文件身份与扫描指纹，一次原子编辑同一配置并备份到 `~/.quosparr/backups`，与对应供应商的账号和 Skill 配置写入共用 Store 锁；校验或备份失败时整批不写入，写入后复核失败明确报告。
+- Cursor 额度监控默认关闭，未开启时不读取凭据；只读打开 `<Cursor 用户数据目录>/User/globalStorage/state.vscdb`，仅取 `cursorAuth/accessToken`、`cachedEmail`、`stripeMembershipType`、`activeDeploymentId`，缺文件不创建；token 只在内存中用于请求，不复制到账号库、不刷新、不写回、不落盘或进日志；加密凭据与隔离部署直接拒绝，不把隔离部署 token 发往生产域名；请求经应用代理策略、不直连回退，禁用 Cookie 与重定向，最短间隔 5 分钟且遵守 `Retry-After`，错误中不含凭据或响应正文；不读浏览器 Cookie、对话或工作区，口径与验收边界见 `docs/cursor-monitoring.md`
 - 调用 `/usr/bin/security` 使用绝对路径。密钥只经 stdin 传递，超过上限时报错，不退回 argv。stderr 进入日志前只保留退出码和错误类别。
 
 ## 代码约定
 
 - Go 入口为 `main.go`，原生 UI 与系统协调放在 `internal/app`，后台协调放在 `internal/runway`，存储 / 平台 / 网络 / 本地化边界分别放在 `internal/store`、`internal/platform`、`internal/netx`、`internal/l10n`
-- Go 业务模块放在 `internal/codex`、`internal/codexapi`、`internal/grok`、`internal/claude`、`internal/usage`、`internal/sessions`、`internal/alerts`、`internal/estimate`、`internal/export`、`internal/resettoday`、`internal/skills`（全局 skill 扫描、来源识别、目录详情与自有回收站，启停写入在各供应商包）、`internal/mcp`（用户级 MCP 配置解析、脱敏摘要与原子删除，供应商包负责路径和共用锁）；UI 经业务 API 读取结果，不直接解析 JSON 或扫描文件
+- Go 业务模块放在 `internal/codex`、`internal/codexapi`、`internal/grok`、`internal/claude`、`internal/usage`、`internal/sessions`、`internal/alerts`、`internal/estimate`、`internal/export`、`internal/resettoday`、`internal/skills`（全局 skill 扫描、来源识别、目录详情与自有回收站，启停写入在各供应商包）、`internal/mcp`（用户级 MCP 配置解析、脱敏摘要与原子删除，供应商包负责路径和共用锁）、`internal/cursor`（实验性 Cursor 额度只读监控：桌面登录读取、Connect 请求与 protobuf 解析，不含切号、会话、Skills、MCP 与 Widget）；UI 经业务 API 读取结果，不直接解析 JSON 或扫描文件
 - 用户可见文案通过 `internal/l10n`（手工维护的 `tables.go`）与现有附加文案入口，新增 key 必须补齐英文、简体中文、繁体中文、韩文、日文、俄文、法文
 - Widget 使用自带的 `Sources/QuosparrWidget/RunwayWidgetL10n.swift` 与快照类型副本，修改共享 key 或快照 schema 时与 Go 侧保持同步，同样遵守七语言完整性
 - 函数保持短小，优先用简单结构体和函数，不做多 provider 抽象。
@@ -87,6 +88,7 @@ V1_DEVELOPMENT_PACKAGE=1 bash Scripts/package-v1-app.sh
 Quosparr v1 面向 macOS、Windows、Linux，主程序使用 Go + mygo/ui 原生菜单栏 / 系统托盘，macOS 保留 Swift WidgetKit 扩展；提供 Codex、Grok 与 Claude Code 订阅额度、重置动态、reset credits、API 等价成本、本机会话和各供应商独立的多账号管理
 
 - v1 已正式发布（`v1.0.0`、`v1.0.1`），现有截图展示 v1 在 macOS 与 Windows 上的界面
+- Cursor 为实验性额度监控（偏好键 `cursorMonitoringEnabled` 默认关闭），可在 Cursor 栏位、显示设置或“服务商账号 → Cursor”开启；按官方用量页分开展示 Cursor 模型与其他模型的百分比，金额为本账期用量事件汇总的已花与估算总额（已花 ÷ 百分比，取整到 10 美元并标注“估算”），不设总池；支持主面板、状态栏与悬浮窗，不提供切号、会话、Skills、MCP、Widget 与 CLI 管理，口径与验收状态见 `docs/cursor-monitoring.md`
 - 首次无偏好配置的启动显示设置并保存默认偏好，已有配置或从旧版迁移的用户普通启动时仅驻留菜单栏；主动点击设置或显式传入 `--settings` 才再次打开设置，日常 Dev 重启不附加该参数
 - Codex 支持配额窗口、订阅到期、reset credits、周额度推算与历史对比，Grok 展示官方 CLI chat-proxy 额度及 Build / Imagine / Chat 拆分、周期、预付余额和按需使用情况，Claude 展示 Claude Code 订阅用量的 5 小时、7 天、按模型周额度和额外用量，以及与 Codex 共用展示的重置次数
 - Codex 与 Claude Code 另支持 API 账号（Base URL + API Key，可从站点获取模型列表；Claude 可分别映射 Opus / Sonnet / Haiku / Fable 模型），在多账号中添加、编辑与切换，并在账号列表、主面板、状态栏、悬浮窗与 Widget 显示中转站余额（new-api 类令牌额度或 OpenAI 兼容账单接口，站点不提供时明确说明，不估算）；Codex 无 Base URL 时为官方 OpenAI API Key

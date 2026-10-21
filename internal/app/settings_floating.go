@@ -96,7 +96,7 @@ func (u *settingsUI) floatingProviderRows(c *ui.Context, row rowFunc, p store.Pr
 				on := selected[prov]
 				// Dropping the last one is not offered.
 				box := ui.Checkbox(c.Key("fw-prov-"+string(prov)), &on, l.Text(providerKey(prov))).
-					Disabled(ro || (on && len(selected) <= 1))
+					Disabled(ro || (on && len(selected) <= 1) || (!on && len(selected) >= store.MaxFloatingProviders))
 				if !box.Changed() || ro {
 					continue
 				}
