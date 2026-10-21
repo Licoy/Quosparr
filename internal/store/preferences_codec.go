@@ -14,13 +14,15 @@ import (
 //   - integer fields accept 300, 300.0 and 3e2, but not 300.5;
 //   - the quota estimate window mode accepts anything and falls back to auto,
 //     which also maps the legacy "officialWeek";
+//   - an unknown enum name gives that field's default (Codex for the selected
+//     provider), unlike the Swift decoder, which threw;
 //   - unknown module names are dropped, and the order is repaired;
 //   - numeric fields are clamped to their ranges;
 //   - keys this version does not know are kept for EncodePreferences.
 //
 // Where the Swift decoder throws (and the Swift app then resets everything),
 // DecodePreferences returns an error wrapping ErrCorrupt: invalid JSON, a
-// non-object document, a wrong JSON type, or an unknown enum value.
+// non-object document, or a wrong JSON type.
 func DecodePreferences(data []byte) (Preferences, error) {
 	rest, err := parseObject(data)
 	if err != nil {
@@ -41,19 +43,19 @@ func DecodePreferences(data []byte) (Preferences, error) {
 // readPreferences reads every known key; the order follows the Swift struct.
 func readPreferences(r *reader) Preferences {
 	p := DefaultPreferences()
-	p.SelectedProvider = readEnum(r, "selectedProvider", p.SelectedProvider, Provider.Valid)
-	p.Language = readEnum(r, "language", p.Language, Language.Valid)
-	p.Appearance = readEnum(r, "appearance", p.Appearance, Appearance.Valid)
-	p.MainPanelBackgroundStyle = readEnum(r, "mainPanelBackgroundStyle", p.MainPanelBackgroundStyle, PanelBackground.Valid)
-	p.StatusBarDisplayStyle = readEnum(r, "statusBarDisplayStyle", p.StatusBarDisplayStyle, StatusBarStyle.Valid)
-	p.StatusBarMetersDetailStyle = readEnum(r, "statusBarMetersDetailStyle", p.StatusBarMetersDetailStyle, MetersDetail.Valid)
-	p.StatusBarBatteryScope = readEnum(r, "statusBarBatteryScope", p.StatusBarBatteryScope, BatteryScope.Valid)
-	p.StatusBarBatteryDetailStyle = readEnum(r, "statusBarBatteryDetailStyle", p.StatusBarBatteryDetailStyle, BatteryDetail.Valid)
-	p.StatusBarProviderScope = readEnum(r, "statusBarProviderScope", p.StatusBarProviderScope, StatusBarProviderScope.Valid)
+	p.SelectedProvider = readEnumOrDefault(r, "selectedProvider", p.SelectedProvider, Provider.Valid)
+	p.Language = readEnumOrDefault(r, "language", p.Language, Language.Valid)
+	p.Appearance = readEnumOrDefault(r, "appearance", p.Appearance, Appearance.Valid)
+	p.MainPanelBackgroundStyle = readEnumOrDefault(r, "mainPanelBackgroundStyle", p.MainPanelBackgroundStyle, PanelBackground.Valid)
+	p.StatusBarDisplayStyle = readEnumOrDefault(r, "statusBarDisplayStyle", p.StatusBarDisplayStyle, StatusBarStyle.Valid)
+	p.StatusBarMetersDetailStyle = readEnumOrDefault(r, "statusBarMetersDetailStyle", p.StatusBarMetersDetailStyle, MetersDetail.Valid)
+	p.StatusBarBatteryScope = readEnumOrDefault(r, "statusBarBatteryScope", p.StatusBarBatteryScope, BatteryScope.Valid)
+	p.StatusBarBatteryDetailStyle = readEnumOrDefault(r, "statusBarBatteryDetailStyle", p.StatusBarBatteryDetailStyle, BatteryDetail.Valid)
+	p.StatusBarProviderScope = readEnumOrDefault(r, "statusBarProviderScope", p.StatusBarProviderScope, StatusBarProviderScope.Valid)
 	p.StatusBarProviders = readProviders(r, "statusBarProviders")
 	p.RefreshIntervalSeconds = r.int("refreshIntervalSeconds", p.RefreshIntervalSeconds)
 	p.WidgetRefreshIntervalSeconds = r.int("widgetRefreshIntervalSeconds", p.WidgetRefreshIntervalSeconds)
-	p.APICostSummaryRange = readEnum(r, "apiCostSummaryRange", p.APICostSummaryRange, CostRange.Valid)
+	p.APICostSummaryRange = readEnumOrDefault(r, "apiCostSummaryRange", p.APICostSummaryRange, CostRange.Valid)
 	p.MainPanelHeight = r.float("mainPanelHeight", p.MainPanelHeight)
 	p.MainPanelModuleOrder = readModules(r, "mainPanelModuleOrder", p.MainPanelModuleOrder)
 	p.ShowsQuotaSummary = r.bool("showsQuotaSummary", p.ShowsQuotaSummary)
@@ -66,7 +68,7 @@ func readPreferences(r *reader) Preferences {
 	p.ShowsRateLimitResetToday = r.bool("showsRateLimitResetToday", p.ShowsRateLimitResetToday)
 	p.ShowsModelSpecificQuotaUsage = r.bool("showsModelSpecificQuotaUsage", p.ShowsModelSpecificQuotaUsage)
 	p.ShowsTokenUsageHeatmap = r.bool("showsTokenUsageHeatmap", p.ShowsTokenUsageHeatmap)
-	p.TokenUsageChartStyle = readEnum(r, "tokenUsageChartStyle", p.TokenUsageChartStyle, ChartStyle.Valid)
+	p.TokenUsageChartStyle = readEnumOrDefault(r, "tokenUsageChartStyle", p.TokenUsageChartStyle, ChartStyle.Valid)
 	p.RateLimitResetTodayRefreshIntervalSeconds = r.int("rateLimitResetTodayRefreshIntervalSeconds", p.RateLimitResetTodayRefreshIntervalSeconds)
 	p.AutomaticallyChecksForUpdates = r.bool("automaticallyChecksForUpdates", p.AutomaticallyChecksForUpdates)
 	p.LaunchAtLoginEnabled = r.bool("launchAtLoginEnabled", p.LaunchAtLoginEnabled)

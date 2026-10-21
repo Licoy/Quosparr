@@ -261,7 +261,18 @@ func checkEnum[T ~string](t *testing.T, key string, values []T, valid func(T) bo
 			t.Errorf("%s: decoded %q, want %q", key, got, v)
 		}
 	}
-	for _, bad := range []string{`"klingon"`, `""`, `"Codex"`, `1`, `true`, `[]`} {
+	// A name this version does not know, such as one a newer build wrote, is
+	// the default and saves back as it.
+	for _, unknown := range []string{`"klingon"`, `""`, `"Codex"`, `"cursor"`} {
+		p := mustDecode(t, `{"`+key+`":`+unknown+`}`)
+		if get(p) != get(DefaultPreferences()) {
+			t.Errorf("%s=%s: decoded %q, want the default", key, unknown, get(p))
+		}
+		if _, err := EncodePreferences(p); err != nil {
+			t.Errorf("%s=%s: re-encode: %v", key, unknown, err)
+		}
+	}
+	for _, bad := range []string{`1`, `true`, `[]`} {
 		if _, err := DecodePreferences([]byte(`{"` + key + `":` + bad + `}`)); !errors.Is(err, ErrCorrupt) {
 			t.Errorf("%s=%s: err = %v, want ErrCorrupt", key, bad, err)
 		}
@@ -547,7 +558,7 @@ func TestMoveAndResetModuleOrder(t *testing.T) {
 
 func TestCorruptDocumentsAreErrors(t *testing.T) {
 	for _, doc := range []string{
-		``, `   `, `{`, `not json`, `null`, `[]`, `"x"`, `5`, `true`, `{"a":1}}`, `{"language":"klingon"}`,
+		``, `   `, `{`, `not json`, `null`, `[]`, `"x"`, `5`, `true`, `{"a":1}}`,
 		`{"language":1}`, `{"showsQuotaSummary":"yes"}`, `{"refreshIntervalSeconds":1.5}`,
 		`{"mainPanelModuleOrder":"quota"}`, "\xff\xfe",
 	} {
@@ -559,7 +570,7 @@ func TestCorruptDocumentsAreErrors(t *testing.T) {
 			t.Errorf("%q: an error must come with the zero value, not defaults", doc)
 		}
 	}
-	if _, err := DecodePreferences([]byte(`{"language":"klingon"}`)); err == nil || !strings.Contains(err.Error(), "language") {
+	if _, err := DecodePreferences([]byte(`{"language":1}`)); err == nil || !strings.Contains(err.Error(), "language") {
 		t.Errorf("error should name the key: %v", err)
 	}
 }

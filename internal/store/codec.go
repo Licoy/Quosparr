@@ -120,8 +120,8 @@ func (r *reader) string(key string) (string, bool) {
 	return s, true
 }
 
-// readEnum decodes a string enum. An unknown value is an error: the Swift
-// decoder throws on it, which resets all settings there.
+// readEnum decodes a string enum strictly. An unknown value is an error, so
+// an unknown proxy mode never silently becomes another network route.
 func readEnum[T ~string](r *reader, key string, def T, valid func(T) bool) T {
 	s, ok := r.string(key)
 	if !ok {
@@ -131,6 +131,16 @@ func readEnum[T ~string](r *reader, key string, def T, valid func(T) bool) T {
 		return v
 	}
 	r.fail(key, "unknown value %q", truncate(s, 40))
+	return def
+}
+
+// readEnumOrDefault decodes a settings enum leniently: a name this version
+// does not know, such as one a newer or unmerged build wrote, is the field's
+// default. A value that is not a string is still an error.
+func readEnumOrDefault[T ~string](r *reader, key string, def T, valid func(T) bool) T {
+	if s, ok := r.string(key); ok && valid(T(s)) {
+		return T(s)
+	}
 	return def
 }
 

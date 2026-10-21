@@ -89,7 +89,7 @@ func TestLegacyAbsentDoesNotMigrate(t *testing.T) {
 }
 
 func TestCorruptCurrentIsAnErrorAndNeverFallsBack(t *testing.T) {
-	for _, bad := range []string{`{not json`, `[]`, `null`, `{"language":"klingon"}`, `{"refreshIntervalSeconds":1.5}`} {
+	for _, bad := range []string{`{not json`, `[]`, `null`, `{"language":1}`, `{"refreshIntervalSeconds":1.5}`} {
 		s, cur, leg := newStore(bad, legacyJSON) // a valid legacy value must not rescue it
 		p, _, err := s.LoadPreferences()
 		if !errors.Is(err, ErrCorrupt) {
@@ -114,7 +114,7 @@ func TestCorruptCurrentIsAnErrorAndNeverFallsBack(t *testing.T) {
 }
 
 func TestCorruptLegacyIsAnErrorAndNothingIsWritten(t *testing.T) {
-	s, cur, leg := newStore("", `{"language":"klingon"}`)
+	s, cur, leg := newStore("", `{"language":1}`)
 	_, _, err := s.LoadPreferences()
 	if !errors.Is(err, ErrCorrupt) {
 		t.Fatalf("err = %v, want ErrCorrupt", err)
