@@ -13,6 +13,7 @@ import (
 type panelPopoverState struct {
 	popover     objc.ID
 	stopDismiss func()
+	fill        popoverFill
 }
 
 var popoverWillShowNotification = func() objc.ID {
@@ -66,6 +67,7 @@ func releasePanelPopover(a *App) {
 	if a.popover.stopDismiss != nil {
 		a.popover.stopDismiss()
 	}
+	a.popover.fill.release()
 	if a.popover.popover != 0 {
 		a.popover.popover.Send(objc.RegisterName("release"))
 	}
