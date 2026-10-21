@@ -61,6 +61,10 @@ type Report struct {
 	Totals       Totals
 	Models       []Row
 	Sessions     []Row
+	// UnreadLines counts log lines that may hold usage but could not be read
+	// (oversized or malformed), from logs modified since Start. They are
+	// skipped, so a positive count marks the report as incomplete.
+	UnreadLines int
 }
 
 // Clone returns a copy whose slices can be changed independently.

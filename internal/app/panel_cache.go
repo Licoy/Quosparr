@@ -54,7 +54,7 @@ func cacheSummaryContent(c *ui.Context, l l10n.Localizer, r cachehit.Report) {
 	ui.Text(c, tx(l, xCacheTokenRatio, tokenCompact(int(r.Totals.CachedInputTokens)), tokenCompact(int(r.Totals.InputTokens)))).
 		FontSize(fsCallout).TextColor(inkSecondary(t)).FontFeatures("tnum")
 	ui.Text(c, cacheRangeText(l, r)).FontSize(fsCaption).TextColor(inkTertiary(t)).SingleLine().Ellipsis("…")
-	cacheMissingText(c, l, r.Totals)
+	cacheGapsText(c, l, r)
 }
 
 func cachePercent(t cachehit.Totals) string {
@@ -79,11 +79,15 @@ func cacheRangeText(l l10n.Localizer, r cachehit.Report) string {
 	return tx(l, xCacheRangeSource, rangeValue.APIStartDate, rangeValue.APIEndDate)
 }
 
-func cacheMissingText(c *ui.Context, l l10n.Localizer, t cachehit.Totals) {
-	if t.MissingSamples == 0 {
-		return
+// cacheGapsText notes the records left out of the report: those without cache
+// data and the log lines that could not be read.
+func cacheGapsText(c *ui.Context, l l10n.Localizer, r cachehit.Report) {
+	if n := r.Totals.MissingSamples; n > 0 {
+		ui.Text(c, tx(l, xCacheMissingSamples, n)).FontSize(fsCaption).TextColor(sys(c.Theme(), sysOrange))
 	}
-	ui.Text(c, tx(l, xCacheMissingSamples, t.MissingSamples)).FontSize(fsCaption).TextColor(sys(c.Theme(), sysOrange))
+	if n := r.UnreadLines; n > 0 {
+		ui.Text(c, tx(l, xCacheUnreadLines, n)).FontSize(fsCaption).TextColor(sys(c.Theme(), sysOrange))
+	}
 }
 
 func (a *App) cacheDetailPage(c *ui.Context, l l10n.Localizer, acts PanelActions) {
@@ -179,7 +183,7 @@ func cacheDetailSummary(c *ui.Context, l l10n.Localizer, r cachehit.Report) {
 		func() { statCard(c, tx(l, xCacheSamples), strconv.Itoa(r.Totals.Samples), sys(t, sysOrange)) },
 	)
 	ui.Text(c, cacheRangeText(l, r)).FontSize(fsCaption).TextColor(inkTertiary(t)).SingleLine().Ellipsis("…")
-	cacheMissingText(c, l, r.Totals)
+	cacheGapsText(c, l, r)
 }
 
 func cacheBreakdownTabs(c *ui.Context, l l10n.Localizer, s *panelCacheState) {

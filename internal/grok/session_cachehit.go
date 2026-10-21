@@ -20,7 +20,11 @@ import (
 
 const grokCacheMaxLine = 8 << 20
 
-var errGrokCacheSyntax = errors.New("grok: malformed cache-hit log line")
+var (
+	errGrokCacheSyntax = errors.New("grok: malformed cache-hit log line")
+	// errGrokNotTurn marks a line that only mentions the turn markers.
+	errGrokNotTurn = errors.New("grok: log line is not a completed turn")
+)
 
 // CacheScanCache keeps window-independent parsed turns for ScanCache.
 type CacheScanCache struct {
@@ -32,6 +36,9 @@ type grokCacheFile struct {
 	info          os.FileInfo
 	fallbackModel string
 	turns         []grokCacheTurn
+	// unread counts the complete lines that may hold a turn but could not be
+	// read; they are skipped.
+	unread int
 }
 
 type grokCacheSample struct {
@@ -69,11 +76,15 @@ func (s SessionScanner) ScanCache(ctx context.Context, window usage.Window, now 
 		if err := ctx.Err(); err != nil {
 			return cachehit.Report{}, err
 		}
-		turns, err := s.grokCacheTurns(ctx, filepath.Join(summary.directory, "updates.jsonl"), summary.model)
+		file, err := s.grokCacheLog(ctx, filepath.Join(summary.directory, "updates.jsonl"), summary.model)
 		if err != nil {
 			return cachehit.Report{}, err
 		}
-		for _, turn := range turns {
+		// A log last modified before the range cannot hold a line of it.
+		if file.unread > 0 && !file.info.ModTime().Before(window.Start) {
+			report.UnreadLines += file.unread
+		}
+		for _, turn := range file.turns {
 			if err := ctx.Err(); err != nil {
 				return cachehit.Report{}, err
 			}
@@ -116,65 +127,76 @@ func addGrokCache(t *cachehit.Totals, sample grokCacheSample) error {
 	return nil
 }
 
-func (s SessionScanner) grokCacheTurns(ctx context.Context, path string, fallbackModel *string) ([]grokCacheTurn, error) {
+// grokCacheLog parses the turns of one updates log. Unreadable lines are
+// skipped and counted, so one damaged log does not hide every other one.
+func (s SessionScanner) grokCacheLog(ctx context.Context, path string, fallbackModel *string) (grokCacheFile, error) {
 	model := ""
 	if fallbackModel != nil {
 		model = *fallbackModel
 	}
 	info, err := os.Stat(path)
 	if errors.Is(err, os.ErrNotExist) {
-		return nil, nil
+		return grokCacheFile{}, nil
 	}
 	if err != nil {
-		return nil, err
+		return grokCacheFile{}, err
 	}
 	if s.Cache != nil {
 		s.Cache.mu.Lock()
 		entry, ok := s.Cache.files[path]
 		s.Cache.mu.Unlock()
 		if ok && entry.fallbackModel == model && os.SameFile(entry.info, info) && entry.info.Size() == info.Size() && entry.info.ModTime().Equal(info.ModTime()) {
-			return entry.turns, nil
+			return entry, nil
 		}
 	}
 	f, err := os.Open(path)
 	if err != nil {
-		return nil, err
+		return grokCacheFile{}, err
 	}
 	defer f.Close()
 	opened, err := f.Stat()
 	if err != nil {
-		return nil, err
+		return grokCacheFile{}, err
 	}
 	br := bufio.NewReader(&io.LimitedReader{R: f, N: opened.Size()})
 	seen := map[string]struct{}{}
-	var turns []grokCacheTurn
+	file := grokCacheFile{info: opened, fallbackModel: model}
 	for {
 		if err := ctx.Err(); err != nil {
-			return nil, err
+			return grokCacheFile{}, err
 		}
 		line, complete, tooLong, err := readGrokCacheLine(br, grokCacheMaxLine)
 		if err != nil && err != io.EOF {
-			return nil, err
-		}
-		if complete && tooLong {
-			return nil, fmt.Errorf("grok: cache-hit log line exceeds size limit")
+			return grokCacheFile{}, err
 		}
 		if !complete && tooLong {
 			break
 		}
 		line = bytes.TrimSpace(line)
-		if len(line) > 0 && bytes.Contains(line, sessionTurnMarker) && bytes.Contains(line, sessionUsageMarker) {
+		switch {
+		case tooLong:
+			if !grokCacheIgnorable(line) {
+				file.unread++
+			}
+		case len(line) > 0 && bytes.Contains(line, sessionTurnMarker) && bytes.Contains(line, sessionUsageMarker):
 			key := string(line)
-			if _, ok := seen[key]; !ok {
-				turn, parseErr := parseGrokCacheTurn(line, fallbackModel)
-				if parseErr != nil {
-					if !complete && errors.Is(parseErr, errGrokCacheSyntax) {
-						break
-					}
-					return nil, parseErr
-				}
+			if _, ok := seen[key]; ok {
+				break
+			}
+			turn, parseErr := parseGrokCacheTurn(line, fallbackModel)
+			switch {
+			case parseErr == nil:
 				seen[key] = struct{}{}
-				turns = append(turns, turn)
+				file.turns = append(file.turns, turn)
+			case errors.Is(parseErr, errGrokNotTurn):
+				// Another update whose text only mentions the turn markers.
+			case errors.Is(parseErr, errGrokCacheSyntax):
+				// A final line without newline may still be being written.
+				if complete {
+					file.unread++
+				}
+			default:
+				return grokCacheFile{}, parseErr
 			}
 		}
 		if !complete || err == io.EOF {
@@ -186,10 +208,17 @@ func (s SessionScanner) grokCacheTurns(ctx context.Context, path string, fallbac
 		if s.Cache.files == nil {
 			s.Cache.files = map[string]grokCacheFile{}
 		}
-		s.Cache.files[path] = grokCacheFile{info: opened, fallbackModel: model, turns: turns}
+		s.Cache.files[path] = file
 		s.Cache.mu.Unlock()
 	}
-	return turns, nil
+	return file, nil
+}
+
+// grokCacheIgnorable tells from its start that an oversized line is an update
+// other than a completed turn, so it has no usage.
+func grokCacheIgnorable(head []byte) bool {
+	kind, ok := usage.HeadString(head, "params", "update", "sessionUpdate")
+	return ok && kind != "turn_completed"
 }
 
 func readGrokCacheLine(br *bufio.Reader, max int) ([]byte, bool, bool, error) {
@@ -199,7 +228,7 @@ func readGrokCacheLine(br *bufio.Reader, max int) ([]byte, bool, bool, error) {
 		chunk, err := br.ReadSlice('\n')
 		if !tooLong {
 			if len(line)+len(chunk) > max {
-				tooLong, line = true, nil
+				tooLong, line = true, usage.LineHead(line, chunk)
 			} else {
 				line = append(line, chunk...)
 			}
@@ -222,7 +251,7 @@ func parseGrokCacheTurn(line []byte, fallbackModel *string) (grokCacheTurn, erro
 	}
 	update := obj.get("params").get("update")
 	if kind, _ := update.get("sessionUpdate").str(); update == nil || kind != "turn_completed" {
-		return grokCacheTurn{}, fmt.Errorf("grok: invalid cache-hit turn")
+		return grokCacheTurn{}, errGrokNotTurn
 	}
 	usageNode := update.get("usage")
 	if usageNode == nil || usageNode.kind != jsonObject {

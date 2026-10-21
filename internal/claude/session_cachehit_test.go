@@ -6,6 +6,7 @@ import (
 	"math"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -51,5 +52,48 @@ func TestSessionScanCacheHonorsCancellation(t *testing.T) {
 	_, err := (SessionScanner{ConfigDir: t.TempDir()}).ScanCache(ctx, usage.Window{Start: time.Unix(0, 0), End: time.Unix(1, 0)}, time.Time{})
 	if !errors.Is(err, context.Canceled) {
 		t.Fatalf("error = %v", err)
+	}
+}
+
+func TestSessionScanCacheSkipsOversizedRecordsAndCountsUnreadable(t *testing.T) {
+	config := t.TempDir()
+	dir := filepath.Join(config, "projects", "p")
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	pad := strings.Repeat("a", maxJSONLLine)
+	lines := "" +
+		// A pasted image or tool result: a user record has no usage.
+		`{"parentUuid":null,"type":"user","sessionId":"s","message":{"content":"` + pad + `"}}` + "\n" +
+		// An assistant message puts its type after the message, past the
+		// kept start, so it may hold usage.
+		`{"parentUuid":null,"message":{"content":"` + pad + `"},"type":"assistant","sessionId":"s"}` + "\n" +
+		`{"type":"assistant","sessionId":"s","message":` + "\n" +
+		`{"type":"assistant","sessionId":"s","timestamp":"2026-10-20T00:00:01Z","message":{"id":"m1","model":"claude-a","usage":{"input_tokens":100,"cache_creation_input_tokens":0,"cache_read_input_tokens":50,"output_tokens":1}}}` + "\n"
+	if err := os.WriteFile(filepath.Join(dir, "a.jsonl"), []byte(lines), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	start := time.Date(2026, 10, 20, 0, 0, 0, 0, time.UTC)
+	old := filepath.Join(dir, "old.jsonl")
+	if err := os.WriteFile(old, []byte(`{"type":"assistant",`+"\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Chtimes(old, start.Add(-time.Hour), start.Add(-time.Hour)); err != nil {
+		t.Fatal(err)
+	}
+	s := SessionScanner{ConfigDir: config}
+	r, err := s.ScanCache(context.Background(), usage.Window{Start: start, End: start.Add(24 * time.Hour)}, start)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if r.Totals.Samples != 1 || r.Totals.InputTokens != 150 || r.UnreadLines != 2 {
+		t.Fatalf("report = %+v", r)
+	}
+	r, err = s.ScanCache(context.Background(), usage.Window{Start: start.Add(-24 * time.Hour), End: start.Add(24 * time.Hour)}, start)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if r.UnreadLines != 3 {
+		t.Fatalf("wider range unread = %d", r.UnreadLines)
 	}
 }

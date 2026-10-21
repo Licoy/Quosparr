@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -147,5 +148,51 @@ func TestSessionScanCacheRejectsSemanticErrorWithoutFinalNewline(t *testing.T) {
 	w := usage.Window{Start: time.Unix(1792454400, 0), End: time.Unix(1792454402, 0)}
 	if _, err := (SessionScanner{GrokHome: home}).ScanCache(context.Background(), w, time.Now()); err == nil {
 		t.Fatal("invalid counters accepted")
+	}
+}
+
+func TestSessionScanCacheSkipsOtherUpdatesAndCountsUnreadable(t *testing.T) {
+	home := t.TempDir()
+	start := time.Unix(1792454400, 0)
+	write := func(id, data string, mtime time.Time) {
+		t.Helper()
+		dir := filepath.Join(home, "sessions", id)
+		if err := os.MkdirAll(dir, 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(filepath.Join(dir, "summary.json"), []byte(`{"info":{"id":"`+id+`"},"current_model_id":"m"}`), 0o600); err != nil {
+			t.Fatal(err)
+		}
+		path := filepath.Join(dir, "updates.jsonl")
+		if err := os.WriteFile(path, []byte(data), 0o600); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.Chtimes(path, mtime, mtime); err != nil {
+			t.Fatal(err)
+		}
+	}
+	pad := strings.Repeat("a", grokCacheMaxLine)
+	data := `{"timestamp":1792454401,"method":"session/update","params":{"sessionId":"s","update":{"sessionUpdate":"tool_call_update","content":"` + pad + `"}}}` + "\n" +
+		`{"timestamp":1792454401,"params":{"update":{"sessionUpdate":"turn_completed","usage":{"pad":"` + pad + `"}}}}` + "\n" +
+		// A tool result that only mentions the turn markers.
+		`{"timestamp":1792454401,"params":{"update":{"sessionUpdate":"tool_call_update","rawOutput":{"text":"turn_completed","usage":1}}}}` + "\n" +
+		`{"timestamp":1792454401,"params":{"update":{"sessionUpdate":"turn_completed","usage":{` + "\n" +
+		`{"timestamp":1792454402,"params":{"update":{"sessionUpdate":"turn_completed","usage":{"inputTokens":100,"cachedReadTokens":50}}}}` + "\n"
+	write("s", data, start.Add(time.Hour))
+	write("old", `{"params":{"update":{"sessionUpdate":"turn_completed","usage":{`+"\n", start.Add(-time.Hour))
+	s := SessionScanner{GrokHome: home}
+	r, err := s.ScanCache(context.Background(), usage.Window{Start: start, End: start.Add(time.Hour)}, start)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if r.Totals.Samples != 1 || r.Totals.InputTokens != 100 || r.UnreadLines != 2 {
+		t.Fatalf("report = %+v", r)
+	}
+	r, err = s.ScanCache(context.Background(), usage.Window{Start: start.Add(-2 * time.Hour), End: start.Add(time.Hour)}, start)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if r.UnreadLines != 3 {
+		t.Fatalf("wider range unread = %d", r.UnreadLines)
 	}
 }

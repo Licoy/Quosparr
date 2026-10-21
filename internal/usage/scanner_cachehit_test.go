@@ -6,6 +6,7 @@ import (
 	"math"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 )
@@ -122,10 +123,15 @@ func TestCacheOnlyFieldsDoNotChangeCostParserContract(t *testing.T) {
 	}
 	data := `{"timestamp":"2026-10-20T00:00:00Z","type":"turn_context","payload":{"model":"m"}}` + "\n" +
 		`{"timestamp":"2026-10-20T00:00:01Z","type":"event_msg","payload":{"type":"token_count","info":{"last_token_usage":{"input_tokens":100,"cached_input_tokens":50},"total_token_usage":{"input_tokens":"bad"}}}}` + "\n"
-	if err := os.WriteFile(filepath.Join(dir, "r.jsonl"), []byte(data), 0o600); err != nil {
+	w := Window{Start: time.Date(2026, 10, 20, 0, 0, 0, 0, time.UTC), End: time.Date(2026, 10, 20, 0, 0, 2, 0, time.UTC)}
+	path := filepath.Join(dir, "r.jsonl")
+	if err := os.WriteFile(path, []byte(data), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	w := Window{Start: time.Date(2026, 10, 20, 0, 0, 0, 0, time.UTC), End: time.Date(2026, 10, 20, 0, 0, 2, 0, time.UTC)}
+	// Without a date in its name the cost scan picks the log by mtime.
+	if err := os.Chtimes(path, w.Start, w.Start); err != nil {
+		t.Fatal(err)
+	}
 	s := Scanner{CodexHome: home}
 	cost, err := s.Scan(context.Background(), w)
 	if err != nil {
@@ -227,5 +233,67 @@ func TestScanCacheRejectsDivergentDuplicate(t *testing.T) {
 	_, err := (Scanner{CodexHome: home}).ScanCache(context.Background(), Window{Start: time.Unix(0, 0), End: time.Now()})
 	if err == nil {
 		t.Fatal("expected duplicate conflict")
+	}
+}
+
+func writeCacheLog(t *testing.T, path, data string, mtime time.Time) {
+	t.Helper()
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(path, []byte(data), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Chtimes(path, mtime, mtime); err != nil {
+		t.Fatal(err)
+	}
+}
+
+const cacheTestSample = `{"timestamp":"2026-10-20T00:00:01Z","type":"event_msg","payload":{"type":"token_count","info":{"last_token_usage":{"input_tokens":100,"cached_input_tokens":50}}}}` + "\n"
+
+func TestScanCacheSkipsCompactionOverRealLineLimit(t *testing.T) {
+	home := t.TempDir()
+	start := time.Date(2026, 10, 20, 0, 0, 0, 0, time.UTC)
+	compacted := `{"timestamp":"2026-10-20T00:00:00Z","type":"compacted","payload":{"message":"` + strings.Repeat("a", defaultMaxLineBytes) + `"}}` + "\n"
+	writeCacheLog(t, filepath.Join(home, "sessions", "rollout-example.jsonl"), compacted+cacheTestSample, start.Add(time.Hour))
+	r, err := (Scanner{CodexHome: home}).ScanCache(context.Background(), Window{Start: start, End: start.Add(24 * time.Hour)})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if r.Totals.Samples != 1 || r.Totals.InputTokens != 100 || r.UnreadLines != 0 {
+		t.Fatalf("report = %+v", r)
+	}
+}
+
+func TestScanCacheCountsUnreadableLinesAndKeepsOtherLogs(t *testing.T) {
+	home := t.TempDir()
+	start := time.Date(2026, 10, 20, 0, 0, 0, 0, time.UTC)
+	pad := strings.Repeat("a", 1024)
+	data := `{"timestamp":"2026-10-20T00:00:00Z","type":"response_item","payload":{"type":"function_call_output","output":"` + pad + `"}}` + "\n" +
+		`{"timestamp":"2026-10-20T00:00:00Z","type":"event_msg","payload":{"type":"item_completed","item":"` + pad + `"}}` + "\n" +
+		// Oversized lines that may hold usage: a token_count event, and one
+		// whose type lies past the kept start.
+		`{"timestamp":"2026-10-20T00:00:00Z","type":"event_msg","payload":{"type":"token_count","pad":"` + pad + `"}}` + "\n" +
+		`{"pad":"` + strings.Repeat("a", LineHeadBytes) + `","type":"compacted"}` + "\n" +
+		`{"timestamp":"2026-10-20T00:00:00Z","type":"event_msg","payload":{"type":"token_count"` + "\n" +
+		cacheTestSample
+	writeCacheLog(t, filepath.Join(home, "sessions", "rollout-a.jsonl"), data, start.Add(time.Hour))
+	writeCacheLog(t, filepath.Join(home, "sessions", "rollout-b.jsonl"), cacheTestSample, start.Add(time.Hour))
+	// Damage in a log last modified before the range does not mark it.
+	writeCacheLog(t, filepath.Join(home, "sessions", "rollout-old.jsonl"), `{"type":"event_msg","payload":{"type":"token_count"`+"\n", start.Add(-time.Hour))
+	s := Scanner{CodexHome: home, MaxLineBytes: 512}
+	r, err := s.ScanCache(context.Background(), Window{Start: start, End: start.Add(24 * time.Hour)})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if r.Totals.Samples != 2 || r.Totals.InputTokens != 200 || r.UnreadLines != 3 {
+		t.Fatalf("report = %+v", r)
+	}
+	r, err = s.ScanCache(context.Background(), Window{Start: start.Add(-24 * time.Hour), End: start.Add(24 * time.Hour)})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if r.UnreadLines != 4 {
+		t.Fatalf("wider range unread = %d", r.UnreadLines)
 	}
 }

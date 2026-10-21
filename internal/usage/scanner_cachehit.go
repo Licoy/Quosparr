@@ -28,6 +28,9 @@ type cacheScanFile struct {
 	meta      fileMeta
 	samples   []cacheScanSample
 	sessionID string
+	// unread counts the complete lines that may hold usage but could not be
+	// read; they are skipped.
+	unread int
 }
 
 type cacheScanSample struct {
@@ -65,6 +68,10 @@ func (s Scanner) ScanCache(ctx context.Context, window Window) (cachehit.Report,
 		parsed, err := s.cacheSamples(ctx, src)
 		if err != nil {
 			return cachehit.Report{}, err
+		}
+		// A log last modified before the range cannot hold a line of it.
+		if parsed.unread > 0 && parsed.meta.MtimeNS >= window.Start.UnixNano() {
+			report.UnreadLines += parsed.unread
 		}
 		id := strings.TrimSuffix(src.Basename, ".jsonl")
 		if parsed.sessionID != "" {
@@ -169,7 +176,7 @@ func (s Scanner) cacheSamples(ctx context.Context, src sourceFile) (cacheScanFil
 	// remain for the next scan and do not invalidate this complete snapshot.
 	stream := s.stream()
 	stream.parser.cacheFields = true
-	res, err := stream.read(ctx, readRequest{Path: src.Path, Expected: &src}, func(line parsedLine) error {
+	res, err := stream.read(ctx, readRequest{Path: src.Path, Expected: &src, IgnoreOversized: codexCacheIgnorable}, func(line parsedLine) error {
 		rec := line.Record
 		if rec.SessionID != nil && sessionID == "" {
 			sessionID = strings.TrimSpace(*rec.SessionID)
@@ -206,10 +213,10 @@ func (s Scanner) cacheSamples(ctx context.Context, src sourceFile) (cacheScanFil
 	if err != nil {
 		return cacheScanFile{}, err
 	}
-	if res.MalformedLines > res.IncompleteMalformed || res.OversizedLines > res.IncompleteOversized {
-		return cacheScanFile{}, fmt.Errorf("usage: cache-hit scan found invalid log lines in %s", src.Basename)
-	}
-	entry := cacheScanFile{meta: res.Meta, samples: samples, sessionID: sessionID}
+	// Unreadable lines are skipped and counted, so one damaged log does not
+	// hide every other one; a trailing line may still be being written.
+	unread := res.MalformedLines - res.IncompleteMalformed + res.OversizedLines - res.IncompleteOversized - res.IgnoredOversized
+	entry := cacheScanFile{meta: res.Meta, samples: samples, sessionID: sessionID, unread: unread}
 	if s.Cache != nil {
 		s.Cache.mu.Lock()
 		if s.Cache.files == nil {
@@ -219,6 +226,20 @@ func (s Scanner) cacheSamples(ctx context.Context, src sourceFile) (cacheScanFil
 		s.Cache.mu.Unlock()
 	}
 	return entry, nil
+}
+
+// codexCacheIgnorable tells from its start that an oversized line is a model
+// item, a compaction summary or an event other than token_count, none of which
+// the cache scan reads.
+func codexCacheIgnorable(head []byte) bool {
+	switch typ, _ := HeadString(head, "type"); typ {
+	case "response_item", "compacted":
+		return true
+	case "event_msg":
+		kind, ok := HeadString(head, "payload", "type")
+		return ok && kind != "token_count"
+	}
+	return false
 }
 
 func usageCacheRows(values map[string]cachehit.Totals) []cachehit.Row {

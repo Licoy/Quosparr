@@ -27,10 +27,15 @@ func (s SessionScanner) ScanCache(ctx context.Context, window usage.Window, now 
 	if err != nil {
 		return cachehit.Report{}, err
 	}
-	if sink.bad > 0 {
-		return cachehit.Report{}, fmt.Errorf("claude: cache-hit scan found %d invalid log lines", sink.bad)
-	}
 	report := cachehit.Report{Start: window.Start, End: window.End, CalculatedAt: now}
+	// Unreadable lines are skipped and counted, so one damaged log does not
+	// hide every other one. A log last modified before the range cannot hold
+	// a line of it.
+	for _, u := range sink.unread {
+		if !u.mtime.Before(window.Start) {
+			report.UnreadLines += u.lines
+		}
+	}
 	models, sessions := map[string]cachehit.Totals{}, map[string]cachehit.Totals{}
 	for _, key := range sink.order {
 		if err := ctx.Err(); err != nil {

@@ -47,11 +47,14 @@ type streamResult struct {
 	IncompleteMalformed int
 	OversizedLines      int
 	IncompleteOversized int
-	MaxBufferedBytes    int
-	LastCompleteOffset  uint64
-	TrailingLineStart   uint64
-	HasTrailingLine     bool
-	ContentFingerprint  []byte
+	// IgnoredOversized counts the complete oversized lines that
+	// readRequest.IgnoreOversized accepted; they are also in OversizedLines.
+	IgnoredOversized   int
+	MaxBufferedBytes   int
+	LastCompleteOffset uint64
+	TrailingLineStart  uint64
+	HasTrailingLine    bool
+	ContentFingerprint []byte
 }
 
 // readRequest describes one streaming pass.
@@ -61,6 +64,9 @@ type readRequest struct {
 	InitialFP     []byte // nil starts from the seed
 	Expected      *sourceFile
 	RequireStable bool
+	// IgnoreOversized, when set, tells from the first LineHeadBytes of a
+	// complete oversized line that dropping it loses nothing the caller reads.
+	IgnoreOversized func(head []byte) bool
 }
 
 // logStream reads session logs line by line without holding a whole file in
@@ -91,6 +97,7 @@ func (s *logStream) read(ctx context.Context, req readRequest, onRecord func(par
 	}
 	var res streamResult
 	acc := newLineAccumulator(req.FromOffset, s.maxLineBytes)
+	acc.ignore = req.IgnoreOversized
 	onCandidate := func(c candidateLine) error {
 		if c.LFComplete {
 			fp = extendFingerprint(fp, c.Data)
@@ -187,6 +194,7 @@ func (s *logStream) read(ctx context.Context, req readRequest, onRecord func(par
 	res.Meta = meta
 	res.CandidateLines = acc.candidateLines
 	res.OversizedLines = acc.oversizedLines
+	res.IgnoredOversized = acc.ignoredOversized
 	if acc.discarding {
 		res.IncompleteOversized = 1
 	}
@@ -230,6 +238,11 @@ type lineAccumulator struct {
 	oversizedLines int
 	maxBuffered    int
 	lastComplete   uint64
+	// ignore classifies an oversized line by head, its start, once the line
+	// is complete.
+	ignore           func([]byte) bool
+	head             []byte
+	ignoredOversized int
 }
 
 func newLineAccumulator(start uint64, maxLineBytes int) *lineAccumulator {
@@ -270,13 +283,20 @@ func (a *lineAccumulator) segment(seg []byte, lf bool, on func(candidateLine) er
 	if a.discarding {
 		if lf {
 			a.discarding = false
+			a.oversizedEnd()
 		}
 		return nil
 	}
 	if len(a.buffer)+len(seg) > a.maxLineBytes {
 		a.oversizedLines++
+		if a.ignore != nil {
+			a.head = LineHead(a.buffer, seg)
+		}
 		a.buffer = nil
 		a.discarding = !lf
+		if lf {
+			a.oversizedEnd()
+		}
 		return nil
 	}
 	if len(a.buffer) == 0 && lf {
@@ -292,6 +312,14 @@ func (a *lineAccumulator) segment(seg []byte, lf bool, on func(candidateLine) er
 	err := a.emit(a.buffer, true, on)
 	a.buffer = a.buffer[:0]
 	return err
+}
+
+// oversizedEnd classifies a complete oversized line by its start.
+func (a *lineAccumulator) oversizedEnd() {
+	if a.head != nil && a.ignore(a.head) {
+		a.ignoredOversized++
+	}
+	a.head = nil
 }
 
 var linePrefilterMarkers = [][]byte{

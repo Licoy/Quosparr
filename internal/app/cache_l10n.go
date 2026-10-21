@@ -9,6 +9,7 @@ const (
 	xCacheRangeSource         textKey = "cacheRangeSource"
 	xCacheSingleDaySource     textKey = "cacheSingleDaySource"
 	xCacheMissingSamples      textKey = "cacheMissingSamples"
+	xCacheUnreadLines         textKey = "cacheUnreadLines"
 	xCacheNoData              textKey = "cacheNoData"
 	xCacheByModel             textKey = "cacheByModel"
 	xCacheBySession           textKey = "cacheBySession"
@@ -40,6 +41,7 @@ func init() {
 		xCacheRangeSource:         {"%s – %s · Local session logs", "%s – %s · 本机会话日志", "%s – %s · 本機工作階段日誌", "%s – %s · 로컬 세션 로그", "%s – %s · ローカルセッションログ", "%s – %s · Локальные журналы сеансов", "%s – %s · Journaux de sessions locales"},
 		xCacheSingleDaySource:     {"%s · Local session logs", "%s · 本机会话日志", "%s · 本機工作階段日誌", "%s · 로컬 세션 로그", "%s · ローカルセッションログ", "%s · Локальные журналы сеансов", "%s · Journaux de sessions locales"},
 		xCacheMissingSamples:      {"Excluded %d records without cache token data", "已排除 %d 条缺少缓存 Token 数据的记录", "已排除 %d 筆缺少快取 Token 資料的記錄", "캐시 토큰 데이터가 없는 기록 %d개를 제외했습니다", "キャッシュトークンデータがない記録 %d 件を除外しました", "Исключено записей без данных о токенах кэша: %d", "%d enregistrements sans données de jetons en cache ont été exclus"},
+		xCacheUnreadLines:         {"Skipped %d unreadable log records; results may be incomplete", "已跳过 %d 条无法读取的日志记录，统计可能不完整", "已略過 %d 筆無法讀取的日誌記錄，統計可能不完整", "읽을 수 없는 로그 기록 %d개를 건너뛰어 결과가 불완전할 수 있습니다", "読み取れないログ記録 %d 件をスキップしたため、結果が不完全な可能性があります", "Пропущено нечитаемых записей журнала: %d; данные могут быть неполными", "%d enregistrements de journal illisibles ont été ignorés ; les résultats peuvent être incomplets"},
 		xCacheNoData:              {"No cache data", "无缓存数据", "無快取資料", "캐시 데이터 없음", "キャッシュデータなし", "Нет данных кэша", "Aucune donnée de cache"},
 		xCacheByModel:             {"By model", "按模型", "依模型", "모델별", "モデル別", "По моделям", "Par modèle"},
 		xCacheBySession:           {"By session", "按会话", "依工作階段", "세션별", "セッション別", "По сеансам", "Par session"},

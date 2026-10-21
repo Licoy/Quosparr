@@ -65,9 +65,19 @@ type scanSink struct {
 	order []string
 	metas map[string]*sessionMeta
 	bad   int
-	anon  int
+	// ignored counts the bad lines that are oversized records other than an
+	// assistant message, which carry no usage.
+	ignored int
+	// unread is, per merged file, the bad lines that may carry usage.
+	unread []unreadLines
+	anon   int
 	// prefix keeps anonymous keys of different files apart.
 	prefix string
+}
+
+type unreadLines struct {
+	mtime time.Time
+	lines int
 }
 
 func newScanSink(prefix string) *scanSink {
@@ -99,6 +109,9 @@ func (s SessionScanner) collect(ctx context.Context, limit int, since time.Time)
 			s.Cache.put(file, part)
 		}
 		sink.merge(part)
+		if n := part.bad - part.ignored; n > 0 {
+			sink.unread = append(sink.unread, unreadLines{mtime: file.mtime, lines: n})
+		}
 	}
 	return sink, nil
 }
@@ -212,6 +225,9 @@ func (sink *scanSink) readFile(ctx context.Context, path string, mtime time.Time
 		}
 		if tooLong {
 			sink.bad++
+			if claudeIgnorableHead(line) {
+				sink.ignored++
+			}
 		} else if len(bytes.TrimSpace(line)) > 0 {
 			sink.consume(line, mtime, &parent, &hasParent, err == io.EOF)
 		}
@@ -221,6 +237,8 @@ func (sink *scanSink) readFile(ctx context.Context, path string, mtime time.Time
 	}
 }
 
+// readLogicalLine reads one line. A line longer than max is skipped; it
+// returns its first usage.LineHeadBytes with tooLong set.
 func readLogicalLine(br *bufio.Reader, max int) ([]byte, bool, error) {
 	var out []byte
 	tooLong := false
@@ -229,7 +247,7 @@ func readLogicalLine(br *bufio.Reader, max int) ([]byte, bool, error) {
 		if !tooLong {
 			if len(out)+len(chunk) > max {
 				tooLong = true
-				out = nil
+				out = usage.LineHead(out, chunk)
 			} else {
 				out = append(out, chunk...)
 			}
@@ -238,10 +256,17 @@ func readLogicalLine(br *bufio.Reader, max int) ([]byte, bool, error) {
 			continue
 		}
 		if tooLong {
-			return nil, true, err
+			return out, true, err
 		}
 		return trimNL(out), false, err
 	}
+}
+
+// claudeIgnorableHead tells from its start that an oversized line is a record
+// other than an assistant message, so it has no usage.
+func claudeIgnorableHead(head []byte) bool {
+	typ, ok := usage.HeadString(head, "type")
+	return ok && typ != "assistant"
 }
 
 func trimNL(line []byte) []byte {
