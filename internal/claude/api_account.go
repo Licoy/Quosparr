@@ -228,6 +228,10 @@ func (s *Store) loadAPIKey(id string) (string, error) {
 func (s *Store) PutAPI(acc ManagedAccount, key string, now time.Time) (ManagedAccount, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	return s.putAPI(acc, key, now, false)
+}
+
+func (s *Store) putAPI(acc ManagedAccount, key string, now time.Time, makeCurrent bool) (ManagedAccount, error) {
 	if !acc.IsAPI() || acc.API == nil {
 		return ManagedAccount{}, ErrNotAPIAccount
 	}
@@ -242,22 +246,31 @@ func (s *Store) PutAPI(acc ManagedAccount, key string, now time.Time) (ManagedAc
 			acc.CreatedAt = now
 		}
 	}
-	var previousKey string
+	var previousKey []byte
 	hadKey := false
 	if key != "" {
-		previousKey, err = s.loadAPIKey(acc.ID)
+		previousKey, err = os.ReadFile(s.CredentialPath(acc.ID))
 		hadKey = err == nil
+		if err != nil && !errors.Is(err, os.ErrNotExist) {
+			return ManagedAccount{}, ErrAPIKeyMissing
+		}
 		if err := s.saveAPIKey(acc.ID, key); err != nil {
 			return ManagedAccount{}, err
 		}
+	}
+	if makeCurrent {
+		acc.LastUsedAt = &now
+		idx.CurrentAccountID = acc.ID
 	}
 	idx.Upsert(acc)
 	if err := s.saveIndex(idx); err != nil {
 		switch {
 		case !found:
-			_ = os.RemoveAll(s.AccountDir(acc.ID))
+			err = errors.Join(err, os.RemoveAll(s.AccountDir(acc.ID)))
 		case key != "" && hadKey:
-			_ = s.saveAPIKey(acc.ID, previousKey)
+			err = errors.Join(err, platform.WriteFileAtomic(s.CredentialPath(acc.ID), previousKey, storeFilePerm))
+		case key != "":
+			err = errors.Join(err, os.Remove(s.CredentialPath(acc.ID)))
 		}
 		return ManagedAccount{}, err
 	}

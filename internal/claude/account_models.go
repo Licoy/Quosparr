@@ -30,9 +30,11 @@ type ManagedAccount struct {
 	// Kind is KindAPI for an API relay account and empty for a subscription
 	// (OAuth) account. API holds the relay profile and APIQuota the last
 	// balance reading; neither contains the key.
-	Kind     string          `json:"kind,omitempty"`
-	API      *APIProfile     `json:"api,omitempty"`
-	APIQuota *apiquota.Quota `json:"apiQuota,omitempty"`
+	Kind               string            `json:"kind,omitempty"`
+	API                *APIProfile       `json:"api,omitempty"`
+	APIQuota           *apiquota.Quota   `json:"apiQuota,omitempty"`
+	AppliedAPIModels   *AppliedAPIModels `json:"appliedAPIModels,omitempty"`
+	AppliedAPIIdentity string            `json:"appliedAPIIdentity,omitempty"`
 }
 
 // ResolvedDisplayName is the alias, else the identity label. An API account

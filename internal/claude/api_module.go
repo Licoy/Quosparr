@@ -2,6 +2,7 @@ package claude
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strconv"
 	"strings"
@@ -54,9 +55,7 @@ func (m *Module) APIAccountInUse(id string) bool {
 }
 
 // APIAccountState reports whether settings.json points at the API account id,
-// and whether it spells the base URL differently from the account, as one an
-// earlier version wrote with a trailing /v1 does; saving with Apply rewrites
-// it in the stored form.
+// and whether applying its stored URL or managed models would change the file.
 func (m *Module) APIAccountState(id string) (inUse, outdated bool) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -64,12 +63,18 @@ func (m *Module) APIAccountState(id string) (inUse, outdated bool) {
 	if err != nil {
 		return false, false
 	}
-	live, _, found := m.liveAPIAccount(idx)
+	live, key, found := m.liveAPIAccount(idx)
 	if !found || live.ID != id {
 		return false, false
 	}
-	base, _, err := m.Store.ReadAPISettingsFile()
-	return true, err == nil && strings.TrimSpace(base) != live.API.BaseURL
+	m.Store.mu.Lock()
+	defer m.Store.mu.Unlock()
+	data, err := readFileIfExists(m.Store.SettingsPath())
+	if err != nil {
+		return true, false
+	}
+	outdated, err = apiSettingsOutdated(data, live.API.Env(key), live.appliedAPIEnv(key))
+	return true, err == nil && outdated
 }
 
 // APIKey returns the stored key of an API account for internal callers such
@@ -225,10 +230,14 @@ func editedProfile(old APIProfile, src *APIProfile) (APIProfile, error) {
 // library cannot be written.
 func (m *Module) saveEditedAPI(idx AccountIndex, old, next ManagedAccount, oldKey, newKey string, hadKey, keepSettings bool) (ManagedAccount, error) {
 	live, _, isLive := m.liveAPIAccount(idx)
-	active := isLive && live.ID == old.ID && !keepSettings
-	oldEnv, newEnv := old.API.Env(oldKey), next.API.Env(newKey)
-	if active {
-		if err := m.Store.ApplyAPISettingsFile(newEnv, &oldEnv, m.now()); err != nil {
+	active := isLive && live.ID == old.ID
+	if active && next.AppliedAPIModels == nil {
+		next.AppliedAPIModels = appliedAPIModels(old.API.Env(oldKey))
+	}
+	if active && next.AppliedAPIIdentity == "" {
+		var err error
+		next.AppliedAPIIdentity, err = appliedAPIIdentity(old.API.BaseURL, oldKey)
+		if err != nil {
 			return ManagedAccount{}, err
 		}
 	}
@@ -236,14 +245,11 @@ func (m *Module) saveEditedAPI(idx AccountIndex, old, next ManagedAccount, oldKe
 	if newKey != oldKey || !hadKey {
 		storeKey = newKey
 	}
-	saved, err := m.Store.PutAPI(next, storeKey, m.now())
-	if err != nil {
-		if active {
-			_ = m.Store.ApplyAPISettingsFile(oldEnv, &newEnv, m.now())
-		}
-		return ManagedAccount{}, err
+	if active && !keepSettings {
+		previous := old.appliedAPIEnv(oldKey)
+		return m.Store.applyAPIAccount(next, storeKey, next.API.Env(newKey), &previous, m.now(), false)
 	}
-	return saved, nil
+	return m.Store.PutAPI(next, storeKey, m.now())
 }
 
 // findAPI returns the API account other than exceptID that has this normalized
@@ -341,7 +347,15 @@ func (m *Module) importAPISettings(idx AccountIndex) (AccountIndex, error) {
 		Model: env.Model, OpusModel: env.OpusModel, SonnetModel: env.SonnetModel,
 		HaikuModel: env.HaikuModel, FableModel: env.FableModel,
 	})
+	identity, err := appliedAPIIdentity(base, key)
+	if err != nil {
+		return idx, err
+	}
 	acc := ManagedAccount{ID: freeAPIID(idx, base, key), Kind: KindAPI, API: &profile}
+	if previous, ok := idx.Account(idx.CurrentAccountID); ok && previous.IsAPI() && previous.AppliedAPIModels != nil && previous.AppliedAPIIdentity != "" && previous.AppliedAPIIdentity == identity {
+		acc.AppliedAPIModels = previous.AppliedAPIModels
+		acc.AppliedAPIIdentity = previous.AppliedAPIIdentity
+	}
 	if _, err := m.Store.PutAPI(acc, key, m.now()); err != nil {
 		return idx, err
 	}
@@ -375,21 +389,13 @@ func (m *Module) switchToAPI(ctx context.Context, idx AccountIndex, target Manag
 		return err
 	}
 	env := target.API.Env(key)
-	prev, prevKey, live, hasPrev := m.currentAPI(idx)
+	prev, prevKey, _, hasPrev := m.currentAPI(idx)
 	var previous *APIEnv
 	if hasPrev {
-		e := prev.API.Env(prevKey)
+		e := prev.appliedAPIEnv(prevKey)
 		previous = &e
 	}
-	if err := m.Store.ApplyAPISettingsFile(env, previous, m.now()); err != nil {
-		return err
-	}
-	if err := m.Store.SetCurrentAccountID(target.ID, m.now()); err != nil {
-		if previous != nil && live {
-			_ = m.Store.ApplyAPISettingsFile(*previous, &env, m.now())
-		} else {
-			_ = m.Store.RemoveAPISettingsFile(env, m.now())
-		}
+	if _, err := m.Store.applyAPIAccount(target, "", env, previous, m.now(), true); err != nil {
 		return err
 	}
 	m.refreshUsage(ctx, target.ID, true)
@@ -400,17 +406,16 @@ func (m *Module) switchToAPI(ctx context.Context, idx AccountIndex, target Manag
 // target, and puts the settings back if the install fails. live is false when
 // settings.json no longer held the account: it is cleaned, never restored.
 func (m *Module) switchFromAPI(ctx context.Context, id string, prev ManagedAccount, key string, live bool) error {
-	env := prev.API.Env(key)
-	if err := m.Store.RemoveAPISettingsFile(env, m.now()); err != nil {
+	env := prev.appliedAPIEnv(key)
+	snap, err := m.Store.removeAPIForSwitch(env, m.now())
+	if err != nil {
 		return err
 	}
-	err := m.switchToOAuth(ctx, id)
+	err = m.switchToOAuth(ctx, id)
 	if err == nil || !live {
 		return err
 	}
-	_ = m.Store.ApplyAPISettingsFile(env, nil, m.now())
-	_ = m.Store.SetCurrentAccountID(prev.ID, m.now())
-	return err
+	return errors.Join(err, m.Store.restoreAPISettings(snap), m.Store.SetCurrentAccountID(prev.ID, m.now()))
 }
 
 // --- balance ----------------------------------------------------------------

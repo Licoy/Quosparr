@@ -75,6 +75,9 @@ func ApplyAPISettings(data []byte, env APIEnv, previous *APIEnv) ([]byte, error)
 		setOrClear(vars, f.key, f.get(env), prev)
 	}
 	setOrClear(root, "model", env.Model, previousModel(previous))
+	if env.Model != "" {
+		delete(vars, "ANTHROPIC_MODEL")
+	}
 	root["env"] = marshalCompact(vars)
 	return encodeSettings(root)
 }
