@@ -29,6 +29,9 @@ func TestEstimateUnavailableReasonsAreDistinct(t *testing.T) {
 	if zeroC == missing || missing == noUsage || zeroC == noUsage {
 		t.Error("reasons must differ")
 	}
+	if notSynced := EstimateUnavailableText(zh, estimate.ReasonStatsNotSynced); !strings.Contains(notSynced, "尚未包含") || notSynced == noUsage {
+		t.Errorf("stats not synced: %q", notSynced)
+	}
 }
 
 func TestEstimateDataTimeShowsStatisticsDateAndFetchTime(t *testing.T) {

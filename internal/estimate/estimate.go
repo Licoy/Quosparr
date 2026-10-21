@@ -122,7 +122,9 @@ type Snapshot struct {
 	ChangePercent    *float64
 	ChangeKind       *ChangeKind
 	History          []HistorySample
-	CalculatedAt     time.Time
+	// LatestStatsDate is the latest day of all daily rows, "" without any.
+	LatestStatsDate string
+	CalculatedAt    time.Time
 	// UnavailableReason is nil when the estimate could be extrapolated.
 	UnavailableReason *UnavailableReason
 }
@@ -213,6 +215,7 @@ func Make(q Quota, daily []DailyRow, mode WindowMode, history []HistorySample, n
 		ChangePercent:     change,
 		ChangeKind:        kind,
 		History:           Normalized(history),
+		LatestStatsDate:   latestDate(daily),
 		CalculatedAt:      now,
 		UnavailableReason: reason,
 	}
@@ -246,13 +249,7 @@ func rowFrom(d DailyRow) Row {
 
 func cycleStartDate(mode WindowMode, meter *Window, daily []DailyRow, now time.Time) string {
 	if mode == ModeRollingWeek {
-		latest := ""
-		for _, d := range daily {
-			if d.Date != "" && d.Date > latest {
-				latest = d.Date
-			}
-		}
-		if latest != "" {
+		if latest := latestDate(daily); latest != "" {
 			return AddUTCDays(latest, -6)
 		}
 		return AddUTCDays(UTCDay(now), -6)
@@ -266,6 +263,16 @@ func cycleStartDate(mode WindowMode, meter *Window, daily []DailyRow, now time.T
 		return UTCDay(meter.ResetsAt.Add(-time.Duration(seconds) * time.Second))
 	}
 	return AddUTCDays(UTCDay(now), -6)
+}
+
+func latestDate(daily []DailyRow) string {
+	latest := ""
+	for _, d := range daily {
+		if d.Date > latest {
+			latest = d.Date
+		}
+	}
+	return latest
 }
 
 func compare(estimated *float64, cycleStart string, history []HistorySample) (*HistorySample, *float64, *ChangeKind) {

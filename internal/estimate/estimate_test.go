@@ -421,13 +421,19 @@ func TestUnusedRowDoesNotBlockReportedUsage(t *testing.T) {
 }
 
 func TestOtherUnavailableReasons(t *testing.T) {
-	empty := availEstimate(nil, 47, true)
+	empty := availEstimate(nil, 0, true)
 	if *empty.UnavailableReason != ReasonNoUsage || empty.StatsThroughDate() != nil || empty.APIEquivalentUSD() != nil {
 		t.Fatalf("empty: %+v", empty)
 	}
-	idle := availEstimate([]DailyRow{used("2026-09-02", 0, true, nil, 0)}, 47, true)
+	idle := availEstimate([]DailyRow{used("2026-09-02", 0, true, nil, 0)}, 0, true)
 	if *idle.UnavailableReason != ReasonNoUsage {
 		t.Fatalf("idle: %+v", idle)
+	}
+	// A used window without a used day means the statistics lag behind.
+	for name, days := range map[string][]DailyRow{"empty": nil, "idle": {used("2026-09-02", 0, true, nil, 0)}} {
+		if s := availEstimate(days, 47, true); *s.UnavailableReason != ReasonStatsNotSynced || s.EstimatedCredits != nil {
+			t.Fatalf("%s with used window: %+v", name, s)
+		}
 	}
 	row := used("2026-09-02", 47, true, nil, 1000)
 	if r := availEstimate([]DailyRow{row}, 0, true).UnavailableReason; r == nil || *r != ReasonZeroPercent {
@@ -435,6 +441,20 @@ func TestOtherUnavailableReasons(t *testing.T) {
 	}
 	if r := availEstimate([]DailyRow{row}, 47, false).UnavailableReason; r == nil || *r != ReasonUnavailableWindow {
 		t.Fatalf("no weekly window: %v", r)
+	}
+}
+
+func TestStatsBeforeCycleAreNotSyncedAndShowTheirDate(t *testing.T) {
+	// The weekly window reset at 01:00 today; the statistics end yesterday.
+	minutes := 10_080
+	resets := time.Date(2026, 9, 10, 1, 0, 0, 0, time.UTC)
+	q := Quota{Primary: Window{UsedPercent: 10, UsedPercentExact: 10, WindowMinutes: &minutes, ResetsAt: &resets}}
+	s := Make(q, []DailyRow{used("2026-09-02", 50, true, nil, 1000)}, ModeAuto, nil, availNow)
+	if s.CycleStartDate != "2026-09-03" || len(s.CurrentRows) != 0 || *s.UnavailableReason != ReasonStatsNotSynced {
+		t.Fatalf("snapshot = %+v", s)
+	}
+	if through := s.StatsThroughDate(); through == nil || *through != "2026-09-02" {
+		t.Fatalf("through = %v", through)
 	}
 }
 

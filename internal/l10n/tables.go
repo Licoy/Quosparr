@@ -346,6 +346,7 @@ const (
 	KeyQuotaEstimateMissingCredits                         Key = "quotaEstimateMissingCredits"
 	KeyQuotaEstimateNoUsage                                Key = "quotaEstimateNoUsage"
 	KeyQuotaEstimateShowingPreviousData                    Key = "quotaEstimateShowingPreviousData"
+	KeyQuotaEstimateStatsNotSynced                         Key = "quotaEstimateStatsNotSynced"
 	KeyQuotaEstimateStatsThrough                           Key = "quotaEstimateStatsThrough"
 	KeyQuotaEstimateThisWeek                               Key = "quotaEstimateThisWeek"
 	KeyQuotaEstimateThisWeekUsed                           Key = "quotaEstimateThisWeekUsed"
@@ -990,6 +991,7 @@ var allKeys = []Key{
 	KeyQuotaEstimateMissingCredits,
 	KeyQuotaEstimateNoUsage,
 	KeyQuotaEstimateShowingPreviousData,
+	KeyQuotaEstimateStatsNotSynced,
 	KeyQuotaEstimateStatsThrough,
 	KeyQuotaEstimateThisWeek,
 	KeyQuotaEstimateThisWeekUsed,
@@ -1635,6 +1637,7 @@ var tables = map[Language]map[Key]string{
 		KeyQuotaEstimateMissingCredits:           "Official statistics do not provide complete Credits; allowance cannot be estimated",
 		KeyQuotaEstimateNoUsage:                  "No usage in this window yet; allowance cannot be estimated",
 		KeyQuotaEstimateShowingPreviousData:      "Refresh failed; showing previously fetched data",
+		KeyQuotaEstimateStatsNotSynced:           "Official statistics do not include this window's usage yet; allowance cannot be estimated",
 		KeyQuotaEstimateStatsThrough:             "Statistics through %@",
 		KeyQuotaEstimateUnavailableWindow:        "No quota window is available for estimation",
 		KeyQuotaEstimateZeroCreditsWithUsage:     "Official statistics record token usage but return 0 Credits; allowance cannot be estimated",
@@ -2277,6 +2280,7 @@ var tables = map[Language]map[Key]string{
 		KeyQuotaEstimateMissingCredits:           "官方统计未提供完整 Credits，当前无法推算",
 		KeyQuotaEstimateNoUsage:                  "当前窗口尚无用量，暂无法推算",
 		KeyQuotaEstimateShowingPreviousData:      "刷新失败，正在显示上次获取的数据",
+		KeyQuotaEstimateStatsNotSynced:           "官方统计尚未包含当前窗口的用量，暂无法推算",
 		KeyQuotaEstimateStatsThrough:             "统计截至 %@",
 		KeyQuotaEstimateUnavailableWindow:        "当前没有可用于推算的配额窗口",
 		KeyQuotaEstimateZeroCreditsWithUsage:     "官方统计已记录 Token 用量，但 Credits 返回 0，当前无法推算",
@@ -2914,6 +2918,7 @@ var tables = map[Language]map[Key]string{
 		KeyQuotaEstimateMissingCredits:           "官方統計未提供完整 Credits，目前無法推算",
 		KeyQuotaEstimateNoUsage:                  "目前窗口尚無用量，暫時無法推算",
 		KeyQuotaEstimateShowingPreviousData:      "重新整理失敗，正在顯示上次取得的資料",
+		KeyQuotaEstimateStatsNotSynced:           "官方統計尚未包含目前窗口的用量，暫時無法推算",
 		KeyQuotaEstimateStatsThrough:             "統計截至 %@",
 		KeyQuotaEstimateUnavailableWindow:        "目前沒有可用於推算的配額窗口",
 		KeyQuotaEstimateZeroCreditsWithUsage:     "官方統計已記錄 Token 用量，但 Credits 回傳 0，目前無法推算",
@@ -3556,6 +3561,7 @@ var tables = map[Language]map[Key]string{
 		KeyQuotaEstimateMissingCredits:           "공식 통계의 Credits 데이터가 완전하지 않아 한도를 추정할 수 없습니다",
 		KeyQuotaEstimateNoUsage:                  "현재 기간의 사용량이 아직 없어 한도를 추정할 수 없습니다",
 		KeyQuotaEstimateShowingPreviousData:      "새로고침에 실패하여 이전에 가져온 데이터를 표시합니다",
+		KeyQuotaEstimateStatsNotSynced:           "공식 통계에 현재 기간의 사용량이 아직 반영되지 않아 한도를 추정할 수 없습니다",
 		KeyQuotaEstimateStatsThrough:             "통계 기준일 %@",
 		KeyQuotaEstimateUnavailableWindow:        "추정에 사용할 할당량 기간이 없습니다",
 		KeyQuotaEstimateZeroCreditsWithUsage:     "공식 통계에 토큰 사용량이 있지만 Credits가 0으로 반환되어 한도를 추정할 수 없습니다",
@@ -4198,6 +4204,7 @@ var tables = map[Language]map[Key]string{
 		KeyQuotaEstimateMissingCredits:           "公式統計に完全な Credits データがないため、上限を推定できません",
 		KeyQuotaEstimateNoUsage:                  "この期間にはまだ使用量がないため、上限を推定できません",
 		KeyQuotaEstimateShowingPreviousData:      "更新に失敗したため、前回取得したデータを表示しています",
+		KeyQuotaEstimateStatsNotSynced:           "公式統計にこの期間の使用量がまだ反映されていないため、上限を推定できません",
 		KeyQuotaEstimateStatsThrough:             "統計の最終日 %@",
 		KeyQuotaEstimateUnavailableWindow:        "推定に使えるクォータ期間がありません",
 		KeyQuotaEstimateZeroCreditsWithUsage:     "公式統計にトークン使用量はありますが、Credits は 0 のため上限を推定できません",
@@ -4840,6 +4847,7 @@ var tables = map[Language]map[Key]string{
 		KeyQuotaEstimateMissingCredits:           "Официальная статистика не содержит полных данных Credits; оценка квоты недоступна",
 		KeyQuotaEstimateNoUsage:                  "В этом периоде ещё нет использования; оценка квоты недоступна",
 		KeyQuotaEstimateShowingPreviousData:      "Не удалось обновить; показаны ранее полученные данные",
+		KeyQuotaEstimateStatsNotSynced:           "Официальная статистика ещё не учитывает использование в этом периоде; оценка квоты недоступна",
 		KeyQuotaEstimateStatsThrough:             "Статистика по %@",
 		KeyQuotaEstimateUnavailableWindow:        "Нет периода квоты для оценки",
 		KeyQuotaEstimateZeroCreditsWithUsage:     "Официальная статистика содержит использование токенов, но возвращает 0 Credits; оценка квоты недоступна",
@@ -5482,6 +5490,7 @@ var tables = map[Language]map[Key]string{
 		KeyQuotaEstimateMissingCredits:           "Les statistiques officielles ne fournissent pas de Credits complets ; estimation impossible",
 		KeyQuotaEstimateNoUsage:                  "Aucune utilisation dans cette période ; estimation impossible pour le moment",
 		KeyQuotaEstimateShowingPreviousData:      "Échec de l’actualisation ; affichage des dernières données récupérées",
+		KeyQuotaEstimateStatsNotSynced:           "Les statistiques officielles n’incluent pas encore l’utilisation de cette période ; estimation impossible pour le moment",
 		KeyQuotaEstimateStatsThrough:             "Statistiques jusqu’au %@",
 		KeyQuotaEstimateUnavailableWindow:        "Aucune période de quota disponible pour l’estimation",
 		KeyQuotaEstimateZeroCreditsWithUsage:     "Les statistiques officielles indiquent une utilisation de jetons mais 0 Credits ; estimation impossible",

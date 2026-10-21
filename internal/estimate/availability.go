@@ -10,8 +10,12 @@ const (
 	// ReasonZeroCreditsWithUsage: the server reported zero Credits for days
 	// that did use tokens.
 	ReasonZeroCreditsWithUsage UnavailableReason = "zeroCreditsWithUsage"
-	// ReasonNoUsage: no day of the cycle has any usage.
+	// ReasonNoUsage: no day of the cycle has any usage, and the quota window
+	// shows none either.
 	ReasonNoUsage UnavailableReason = "noUsage"
+	// ReasonStatsNotSynced: the quota window shows usage, but no day of the
+	// cycle has any yet; the daily statistics lag behind the window.
+	ReasonStatsNotSynced UnavailableReason = "statsNotSynced"
 	// ReasonZeroPercent: the quota window shows 0% used.
 	ReasonZeroPercent UnavailableReason = "zeroPercent"
 	// ReasonUnavailableWindow: there is no window with a length and a reset
@@ -39,6 +43,9 @@ func evaluate(meter *Window, rows []Row) *UnavailableReason {
 		}
 	}
 	if len(used) == 0 {
+		if meter.UsedPercentExact > 0 {
+			return reasonPtr(ReasonStatsNotSynced)
+		}
 		return reasonPtr(ReasonNoUsage)
 	}
 	for _, r := range used {
@@ -91,13 +98,17 @@ func (s Snapshot) APIEquivalentUSD() *float64 {
 	return &sum
 }
 
-// StatsThroughDate is the latest day with a row, nil without rows.
+// StatsThroughDate is the latest day with a row, also one before the cycle,
+// so lagging statistics show how far they reach; nil without rows.
 func (s Snapshot) StatsThroughDate() *string {
-	var latest *string
-	for i := range s.CurrentRows {
-		if latest == nil || s.CurrentRows[i].Date > *latest {
-			latest = &s.CurrentRows[i].Date
+	latest := s.LatestStatsDate
+	for _, r := range s.CurrentRows {
+		if r.Date > latest {
+			latest = r.Date
 		}
 	}
-	return latest
+	if latest == "" {
+		return nil
+	}
+	return &latest
 }

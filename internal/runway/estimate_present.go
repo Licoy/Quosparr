@@ -17,6 +17,8 @@ func EstimateUnavailableText(lc l10n.Localizer, reason estimate.UnavailableReaso
 		key = l10n.KeyQuotaEstimateZeroCreditsWithUsage
 	case estimate.ReasonNoUsage:
 		key = l10n.KeyQuotaEstimateNoUsage
+	case estimate.ReasonStatsNotSynced:
+		key = l10n.KeyQuotaEstimateStatsNotSynced
 	case estimate.ReasonZeroPercent:
 		key = l10n.KeyQuotaEstimateZeroPercent
 	}
