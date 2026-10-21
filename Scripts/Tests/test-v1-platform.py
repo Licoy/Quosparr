@@ -49,7 +49,8 @@ class PlatformPackages(unittest.TestCase):
         entries += [("usr/share/applications/quosparr.desktop", b"Name=Quosparr\nExec=/opt/quosparr/quosparr %U\n", 0o644)]
         entries += [(f"usr/share/icons/hicolor/{n}x{n}/apps/quosparr.png", b"\x89PNG\r\n\x1a\n", 0o644) for n in (256, 512)]
         arch = "arm64" if failure == "architecture" else "amd64"
-        control = f"Package: quosparr\nVersion: 1.0.0\nArchitecture: {arch}\nDepends: libgtk-3-0, libayatana-appindicator3-1\n".encode()
+        depends = "libgtk-3-0, libayatana-appindicator3-1" + (", libwebkit2gtk-4.1-0" if failure == "webkit" else "")
+        control = f"Package: quosparr\nVersion: 1.0.0\nArchitecture: {arch}\nDepends: {depends}\n".encode()
         if failure == "missing sqlite":
             entries = [entry for entry in entries if not entry[0].endswith(".so")]
         elif failure == "tampered sqlite":
@@ -68,7 +69,7 @@ class PlatformPackages(unittest.TestCase):
             package.verify_deb({"version": "1.0.0"}, stage, "amd64")
 
     def test_debian_rejects_missing_tampered_wrong_arch_and_truncated_payloads(self):
-        for failure in ("architecture", "missing sqlite", "tampered sqlite", "not executable", "truncated"):
+        for failure in ("architecture", "webkit", "missing sqlite", "tampered sqlite", "not executable", "truncated"):
             with self.subTest(failure=failure), tempfile.TemporaryDirectory() as temporary:
                 stage = pathlib.Path(temporary)
                 self.linux_fixture(stage, failure)

@@ -81,6 +81,9 @@ def verify_deb(config, stage, arch):
     for dependency in ("libgtk-3-0", "libayatana-appindicator3-1"):
         if dependency not in fields.get("Depends", ""):
             raise ValueError(f"missing runtime dependency: {dependency}")
+    # Native UI only: linux.webview false keeps WebKitGTK out of the package
+    if "webkit" in fields.get("Depends", "").lower():
+        raise ValueError("Debian package must not depend on WebKitGTK")
     installed = tar_members(members["data.tar.gz"])
     # All runtime resources, including SQLite, must be identical
     # to the archive whose executable architecture is checked by release-assets.

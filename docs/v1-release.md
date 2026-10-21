@@ -54,7 +54,7 @@ macOS 输出目录为 `build/v1-<arm64|x86_64>`，Windows/Linux 为 `build/v1-<o
 | windows-amd64 / arm64 | `Quosparr.Setup.<version>.<arch>.exe`、`quosparr-<version>-windows-<arch>.tar.gz`、`update-windows-<arch>.json` |
 | linux-amd64 / arm64 | `quosparr_<debVersion>_<arch>.deb`、`quosparr-<version>-linux-<arch>.tar.gz`、`update-linux-<arch>.json`、`install.sh` |
 
-Windows 使用 mygo 默认的用户级 NSIS 安装器，安装到 `%LOCALAPPDATA%\Programs\Quosparr`，`RequestExecutionLevel user`，不要求管理员权限；未生成 EXE 安装器时脚本报错；Linux tar 使用用户目录安装器，deb 声明 GTK3、AppIndicator 与密钥存储依赖，由包管理器管理更新；SQLite 运行库缺失或架构错误会阻止验收，应用不依赖首次启动时下载该库
+Windows 使用 mygo 默认的用户级 NSIS 安装器，安装到 `%LOCALAPPDATA%\Programs\Quosparr`，`RequestExecutionLevel user`，不要求管理员权限；未生成 EXE 安装器时脚本报错；Linux tar 使用用户目录安装器，deb 声明 GTK3、AppIndicator 与密钥存储依赖，`linux.webview` 为 `false` 时不依赖 WebKitGTK，平台校验拒绝含 WebKitGTK 依赖的 deb，由包管理器管理更新；SQLite 运行库缺失或架构错误会阻止验收，应用不依赖首次启动时下载该库
 
 Windows 构建目录保留 mygo 的 `Quosparr Setup <version> <arch>.exe` 名称，发布汇总时将空格替换为点号，再生成校验和，确保文件名与 GitHub 下载资产一致；独立的 `Quosparr.exe` 只属于应用载荷，不单独上传到 Release
 

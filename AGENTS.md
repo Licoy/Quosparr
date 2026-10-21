@@ -104,7 +104,7 @@ Quosparr v1 面向 macOS、Windows、Linux，主程序使用 Go + mygo/ui 原生
 | Windows 10 / 11 amd64 / arm64 | `Quosparr Setup <version> <arch>.exe` | 用户级安装到 `%LOCALAPPDATA%\Programs\Quosparr`，不要求管理员身份 |
 | Linux amd64 / arm64 | `quosparr-<version>-linux-<arch>.tar.gz` 与 `install.sh`，或 `quosparr_<Debian-version>_<arch>.deb` | tar.gz 使用可写用户目录，deb 通过包管理器安装到 `/opt/quosparr` |
 
-- Linux 需要 GTK3、AppIndicator、支持托盘的桌面，以及用于代理凭据的可用 Secret Service 会话；缺少桌面库时应明确提示，deb 通过包管理器更新，只读或受限目录需要在可写位置手动安装
+- Linux 需要 GTK3、AppIndicator、支持托盘的桌面，以及用于代理凭据的可用 Secret Service 会话；纯原生界面不加载 WebKitGTK，`mygo.json` 的 `linux.webview` 为 `false`，deb 与 install.sh 不依赖也不检查它，引入网页视图前须先改回；缺少桌面库时应明确提示，deb 通过包管理器更新，只读或受限目录需要在可写位置手动安装
 - macOS 包目前为 ad-hoc signed，未公证，首次打开可能需要在系统“隐私与安全性”中授权；Developer ID 签名与公证单独推进
 - Homebrew cask 生成器已准备，外部 `Licoy/homebrew-tap` 尚未同步新名称，当前工作流也暂停了 cask 准备与分发；恢复并发布后才使用 `brew install --cask licoy/tap/quosparr`，此前使用 DMG，详见 [Homebrew 同步说明](docs/v1-homebrew.md)
 - 普通卸载保留本地数据，显式 `--zap` 只清理 Quosparr 数据，不清理保留的旧应用目录或官方 Codex / Grok 文件

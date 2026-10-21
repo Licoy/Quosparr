@@ -38,6 +38,7 @@
     "depends": [
       "libayatana-appindicator3-1",
       "gnome-keyring | kwalletmanager"
-    ]
+    ],
+    "webview": false
   }
 }
