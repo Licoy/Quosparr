@@ -48,7 +48,7 @@ Quosparr 是面向 macOS、Windows、Linux 的原生菜单栏 / 系统托盘应�
 - 年度 Token 用量图表，支持热力图、折线图和柱状图（按日 / 按周 / 累计）
 - Skills 页面列出各供应商的全局 skill，显示来源、是否被 CLI 加载以及与哪些 CLI 共享；可搜索、查看 `SKILL.md`、打开所在目录、在 CLI 自己的配置中启停（写入前备份）、复制或移动到其他 CLI（同名时不覆盖）、移到 Quosparr 的 Skill 回收站，并提示失效链接、嵌套与重名等问题，多数问题可一键修复，也可多选后批量删除或修复，执行前都会列出风险并请你确认；设置中的“Skill 管理”按供应商分页，可按状态与类型筛选，详情页展示安装来源、文件、frontmatter 及 GitHub 仓库或主页链接，回收站中的 skill 可恢复或移到系统回收站
 - 设置中的“会话管理”按供应商列出本机全部会话，可按标题、项目或 ID 搜索，按项目与日期范围筛选，详情页显示模型、Token 明细、API 等价成本、相关文件与对话预览；选中的会话确认后逐个移到系统回收站，不会永久删除，官方索引与数据库保持不变，派生统计随后按剩余日志重新计算
-- 设置中的“MCP 管理”按供应商列出用户级全局 MCP 服务（Codex 与 Grok 的 `config.toml`、Claude 的 `.claude.json`），只显示脱敏后的命令、站点与结构摘要，不展示 env 与 headers 的值，也不连接或启动任何服务；可多选后删除，删除前先备份到 `~/.quosparr/backups` 并保留其他配置，重启对应 CLI 后生效。项目级、插件与企业托管的 MCP 不显示
+- 设置中的“MCP 管理”按供应商列出用户级全局 MCP 服务（Codex 与 Grok 的 `config.toml`、Claude 的 `.claude.json`），只显示脱敏后的命令、站点与结构摘要，不展示 env 与 headers 的值，也不连接或启动任何服务；可多选后删除，删除前先备份到 `~/.quosparr/backups` 并保留其他配置，重启对应 CLI 后生效。Codex 与 Grok 的服务另有启停开关，同样先备份再写入：Codex 写条目的 `enabled`，Grok 与其官方 CLI 一致，同时更新 `disabled_mcp_servers`；Claude Code 按项目记录 MCP 启停，因此 Claude 服务不提供开关。项目级、插件与企业托管的 MCP 不显示
 - 支持浅色、深色、跟随系统外观，以及 English、简体中文、繁體中文、한국어、日本語、Русский、Français
 - 内置在线更新，macOS 14+ 提供桌面组件
 

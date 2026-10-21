@@ -10,6 +10,7 @@ import (
 	"github.com/licoy/quosparr/internal/claude"
 	"github.com/licoy/quosparr/internal/codex"
 	"github.com/licoy/quosparr/internal/grok"
+	"github.com/licoy/quosparr/internal/mcp"
 	"github.com/licoy/quosparr/internal/store"
 )
 
@@ -70,5 +71,41 @@ func TestMCPActionsMissingConfigAndUnknownProvider(t *testing.T) {
 	}
 	if _, err := (&liveApp{}).queryMCP(context.Background(), store.ProviderCodex); !errors.Is(err, errMCPUnavailable) {
 		t.Fatalf("missing store error = %v", err)
+	}
+}
+
+func TestMCPSetEnabledWritesCodexAndGrokOnly(t *testing.T) {
+	home := t.TempDir()
+	runway := filepath.Join(home, ".quosparr")
+	codexHome, claudeHome, grokHome := filepath.Join(home, "codex-home"), filepath.Join(home, "claude-home"), filepath.Join(home, "grok-home")
+	rt := &liveApp{
+		codex:     codex.NewStore(codexHome, runway),
+		claudeMod: claude.NewModule(claude.NewStore(claudeHome, runway, home, claudeHome, "")),
+		grokMod:   grok.NewModule(grok.NewStore(grokHome, runway)),
+	}
+	for provider, path := range map[store.Provider]string{
+		store.ProviderCodex: filepath.Join(codexHome, "config.toml"),
+		store.ProviderGrok:  filepath.Join(grokHome, "config.toml"),
+	} {
+		if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(path, []byte("[mcp_servers.alpha]\ncommand = \"tool\"\n"), 0o600); err != nil {
+			t.Fatal(err)
+		}
+		snapshot, err := rt.queryMCP(context.Background(), provider)
+		if err != nil || len(snapshot.Servers) != 1 || !snapshot.Servers[0].Toggleable {
+			t.Fatalf("queryMCP(%s) = %#v, %v", provider, snapshot, err)
+		}
+		if err := rt.setMCPEnabled(context.Background(), provider, snapshot.Servers[0], false); err != nil {
+			t.Fatalf("setMCPEnabled(%s) = %v", provider, err)
+		}
+		after, err := rt.queryMCP(context.Background(), provider)
+		if err != nil || after.Servers[0].Enabled {
+			t.Fatalf("queryMCP(%s) after disable = %#v, %v", provider, after, err)
+		}
+	}
+	if err := rt.setMCPEnabled(context.Background(), store.ProviderClaude, mcp.Server{}, false); err == nil {
+		t.Fatal("setMCPEnabled accepted Claude")
 	}
 }

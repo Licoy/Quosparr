@@ -10,7 +10,8 @@ import (
 // MCPActions are the settings MCP-management operations. A nil function
 // leaves the corresponding control unavailable.
 type MCPActions struct {
-	Query  func(context.Context, store.Provider) (mcp.Snapshot, error)
-	Delete func(context.Context, store.Provider, []mcp.Server) ([]mcp.DeleteResult, error)
-	Reveal func(string) error
+	Query      func(context.Context, store.Provider) (mcp.Snapshot, error)
+	Delete     func(context.Context, store.Provider, []mcp.Server) ([]mcp.DeleteResult, error)
+	SetEnabled func(context.Context, store.Provider, mcp.Server, bool) error
+	Reveal     func(string) error
 }

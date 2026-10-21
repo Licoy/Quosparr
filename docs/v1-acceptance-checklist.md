@@ -183,6 +183,17 @@ macOS 完整链按实际版本执行 `Swift 历史版本 → Go G1 → 后续 Go
 | C-11 | 首次启动不手动导入；之后在终端用另一个账号执行 `claude auth login`；再执行 `claude auth logout` | 当前登录自动加入并设为当前账号；外部换号后自动加入新账号且旧副本保留；登出后不再标记当前账号 | 未执行 |
 | C-12 | macOS 上让 MCP 登录较多的凭据切号（钥匙串写入超过 `security -i` 单行 4095 字节） | 切号被拒绝并提示错误，官方钥匙串条目保持原样 | 未执行 |
 
+## MCP 启停
+
+使用临时 `CODEX_HOME` / `GROK_HOME` 与真实官方 CLI 核对，不在开发机真实配置上执行。
+
+| 编号 | 步骤 | 预期 | 记录 |
+| --- | --- | --- | --- |
+| M-01 | 在“MCP 管理”停用一个 Codex 用户级服务，重启 Codex 后执行 `/mcp`，再启用并重启 | 停用后不再加载、启用后恢复；`config.toml` 只改该条目的 `enabled`，注释与其他内容不变，备份目录有 `codex-mcp-config-` 文件 | 未执行 |
+| M-02 | 停用一个 Grok 服务后执行 `grok mcp list`，在已打开会话的 `/mcps` 中按 r，再启用 | 显示 `(disabled)` 且会话中不可用，启用后恢复；`disabled_mcp_servers` 只增删该名称，置空时移除该键 | 未执行 |
+| M-03 | 用 `grok mcp disable` 停用一个服务后刷新 Quosparr，再在 Quosparr 中启用 | Quosparr 显示已停用；启用后 `grok mcp list` 不再标记 `(disabled)` | 未执行 |
+| M-04 | 准备行内表写法的条目，并打开 Claude 页的服务详情 | 行内表条目的开关不可用且说明原因；Claude 无开关并说明按项目记录 | 未执行 |
+
 ## 七阶段与正式发布硬门禁
 
 | 阶段 | 复核步骤 | 预期 | 记录 |

@@ -30,6 +30,18 @@ func (s *Store) DeleteMCP(ctx context.Context, selected []mcp.Server, now time.T
 	return mcp.Delete(ctx, source, selected, now)
 }
 
+// SetMCPEnabled turns one scanned user-scoped server on or off under the
+// Store lock shared with skill configuration writes.
+func (s *Store) SetMCPEnabled(ctx context.Context, server mcp.Server, enabled bool, now time.Time) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	source, err := s.mcpSource()
+	if err != nil {
+		return err
+	}
+	return mcp.SetEnabled(ctx, source, server, enabled, now)
+}
+
 func (s *Store) mcpSource() (mcp.Source, error) {
 	path, err := filepath.Abs(s.ConfigPath())
 	if err != nil {

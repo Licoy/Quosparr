@@ -52,7 +52,7 @@
       { "title": "API-equivalent cost", "text": "Today, this cycle, last cycle, this month or a custom range, computed from local logs." },
       { "title": "Token charts", "text": "Year-to-date usage as a heatmap, line or bar chart, by day, week or cumulative." },
       { "title": "Skill management", "text": "Global skills of all three CLIs with their source and load state. Turn them on or off, copy them to another CLI, fix broken links, nesting and duplicate names, and restore deleted skills from the trash." },
-      { "title": "MCP management", "text": "User-level MCP servers of each CLI as redacted summaries, with batch deletion that backs up the config first." },
+      { "title": "MCP management", "text": "User-level MCP servers of each CLI as redacted summaries; switch Codex and Grok servers on or off, or delete in batches, with the config backed up first." },
       { "title": "Session management", "text": "Browse local sessions by project, date or keyword, preview conversations and cost, and move the ones you pick to the system Trash." },
       { "title": "Themes and languages", "text": "Light, dark or system appearance, in seven languages." },
       { "title": "Display font", "text": "Use the system font or any installed font in the main panel and settings." },

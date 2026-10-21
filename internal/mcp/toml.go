@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"reflect"
+	"slices"
 
 	"github.com/BurntSushi/toml"
 	"github.com/licoy/quosparr/internal/tomlstmt"
@@ -22,6 +23,11 @@ func loadTOML(source Source, data []byte, fingerprint string) ([]Server, error) 
 	if !ok {
 		return nil, errors.New("mcp_servers must be a table")
 	}
+	var disabled []string
+	if source.Provider == ProviderGrok {
+		disabled, _ = disabledList(root)
+	}
+	layout, layoutErr := layoutTOML(data)
 	out := make([]Server, 0, len(servers))
 	for name, rawConfig := range servers {
 		config, ok := rawConfig.(map[string]any)
@@ -32,6 +38,8 @@ func loadTOML(source Source, data []byte, fingerprint string) ([]Server, error) 
 		if err != nil {
 			return nil, err
 		}
+		server.Enabled = server.Enabled && !slices.Contains(disabled, name)
+		server.Toggleable = layoutErr == nil && layout.toggleable(source.Provider, root, name)
 		out = append(out, server)
 	}
 	return out, nil
@@ -45,7 +53,9 @@ func decodeTOML(data []byte) (map[string]any, error) {
 	return root, nil
 }
 
-func deleteTOML(data []byte, names map[string]struct{}) ([]byte, error) {
+// deleteTOML removes the selected tables, and for Grok their names from
+// disabled_mcp_servers, as its own remove does.
+func deleteTOML(data []byte, provider Provider, names map[string]struct{}) ([]byte, error) {
 	before, err := decodeTOML(data)
 	if err != nil {
 		return nil, err
@@ -61,13 +71,18 @@ func deleteTOML(data []byte, names map[string]struct{}) ([]byte, error) {
 		delete(beforeServers, name)
 	}
 	normalizeEmptyMCPTable(before)
-	items, err := tomlstmt.Lex(data)
+	layout, err := layoutTOML(data)
 	if err != nil {
 		return nil, errors.New("TOML cannot be edited safely")
 	}
 	var table []string
 	var edits []tomlstmt.Edit
-	for _, item := range items {
+	if provider == ProviderGrok {
+		if edit, ok := pruneDisabledList(data, layout, before, names); ok {
+			edits = append(edits, edit)
+		}
+	}
+	for _, item := range layout.items {
 		if item.Kind == tomlstmt.Header {
 			table = item.Path
 			if selectedTOMLPath(table, names) {
@@ -99,6 +114,32 @@ func deleteTOML(data []byte, names map[string]struct{}) ([]byte, error) {
 		return nil, errors.New("TOML edit changed configuration outside the selection")
 	}
 	return out, nil
+}
+
+// pruneDisabledList drops deleted names from a rewritable Grok
+// disabled_mcp_servers, updating before to the expected result.
+func pruneDisabledList(data []byte, layout tomlLayout, before map[string]any, names map[string]struct{}) (tomlstmt.Edit, bool) {
+	list, ok := disabledList(before)
+	if !ok || layout.list < 0 {
+		return tomlstmt.Edit{}, false
+	}
+	kept := slices.DeleteFunc(slices.Clone(list), func(name string) bool {
+		_, deleted := names[name]
+		return deleted
+	})
+	if len(kept) == len(list) {
+		return tomlstmt.Edit{}, false
+	}
+	if len(kept) == 0 {
+		delete(before, "disabled_mcp_servers")
+	} else {
+		values := make([]any, len(kept))
+		for i, name := range kept {
+			values[i] = name
+		}
+		before["disabled_mcp_servers"] = values
+	}
+	return layout.listEdit(data, kept, tomlstmt.DetectEOL(data)), true
 }
 
 func normalizeEmptyMCPTable(root map[string]any) {

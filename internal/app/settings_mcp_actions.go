@@ -8,6 +8,7 @@ import (
 	"github.com/egoist/mygo/ui"
 	"github.com/licoy/quosparr/internal/l10n"
 	"github.com/licoy/quosparr/internal/mcp"
+	"github.com/licoy/quosparr/internal/store"
 )
 
 func (u *settingsUI) mcpDeleteDialog(c *ui.Context) {
@@ -99,4 +100,48 @@ func mcpDeleteResultText(l l10n.Localizer, results []mcp.DeleteResult, overall e
 		return tx(l, xMCPDeletePartial, len(results)-failed, failed, strings.Join(details, "; ")), true
 	}
 	return tx(l, xMCPDeleteSuccess, len(results)), false
+}
+
+// toggleMCP writes one server's new state, then rescans: the write changes
+// the snapshot fingerprint every later action relies on.
+func (u *settingsUI) toggleMCP(actions MCPActions, server mcp.Server, enabled bool) {
+	s := u.mcpState()
+	if actions.SetEnabled == nil || !server.Toggleable || s.task.Running || s.work.Running || s.stale {
+		return
+	}
+	provider := s.provider
+	if s.cancel != nil {
+		s.cancel()
+		s.cancel = nil
+	}
+	s.generation++
+	s.task = Task{}
+	s.pending = map[string]bool{server.ID: enabled}
+	runTask(&s.work, u.post, func() error {
+		return actions.SetEnabled(context.Background(), provider, server, enabled)
+	}, func(err error) {
+		s.notice, s.noticeErr = mcpToggleText(u.L(), provider, server.Name, enabled, err)
+		if s.provider != provider {
+			return
+		}
+		if err != nil {
+			s.pending = nil
+		}
+		s.stale = true
+		u.startMCPScan(actions)
+	})
+}
+
+func mcpToggleText(l l10n.Localizer, provider store.Provider, name string, enabled bool, err error) (string, bool) {
+	if err != nil {
+		return tx(l, xMCPToggleFailed, name, err), true
+	}
+	hint := tx(l, xMCPApplyCodex)
+	if provider == store.ProviderGrok {
+		hint = tx(l, xMCPApplyGrok)
+	}
+	if enabled {
+		return tx(l, xMCPEnabledNotice, name, hint), false
+	}
+	return tx(l, xMCPDisabledNotice, name, hint), false
 }

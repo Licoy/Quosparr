@@ -52,7 +52,7 @@
       { "title": "Coût équivalent API", "text": "Aujourd’hui, ce cycle, le cycle précédent, ce mois-ci ou une période personnalisée, calculé à partir des journaux locaux." },
       { "title": "Graphiques de tokens", "text": "Utilisation de l’année en carte de chaleur, courbe ou barres, par jour, par semaine ou en cumul." },
       { "title": "Gestion des skills", "text": "Les skills globaux des trois CLI avec leur origine et leur état de chargement. Activez-les ou désactivez-les, copiez-les vers une autre CLI, réparez liens cassés, imbrications et noms en double, et restaurez depuis la corbeille les skills supprimés." },
-      { "title": "Gestion MCP", "text": "Les serveurs MCP de niveau utilisateur de chaque CLI en résumés expurgés, avec une suppression groupée qui sauvegarde d’abord la configuration." },
+      { "title": "Gestion MCP", "text": "Les serveurs MCP de niveau utilisateur de chaque CLI en résumés expurgés ; activez ou désactivez ceux de Codex et Grok, ou supprimez-les par lots, après une sauvegarde de la configuration." },
       { "title": "Gestion des sessions", "text": "Parcourez les sessions locales par projet, date ou mot-clé, prévisualisez la conversation et le coût, puis envoyez celles choisies dans la corbeille du système." },
       { "title": "Thèmes et langues", "text": "Apparence claire, sombre ou selon le système, en sept langues." },
       { "title": "Police d’affichage", "text": "Police système ou toute police installée, pour le panneau principal et les réglages." },

@@ -250,7 +250,13 @@ func TestExportSettingsMCPReview(t *testing.T) {
 	if os.Getenv("RUNWAY_MCP_QA") == "" {
 		t.Skip("set RUNWAY_MCP_QA=1 to export offscreen PNGs")
 	}
-	u, _, _ := settingsMCPView(t, MCPActions{})
+	u, _, _ := settingsMCPView(t, MCPActions{
+		Delete:     func(context.Context, store.Provider, []mcp.Server) ([]mcp.DeleteResult, error) { return nil, nil },
+		SetEnabled: func(context.Context, store.Provider, mcp.Server, bool) error { return nil },
+		Reveal:     func(string) error { return nil },
+	})
+	u.mcp.snapshot.Servers[0].Toggleable = true
+	u.mcp.snapshot.Servers[1].Toggleable, u.mcp.snapshot.Servers[1].Enabled = true, false
 	u.s.SetLanguage(store.LanguageSimplifiedChinese)
 	dir := filepath.Join("..", "..", ".build", "v1-mcp-qa")
 	if err := os.MkdirAll(dir, 0o755); err != nil {
@@ -330,5 +336,93 @@ func TestMCPDetailHidesProviderTabs(t *testing.T) {
 	}
 	if u.mcp.open != "" || !tt.HasText("Claude") {
 		t.Fatalf("back did not return to the list; texts %q", tt.Texts())
+	}
+}
+
+func TestMCPSwitchWritesStateAndRescans(t *testing.T) {
+	var calls []bool
+	actions := MCPActions{
+		Query: func(context.Context, store.Provider) (mcp.Snapshot, error) {
+			server := mcpFixtureServer("codex\x00alpha", "alpha")
+			server.Enabled, server.Toggleable, server.Fingerprint = false, true, "v2"
+			return mcp.Snapshot{Path: "/synthetic/config.toml", Fingerprint: "v2", Servers: []mcp.Server{server}}, nil
+		},
+		SetEnabled: func(_ context.Context, provider store.Provider, server mcp.Server, enabled bool) error {
+			if provider != store.ProviderCodex || server.ID != "codex\x00alpha" {
+				return errors.New("wrong target")
+			}
+			calls = append(calls, enabled)
+			return nil
+		},
+	}
+	u, tt, queue := settingsMCPView(t, actions)
+	u.mcp.snapshot.Servers[0].Toggleable = true
+	u.mcp.open = "codex\x00alpha"
+	tt.Frame()
+	if err := tt.Click(tx(u.L(), xMCPEnableServer, "alpha")); err != nil {
+		t.Fatal(err)
+	}
+	if !u.mcp.work.Running || u.mcp.pending["codex\x00alpha"] {
+		t.Fatalf("switch did not start a write: %+v", u.mcp)
+	}
+	finishDetail(t, queue)
+	finishDetail(t, queue)
+	if len(calls) != 1 || calls[0] || u.mcp.stale || u.mcp.pending != nil || u.mcp.noticeErr || u.mcp.open != "codex\x00alpha" {
+		t.Fatalf("calls=%v state=%+v", calls, u.mcp)
+	}
+	if !strings.Contains(u.mcp.notice, tx(u.L(), xMCPApplyCodex)) || u.mcp.snapshot.Fingerprint != "v2" {
+		t.Fatalf("notice %q, snapshot %+v", u.mcp.notice, u.mcp.snapshot)
+	}
+}
+
+func TestMCPSwitchFailureReportsAndKeepsState(t *testing.T) {
+	actions := MCPActions{
+		Query: func(context.Context, store.Provider) (mcp.Snapshot, error) {
+			return mcp.Snapshot{}, errors.New("offline")
+		},
+		SetEnabled: func(context.Context, store.Provider, mcp.Server, bool) error {
+			return errors.New("changed")
+		},
+	}
+	u, _, queue := settingsMCPView(t, actions)
+	server := u.mcp.snapshot.Servers[0]
+	server.Toggleable = true
+	u.toggleMCP(actions, server, false)
+	finishDetail(t, queue)
+	finishDetail(t, queue)
+	if !u.mcp.noticeErr || u.mcp.pending != nil || !u.mcp.snapshot.Servers[0].Enabled {
+		t.Fatalf("failed toggle state = %+v", u.mcp)
+	}
+}
+
+func TestMCPSwitchUnavailableExplainsWhy(t *testing.T) {
+	called := false
+	actions := MCPActions{SetEnabled: func(context.Context, store.Provider, mcp.Server, bool) error {
+		called = true
+		return nil
+	}}
+	u, tt, _ := settingsMCPView(t, actions)
+	if err := tt.Click(tx(u.L(), xMCPEnableServer, "alpha")); err != nil {
+		t.Fatal(err)
+	}
+	if called || u.mcp.work.Running {
+		t.Fatal("switch wrote an entry that is not toggleable")
+	}
+	u.mcp.open = "codex\x00alpha"
+	tt.Frame()
+	if !tt.HasText(tx(u.L(), xMCPToggleUnsupported)) {
+		t.Fatalf("detail missing unsupported note; texts %q", tt.Texts())
+	}
+	claude := mcpFixtureServer("claude\x00alpha", "alpha")
+	claude.Provider = mcp.ProviderClaude
+	u.mcp.provider, u.mcp.snapshot.Servers, u.mcp.open = store.ProviderClaude, []mcp.Server{claude}, ""
+	tt.Frame()
+	if tt.HasText(tx(u.L(), xMCPEnableServer, "alpha")) {
+		t.Fatalf("Claude row has a switch; texts %q", tt.Texts())
+	}
+	u.mcp.open = claude.ID
+	tt.Frame()
+	if !tt.HasText(tx(u.L(), xMCPToggleClaude)) {
+		t.Fatalf("Claude detail missing note; texts %q", tt.Texts())
 	}
 }

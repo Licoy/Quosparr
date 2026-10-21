@@ -26,8 +26,11 @@ type settingsMCP struct {
 	// delete; empty, the confirmation deletes the selection.
 	confirmKey string
 	work       Task
-	notice     string
-	noticeErr  bool
+	// pending holds the state a switch was just turned to until the
+	// rescan after the write reports it.
+	pending   map[string]bool
+	notice    string
+	noticeErr bool
 }
 
 func (u *settingsUI) mcpState() *settingsMCP {
@@ -50,7 +53,7 @@ func (s *settingsMCP) switchProvider(provider store.Provider) {
 	}
 	s.provider, s.search, s.open = provider, "", ""
 	s.snapshot, s.loaded, s.stale, s.notice, s.noticeErr = mcp.Snapshot{}, false, false, "", false
-	s.selected, s.confirm, s.confirmKey = map[string]bool{}, false, ""
+	s.selected, s.confirm, s.confirmKey, s.pending = map[string]bool{}, false, "", nil
 }
 
 // confirmDelete asks to delete one server, or the selection for "".
@@ -91,6 +94,16 @@ func (s *settingsMCP) selectedServers() []mcp.Server {
 	return result
 }
 
+// pruneSelection keeps the selected servers a rescan still lists; an open
+// server that is gone closes in mcpPage.
+func (s *settingsMCP) pruneSelection() {
+	for id := range s.selected {
+		if _, ok := s.find(id); !ok {
+			delete(s.selected, id)
+		}
+	}
+}
+
 func (u *settingsUI) startMCPScan(actions MCPActions) {
 	s := u.mcpState()
 	if s.cancel != nil {
@@ -113,8 +126,8 @@ func (u *settingsUI) startMCPScan(actions MCPActions) {
 			}
 			s.cancel, s.task = nil, Task{Err: err}
 			if err == nil {
-				s.snapshot, s.loaded, s.stale = snapshot, true, false
-				s.selected, s.open = map[string]bool{}, ""
+				s.snapshot, s.loaded, s.stale, s.pending = snapshot, true, false, nil
+				s.pruneSelection()
 			}
 		})
 	}()

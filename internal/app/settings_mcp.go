@@ -205,6 +205,7 @@ func (u *settingsUI) mcpRow(c *ui.Context, server mcp.Server, actions MCPActions
 		if button.Clicked() {
 			s.open = server.ID
 		}
+		u.mcpSwitch(c, server, actions)
 		u.mcpActionButtons(c, server, actions)
 	})
 }
@@ -238,6 +239,43 @@ func (u *settingsUI) mcpActionButtons(c *ui.Context, server mcp.Server, actions 
 	}
 }
 
+// mcpSwitch turns a Codex or Grok server on or off at once, like a skill
+// switch; an entry written in a form that cannot be edited safely keeps a
+// disabled switch that says why. Claude has none: Claude Code records MCP
+// on/off per project.
+func (u *settingsUI) mcpSwitch(c *ui.Context, server mcp.Server, actions MCPActions) {
+	if server.Provider == mcp.ProviderClaude {
+		return
+	}
+	s, l := u.mcpState(), u.L()
+	on := server.Enabled
+	if v, ok := s.pending[server.ID]; ok {
+		on = v
+	}
+	label := tx(l, xMCPEnableServer, server.Name)
+	tip := label
+	if !server.Toggleable {
+		tip = tx(l, xMCPToggleUnsupported)
+	}
+	usable := server.Toggleable && actions.SetEnabled != nil
+	sw := ui.Switch(c.Key("mcp-switch-"+server.ID), &on).Label(label).Tooltip(tip).Size(30, 16).Radius(8).
+		Disabled(!usable || s.task.Running || s.work.Running || s.stale)
+	if sw.Changed() && usable {
+		u.toggleMCP(actions, server, on)
+	}
+}
+
+// mcpToggleNote says why a server has no working switch.
+func mcpToggleNote(l l10n.Localizer, server mcp.Server) string {
+	switch {
+	case server.Provider == mcp.ProviderClaude:
+		return tx(l, xMCPToggleClaude)
+	case !server.Toggleable:
+		return tx(l, xMCPToggleUnsupported)
+	}
+	return ""
+}
+
 func mcpSummary(server mcp.Server) string {
 	return strings.Join(nonEmpty([]string{server.Transport, server.Command, server.URL}), " · ")
 }
@@ -259,6 +297,7 @@ func (u *settingsUI) mcpDetailHeader(c *ui.Context, server mcp.Server, actions M
 		ui.Text(c, server.Name).FontSize(15).FontWeight(650).SingleLine().Ellipsis("…").Shrink(1)
 		mcpBadges(c, l, server)
 		ui.Spacer(c).Grow(1)
+		u.mcpSwitch(c, server, actions)
 		u.mcpActionButtons(c, server, actions)
 	})
 }
@@ -273,6 +312,7 @@ func (u *settingsUI) mcpDetail(c *ui.Context, server mcp.Server) {
 		{tx(l, xMCPCommand), server.Command},
 		{tx(l, xMCPURL), server.URL},
 		{tx(l, xMCPStatus), mcpStatusText(l, server)},
+		{tx(l, xMCPToggle), mcpToggleNote(l, server)},
 	}
 	if server.Problem != "" {
 		fields = append(fields, struct{ label, value string }{tx(l, xMCPProblem), mcpProblemText(l, server.Problem)})

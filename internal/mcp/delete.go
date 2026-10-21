@@ -38,8 +38,30 @@ func deleteServers(ctx context.Context, source Source, selected []Server, now ti
 		err = errors.New("MCP configuration changed since it was scanned")
 		return failResults(results, err), err
 	}
-	if err := validateBackupDir(source.BackupDir); err != nil {
+	err = rewrite(ctx, source, original, info, fingerprint, now, func(old []byte) ([]byte, error) {
+		switch source.Provider {
+		case ProviderCodex, ProviderGrok:
+			return deleteTOML(old, source.Provider, names)
+		case ProviderClaude:
+			return deleteJSON(old, names)
+		default:
+			return nil, errors.New("unsupported MCP provider")
+		}
+	})
+	if err != nil {
 		return failResults(results, err), err
+	}
+	if err := verifyWritten(source, names); err != nil {
+		return failResults(results, err), err
+	}
+	return results, nil
+}
+
+// rewrite applies edit to the scanned configuration after a backup,
+// refusing any change made to the file since the scan.
+func rewrite(ctx context.Context, source Source, original []byte, info fs.FileInfo, fingerprint string, now time.Time, edit func([]byte) ([]byte, error)) error {
+	if err := validateBackupDir(source.BackupDir); err != nil {
+		return err
 	}
 	policy := platform.BackupPolicy{Dir: source.BackupDir, Prefix: string(source.Provider) + "-mcp-config-", Ext: filepath.Ext(source.Path), Keep: 10}
 	checkCurrent := func() error {
@@ -52,33 +74,19 @@ func deleteServers(ctx context.Context, source Source, selected []Server, now ti
 		}
 		return nil
 	}
-	err = platform.EditFileWithBackupChecked(source.Path, policy, now, func(old []byte) ([]byte, error) {
+	err := platform.EditFileWithBackupChecked(source.Path, policy, now, func(old []byte) ([]byte, error) {
 		if err := ctx.Err(); err != nil {
 			return nil, err
 		}
-		if err := checkCurrent(); err != nil || digest(old) != digest(original) {
-			if err != nil {
-				return nil, err
-			}
+		if err := checkCurrent(); err != nil {
+			return nil, err
+		}
+		if digest(old) != digest(original) {
 			return nil, errors.New("MCP configuration changed since it was scanned")
 		}
-		switch source.Provider {
-		case ProviderCodex, ProviderGrok:
-			return deleteTOML(old, names)
-		case ProviderClaude:
-			return deleteJSON(old, names)
-		default:
-			return nil, errors.New("unsupported MCP provider")
-		}
+		return edit(old)
 	}, checkCurrent)
-	if err != nil {
-		err = sanitizeDeleteError(err)
-		return failResults(results, err), err
-	}
-	if err := verifyWritten(source, names); err != nil {
-		return failResults(results, err), err
-	}
-	return results, nil
+	return sanitizeError(err)
 }
 
 func validateBackupDir(path string) error {
@@ -102,11 +110,11 @@ func validateSelection(source Source, selected []Server, currentInfo fs.FileInfo
 		return nil, "", errors.New("selected MCP server has no snapshot fingerprint")
 	}
 	for _, server := range selected {
-		if server.Provider != source.Provider || server.Path != source.Path || server.ID != string(source.Provider)+"\x00"+server.Name || !server.Deletable {
+		if !server.Deletable {
 			return nil, "", fmt.Errorf("invalid MCP selection %q", server.Name)
 		}
-		if server.fileInfo == nil || !os.SameFile(server.fileInfo, currentInfo) {
-			return nil, "", errors.New("MCP configuration file identity changed")
+		if err := validateServer(source, server, currentInfo); err != nil {
+			return nil, "", err
 		}
 		if server.Fingerprint != fingerprint {
 			return nil, "", errors.New("selected MCP servers come from different snapshots")
@@ -117,6 +125,16 @@ func validateSelection(source Source, selected []Server, currentInfo fs.FileInfo
 		names[server.Name] = struct{}{}
 	}
 	return names, fingerprint, nil
+}
+
+func validateServer(source Source, server Server, currentInfo fs.FileInfo) error {
+	if server.Provider != source.Provider || server.Path != source.Path || server.ID != string(source.Provider)+"\x00"+server.Name {
+		return fmt.Errorf("invalid MCP selection %q", server.Name)
+	}
+	if server.fileInfo == nil || !os.SameFile(server.fileInfo, currentInfo) {
+		return errors.New("MCP configuration file identity changed")
+	}
+	return nil
 }
 
 func verifyWritten(source Source, names map[string]struct{}) error {
@@ -147,7 +165,7 @@ func failResults(results []DeleteResult, err error) []DeleteResult {
 	return results
 }
 
-func sanitizeDeleteError(err error) error {
+func sanitizeError(err error) error {
 	var pathErr *fs.PathError
 	if errors.As(err, &pathErr) {
 		return fmt.Errorf("MCP configuration operation failed: %s", pathErr.Op)

@@ -39,6 +39,15 @@ const (
 	xMCPDeleteFailed         textKey = "mcpDeleteFailed"
 	xMCPDeletePartial        textKey = "mcpDeletePartial"
 	xMCPDeleteSuccess        textKey = "mcpDeleteSuccess"
+	xMCPEnableServer         textKey = "mcpEnableServer"
+	xMCPToggle               textKey = "mcpToggle"
+	xMCPToggleUnsupported    textKey = "mcpToggleUnsupported"
+	xMCPToggleClaude         textKey = "mcpToggleClaude"
+	xMCPToggleFailed         textKey = "mcpToggleFailed"
+	xMCPEnabledNotice        textKey = "mcpEnabledNotice"
+	xMCPDisabledNotice       textKey = "mcpDisabledNotice"
+	xMCPApplyCodex           textKey = "mcpApplyCodex"
+	xMCPApplyGrok            textKey = "mcpApplyGrok"
 )
 
 func init() {
@@ -81,6 +90,15 @@ func init() {
 		xMCPDeleteFailed:         {"Could not delete MCP configuration: %v", "无法删除 MCP 配置：%v", "無法刪除 MCP 設定：%v", "MCP 구성을 삭제할 수 없습니다: %v", "MCP 設定を削除できません：%v", "Не удалось удалить конфигурацию MCP: %v", "Impossible de supprimer la configuration MCP : %v"},
 		xMCPDeletePartial:        {"Deleted %d; failed %d: %s", "已删除 %d 项，失败 %d 项：%s", "已刪除 %d 項，失敗 %d 項：%s", "%d개 삭제, %d개 실패: %s", "%d 件削除、%d 件失敗：%s", "Удалено: %d; ошибок: %d: %s", "%d supprimés ; %d échecs : %s"},
 		xMCPDeleteSuccess:        {"Deleted %d MCP configuration entries; restart the CLI to apply the change", "已删除 %d 个 MCP 配置项，请重新启动 CLI 以应用更改", "已刪除 %d 個 MCP 設定項目，請重新啟動 CLI 以套用變更", "MCP 구성 항목 %d개를 삭제했습니다. 변경 사항을 적용하려면 CLI를 다시 시작하세요", "MCP 設定を %d 件削除しました。反映するには CLI を再起動してください", "Удалено записей MCP: %d; перезапустите CLI", "%d entrées MCP supprimées ; redémarrez le CLI"},
+		xMCPEnableServer:         {"Enable %s", "启用 %s", "啟用 %s", "%s 활성화", "%s を有効化", "Включить %s", "Activer %s"},
+		xMCPToggle:               {"Enable / disable", "启用 / 停用", "啟用 / 停用", "활성화 / 비활성화", "有効 / 無効", "Включение", "Activation"},
+		xMCPToggleUnsupported:    {"This entry is written in a form that cannot be switched safely here; edit the configuration file", "此配置项的写法无法在此安全切换，请直接编辑配置文件", "此設定項目的寫法無法在此安全切換，請直接編輯設定檔", "이 항목은 여기에서 안전하게 전환할 수 없는 형식으로 작성되어 있습니다. 구성 파일을 직접 편집하세요", "この項目はここで安全に切り替えられない形式で書かれています。設定ファイルを直接編集してください", "Запись задана в форме, которую нельзя безопасно переключить здесь; измените файл конфигурации", "Cette entrée est écrite sous une forme qui ne peut pas être basculée ici en toute sécurité ; modifiez le fichier de configuration"},
+		xMCPToggleClaude:         {"Claude Code records MCP on/off per project; switch it with /mcp in Claude Code", "Claude Code 按项目记录 MCP 启停，请在 Claude Code 中用 /mcp 切换", "Claude Code 依專案記錄 MCP 啟用狀態，請在 Claude Code 中以 /mcp 切換", "Claude Code는 MCP 활성화 상태를 프로젝트별로 기록합니다. Claude Code에서 /mcp로 전환하세요", "Claude Code は MCP の有効・無効をプロジェクトごとに記録します。Claude Code の /mcp で切り替えてください", "Claude Code хранит включение MCP для каждого проекта; переключайте через /mcp в Claude Code", "Claude Code enregistre l’activation MCP par projet ; basculez-la avec /mcp dans Claude Code"},
+		xMCPToggleFailed:         {"Could not switch %s: %v", "无法切换 %s：%v", "無法切換 %s：%v", "%s을(를) 전환할 수 없습니다: %v", "%s を切り替えられません：%v", "Не удалось переключить %s: %v", "Impossible de basculer %s : %v"},
+		xMCPEnabledNotice:        {"Enabled %s. %s", "已启用 %s。%s", "已啟用 %s。%s", "%s을(를) 활성화했습니다. %s", "%s を有効にしました。%s", "%s включён. %s", "%s activé. %s"},
+		xMCPDisabledNotice:       {"Disabled %s. %s", "已停用 %s。%s", "已停用 %s。%s", "%s을(를) 비활성화했습니다. %s", "%s を無効にしました。%s", "%s отключён. %s", "%s désactivé. %s"},
+		xMCPApplyCodex:           {"Saved to config.toml after a backup; restart Codex to apply", "已备份并写入 config.toml，重启 Codex 后生效", "已備份並寫入 config.toml，重新啟動 Codex 後生效", "백업 후 config.toml에 저장했습니다. Codex를 다시 시작하면 적용됩니다", "バックアップ後に config.toml へ保存しました。Codex の再起動で反映されます", "Сохранено в config.toml после резервной копии; перезапустите Codex", "Enregistré dans config.toml après sauvegarde ; redémarrez Codex pour l’appliquer"},
+		xMCPApplyGrok:            {"Saved to config.toml after a backup; new Grok sessions use it, and an open session picks it up after pressing r in /mcps", "已备份并写入 config.toml，新的 Grok 会话直接生效，已打开的会话在 /mcps 中按 r 刷新", "已備份並寫入 config.toml，新的 Grok 工作階段直接生效，已開啟的工作階段在 /mcps 中按 r 重新整理", "백업 후 config.toml에 저장했습니다. 새 Grok 세션에 바로 적용되며, 열려 있는 세션은 /mcps에서 r을 눌러 새로 고치세요", "バックアップ後に config.toml へ保存しました。新しい Grok セッションに反映され、開いているセッションは /mcps で r を押すと更新されます", "Сохранено в config.toml после резервной копии; новые сеансы Grok применят это сразу, в открытом сеансе нажмите r в /mcps", "Enregistré dans config.toml après sauvegarde ; les nouvelles sessions Grok l’appliquent, et une session ouverte après avoir appuyé sur r dans /mcps"},
 	} {
 		extraTexts[key] = texts
 	}

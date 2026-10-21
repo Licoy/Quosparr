@@ -15,6 +15,7 @@ var errMCPUnavailable = errors.New("MCP service unavailable")
 func installMCPActions(rt *liveApp, actions *MCPActions) {
 	actions.Query = rt.queryMCP
 	actions.Delete = rt.deleteMCP
+	actions.SetEnabled = rt.setMCPEnabled
 	actions.Reveal = func(path string) error {
 		mygo.Shell.ShowItemInFolder(path)
 		return nil
@@ -60,4 +61,23 @@ func (rt *liveApp) deleteMCP(ctx context.Context, provider store.Provider, selec
 		return nil, errors.New("unsupported MCP provider")
 	}
 	return nil, errMCPUnavailable
+}
+
+// setMCPEnabled switches a Codex or Grok server; Claude Code records MCP
+// on/off state per project, which is outside the user-level scope here.
+func (rt *liveApp) setMCPEnabled(ctx context.Context, provider store.Provider, server mcp.Server, enabled bool) error {
+	now := time.Now()
+	switch provider {
+	case store.ProviderCodex:
+		if rt.codex != nil {
+			return rt.codex.SetMCPEnabled(ctx, server, enabled, now)
+		}
+	case store.ProviderGrok:
+		if rt.grokMod != nil && rt.grokMod.Store != nil {
+			return rt.grokMod.Store.SetMCPEnabled(ctx, server, enabled, now)
+		}
+	default:
+		return errors.New("unsupported MCP provider")
+	}
+	return errMCPUnavailable
 }
