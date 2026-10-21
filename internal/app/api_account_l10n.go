@@ -13,6 +13,8 @@ const (
 	xAPIModelSonnet      textKey = "apiAccountModelSonnet"
 	xAPIModelHaiku       textKey = "apiAccountModelHaiku"
 	xAPIModelFable       textKey = "apiAccountModelFable"
+	xAPIContext1M        textKey = "apiAccountContext1M"
+	xAPIContext1MHint    textKey = "apiAccountContext1MHint"
 	xAPIModelMapping     textKey = "apiAccountModelMapping"
 	xAPIFetchModels      textKey = "apiAccountFetchModels"
 	xAPIModelsFound      textKey = "apiAccountModelsFound"
@@ -81,6 +83,16 @@ func init() {
 		xAPISaveAndApply:     {"Save and apply", "保存并应用", "儲存並套用", "저장 후 적용", "保存して適用", "Сохранить и применить", "Enregistrer et appliquer"},
 		xAPISavedApplied:     {"API account saved and the config files updated. Restart %s to use the new settings.", "已保存 API 账号并更新配置文件，请重新启动 %s 以使用新设置。", "已儲存 API 帳號並更新設定檔，請重新啟動 %s 以使用新設定。", "API 계정을 저장하고 설정 파일을 업데이트했습니다. 새 설정을 사용하려면 %s를 다시 시작하세요.", "APIアカウントを保存し、設定ファイルを更新しました。新しい設定を使うには %s を再起動してください。", "API-аккаунт сохранён, файлы настроек обновлены. Перезапустите %s, чтобы применить новые настройки.", "Compte API enregistré et fichiers de configuration mis à jour. Redémarrez %s pour utiliser les nouveaux réglages."},
 		xAPISavedNotApplied:  {"API account saved. The config files are unchanged and take the new settings at the next switch to this account.", "已保存 API 账号。配置文件未改动，下次切换到此账号时才会写入新设置。", "已儲存 API 帳號。設定檔未改動，下次切換到此帳號時才會寫入新設定。", "API 계정을 저장했습니다. 설정 파일은 바뀌지 않았으며 다음에 이 계정으로 전환할 때 새 설정이 기록됩니다.", "APIアカウントを保存しました。設定ファイルは変更されず、次にこのアカウントへ切り替えたときに新しい設定が書き込まれます。", "API-аккаунт сохранён. Файлы настроек не изменены; новые настройки будут записаны при следующем переключении на этот аккаунт.", "Compte API enregistré. Les fichiers de configuration sont inchangés et recevront les nouveaux réglages au prochain basculement vers ce compte."},
+		xAPIContext1M:        {"Use 1M context", "启用 1M 上下文", "啟用 1M 上下文", "1M 컨텍스트 사용", "1Mコンテキストを使用", "Использовать контекст 1M", "Utiliser le contexte 1M"},
+		xAPIContext1MHint: {
+			"Adds [1m] to non-empty default, Opus and Sonnet models; the model and relay must support 1M, Haiku and Fable are unchanged; turning this off restores your entries and keeps any manually entered [1m] suffix",
+			"为已填写的默认、Opus 和 Sonnet 模型追加 [1m]，模型与中转站均须支持 1M，Haiku 和 Fable 不变；关闭后恢复所填模型，手动填写的 [1m] 后缀仍会保留",
+			"為已填寫的預設、Opus 與 Sonnet 模型加上 [1m]，模型與中轉站均須支援 1M，Haiku 與 Fable 不變；關閉後還原所填模型，手動填寫的 [1m] 後綴仍會保留",
+			"입력된 기본·Opus·Sonnet 모델에 [1m]을 추가합니다; 모델과 중계 서버가 1M을 지원해야 하며 Haiku와 Fable은 그대로입니다; 끄면 입력값으로 복원하고 직접 입력한 [1m] 접미사는 유지합니다",
+			"入力済みの既定・Opus・Sonnetモデルに [1m] を追加します、モデルと中継サイトの1M対応が必要です、HaikuとFableは変更しません、オフにすると入力したモデルに戻り、手入力の [1m] は残ります",
+			"Добавляет [1m] к заполненным моделям по умолчанию, Opus и Sonnet; модель и прокси должны поддерживать 1M, Haiku и Fable не меняются; отключение возвращает введённые значения, сохраняя вручную добавленный [1m]",
+			"Ajoute [1m] aux modèles par défaut, Opus et Sonnet renseignés ; le modèle et le relais doivent prendre en charge 1M, Haiku et Fable restent inchangés ; désactiver rétablit vos saisies en conservant tout suffixe [1m] ajouté manuellement",
+		},
 	} {
 		extraTexts[key] = texts
 	}

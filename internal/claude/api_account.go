@@ -59,15 +59,25 @@ type APIProfile struct {
 	SonnetModel string `json:"sonnetModel,omitempty"`
 	HaikuModel  string `json:"haikuModel,omitempty"`
 	FableModel  string `json:"fableModel,omitempty"`
+	Context1M   bool   `json:"context1M,omitempty"`
 }
 
 // Env is the settings.json form of the profile with key as the auth token.
 func (p APIProfile) Env(key string) APIEnv {
-	return APIEnv{
+	env := APIEnv{
 		BaseURL: p.BaseURL, AuthToken: key, Model: p.Model,
 		OpusModel: p.OpusModel, SonnetModel: p.SonnetModel,
 		HaikuModel: p.HaikuModel, FableModel: p.FableModel,
 	}
+	if p.Context1M {
+		for _, model := range []*string{&env.Model, &env.OpusModel, &env.SonnetModel} {
+			*model = strings.TrimSpace(*model)
+			if *model != "" && !strings.HasSuffix(strings.ToLower(*model), "[1m]") {
+				*model += "[1m]"
+			}
+		}
+	}
+	return env
 }
 
 // Host is the host (and port) of the base URL, "" when it is not parseable.
@@ -79,7 +89,7 @@ func (p APIProfile) Host() string {
 	return u.Host
 }
 
-// withModels returns p with the five model fields of src, trimmed. BaseURL and
+// withModels returns p with the model fields and context choice of src, trimmed. BaseURL and
 // KeyHint are kept.
 func (p APIProfile) withModels(src APIProfile) APIProfile {
 	p.Model = strings.TrimSpace(src.Model)
@@ -87,6 +97,7 @@ func (p APIProfile) withModels(src APIProfile) APIProfile {
 	p.SonnetModel = strings.TrimSpace(src.SonnetModel)
 	p.HaikuModel = strings.TrimSpace(src.HaikuModel)
 	p.FableModel = strings.TrimSpace(src.FableModel)
+	p.Context1M = src.Context1M
 	return p
 }
 

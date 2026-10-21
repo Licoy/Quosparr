@@ -26,13 +26,14 @@ type ClaudeAPIInput struct {
 	Alias, BaseURL, APIKey                         string
 	Model                                          string
 	OpusModel, SonnetModel, HaikuModel, FableModel string
-	Apply                                          bool
+	Apply, Context1M                               bool
 }
 
 func (in ClaudeAPIInput) profile() claude.APIProfile {
 	return claude.APIProfile{
 		BaseURL: in.BaseURL, Model: in.Model, OpusModel: in.OpusModel,
 		SonnetModel: in.SonnetModel, HaikuModel: in.HaikuModel, FableModel: in.FableModel,
+		Context1M: in.Context1M,
 	}
 }
 

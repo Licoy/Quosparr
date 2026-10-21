@@ -235,10 +235,28 @@ func TestLiveAppClaudeAPIMethodsWithoutAModule(t *testing.T) {
 func TestClaudeAPIInputProfileCarriesTheMappings(t *testing.T) {
 	p := ClaudeAPIInput{
 		Alias: "a", BaseURL: "https://relay.example.com", APIKey: testAPIKey, Model: "m",
-		OpusModel: "o", SonnetModel: "s", HaikuModel: "h", FableModel: "f",
+		OpusModel: "o", SonnetModel: "s", HaikuModel: "h", FableModel: "f", Context1M: true,
 	}.profile()
-	want := claude.APIProfile{BaseURL: "https://relay.example.com", Model: "m", OpusModel: "o", SonnetModel: "s", HaikuModel: "h", FableModel: "f"}
+	want := claude.APIProfile{BaseURL: "https://relay.example.com", Model: "m", OpusModel: "o", SonnetModel: "s", HaikuModel: "h", FableModel: "f", Context1M: true}
 	if p != want {
 		t.Fatalf("%+v", p)
+	}
+}
+
+func TestClaudeAPIEditorRestoresContextChoice(t *testing.T) {
+	mod, acc := apiTestModule(t, nil)
+	p := *acc.API
+	p.Context1M = true
+	if _, err := mod.EditAPIAccount(acc.ID, claude.APIEdit{Profile: p, Apply: true}); err != nil {
+		t.Fatal(err)
+	}
+	f := &accountForm{}
+	f.openClaudeAPIEditor(&liveApp{claudeMod: mod}, acc.ID)
+	if !f.api.context1M || !f.api.initialContext1M || f.api.model != "m" || apiNeedsApplyChoice(f) {
+		t.Fatal("editor did not restore the original model and context choice")
+	}
+	f.api.context1M = false
+	if !apiNeedsApplyChoice(f) {
+		t.Fatal("disabling the current context choice must ask before applying")
 	}
 }

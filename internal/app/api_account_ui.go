@@ -31,6 +31,7 @@ const apiModelsTimeout = 20 * time.Second
 type apiDraft struct {
 	baseURL, key                      string
 	model, opus, sonnet, haiku, fable string
+	context1M, initialContext1M       bool
 	models                            []string
 	modelsMessage                     string
 	modelsFailed, fetching            bool
@@ -53,7 +54,7 @@ func (d *apiDraft) profileFields() [6]string {
 // base URL they still spell the old way.
 func apiNeedsApplyChoice(f *accountForm) bool {
 	d := &f.api
-	return isAPIEditMode(f.mode) && d.inUse && (d.outdated || strings.TrimSpace(d.key) != "" || d.profileFields() != d.initial)
+	return isAPIEditMode(f.mode) && d.inUse && (d.outdated || strings.TrimSpace(d.key) != "" || d.profileFields() != d.initial || d.context1M != d.initialContext1M)
 }
 
 func isAPIMode(mode string) bool {
@@ -104,7 +105,7 @@ func (f *accountForm) openClaudeAPIEditor(rt *liveApp, id string) {
 	}
 	p := acc.API
 	f.alias = acc.Alias
-	f.api = apiDraft{baseURL: p.BaseURL, model: p.Model, opus: p.OpusModel, sonnet: p.SonnetModel, haiku: p.HaikuModel, fable: p.FableModel}
+	f.api = apiDraft{baseURL: p.BaseURL, model: p.Model, opus: p.OpusModel, sonnet: p.SonnetModel, haiku: p.HaikuModel, fable: p.FableModel, context1M: p.Context1M, initialContext1M: p.Context1M}
 	f.api.inUse, f.api.outdated = rt.claudeMod.APIAccountState(id)
 	f.api.initial = f.api.profileFields()
 }
@@ -171,6 +172,8 @@ func apiFieldList(c *ui.Context, u *settingsUI, f *accountForm) {
 	if !claudeForm {
 		return
 	}
+	ui.Checkbox(c.Key("api-context-1m"), &d.context1M, tx(l, xAPIContext1M)).Disabled(f.busy)
+	ui.Text(c, tx(l, xAPIContext1MHint)).FontSize(11).TextColor(c.Theme().TextMuted)
 	ui.Text(c, tx(l, xAPIModelMapping)).FontSize(12).TextColor(c.Theme().TextMuted)
 	apiModelPair(c, f, [2]string{"api-opus", "api-sonnet"}, [2]*string{&d.opus, &d.sonnet}, [2]string{tx(l, xAPIModelOpus), tx(l, xAPIModelSonnet)})
 	apiModelPair(c, f, [2]string{"api-haiku", "api-fable"}, [2]*string{&d.haiku, &d.fable}, [2]string{tx(l, xAPIModelHaiku), tx(l, xAPIModelFable)})
@@ -335,7 +338,7 @@ func submitAPIAccount(l l10n.Localizer, mode, id, alias string, d apiDraft, appl
 	case modeClaudeAPIAdd, modeClaudeAPIEdit:
 		in := ClaudeAPIInput{
 			Alias: alias, BaseURL: d.baseURL, APIKey: d.key, Model: d.model,
-			OpusModel: d.opus, SonnetModel: d.sonnet, HaikuModel: d.haiku, FableModel: d.fable, Apply: apply == apiApplyWrite,
+			OpusModel: d.opus, SonnetModel: d.sonnet, HaikuModel: d.haiku, FableModel: d.fable, Apply: apply == apiApplyWrite, Context1M: d.context1M,
 		}
 		if mode == modeClaudeAPIAdd {
 			_, err = rt.addClaudeAPIAccount(ctx, in)

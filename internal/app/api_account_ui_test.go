@@ -11,6 +11,7 @@ import (
 	"github.com/licoy/quosparr/internal/claude"
 	"github.com/licoy/quosparr/internal/codex"
 	"github.com/licoy/quosparr/internal/l10n"
+	"github.com/licoy/quosparr/internal/store"
 )
 
 func ptr(v float64) *float64 { return &v }
@@ -229,5 +230,106 @@ func TestAnOutdatedConfigOffersToApplyWithoutChanges(t *testing.T) {
 	f.api.outdated = true
 	if !apiNeedsApplyChoice(f) {
 		t.Fatal("an outdated config of the account in use should offer to apply")
+	}
+}
+
+func TestClaudeAPIContext1MForm(t *testing.T) {
+	e := newEnv(t, nil)
+	if err := e.s.Load(); err != nil {
+		t.Fatal(err)
+	}
+	u := newSettingsUI(e.s, SettingsOptions{})
+	f := accountFormOf(u)
+	f.mode = modeClaudeAPIEdit
+	f.api.inUse = true
+	f.api.initial = f.api.profileFields()
+	tt := ui.NewTester(func(c *ui.Context) { applyTheme(c); accountEditor(c, u, f) }, 700, 900)
+	if f.api.context1M || apiNeedsApplyChoice(f) {
+		t.Fatal("1M should start disabled")
+	}
+	if err := tt.Click(tx(u.L(), xAPIContext1M)); err != nil {
+		t.Fatal(err)
+	}
+	tt.Frame()
+	if !f.api.context1M || !apiNeedsApplyChoice(f) {
+		t.Fatal("1M edit needs apply choice")
+	}
+	if !tt.HasText(tx(u.L(), xAPIContext1MHint)) {
+		t.Fatal("1M help missing")
+	}
+	for _, key := range []textKey{xAPIContext1M, xAPIContext1MHint} {
+		for i, text := range extraTexts[key] {
+			if text == "" {
+				t.Fatalf("missing language %d", i)
+			}
+		}
+	}
+}
+
+func TestClaudeAPIContext1MModalBounds(t *testing.T) {
+	for _, language := range []store.Language{store.LanguageEnglish, store.LanguageSimplifiedChinese, store.LanguageTraditionalChinese, store.LanguageKorean, store.LanguageJapanese, store.LanguageRussian, store.LanguageFrench} {
+		t.Run(string(language), func(t *testing.T) {
+			u, tt := accountLayoutFixture(t, language, accountKindClaude, settingsMinWidth, false, nil)
+			f := accountFormOf(u)
+			f.mode = modeClaudeAPIAdd
+			tt.Frame()
+			for _, text := range []string{tx(u.L(), xAPIContext1M), u.L().Text(l10n.KeyCancel), u.L().Text(l10n.KeyOk)} {
+				rect, ok := tt.Find(text)
+				if !ok || rect.Y < 0 || rect.Y+rect.H > float32(settingsHeight) {
+					t.Fatalf("control outside modal viewport: %q %+v", text, rect)
+				}
+			}
+		})
+	}
+}
+
+func TestClaudeAPIContext1MModalScrollReachesMappings(t *testing.T) {
+	for _, language := range []store.Language{store.LanguageEnglish, store.LanguageSimplifiedChinese, store.LanguageTraditionalChinese, store.LanguageKorean, store.LanguageJapanese, store.LanguageRussian, store.LanguageFrench} {
+		t.Run(string(language), func(t *testing.T) {
+			u, tt := accountLayoutFixture(t, language, accountKindClaude, settingsMinWidth, false, nil)
+			tt.SetSize(settingsMinWidth, settingsMinHeight)
+			f := accountFormOf(u)
+			f.mode = modeClaudeAPIEdit
+			f.api.inUse, f.api.context1M = true, true
+			tt.Frame()
+			checkbox, ok := tt.Find(tx(u.L(), xAPIContext1M))
+			if !ok {
+				t.Fatal("context checkbox missing")
+			}
+			tt.Scroll(checkbox.X+checkbox.W/2, checkbox.Y+checkbox.H/2, 0, 1000)
+			for _, field := range []struct {
+				key   textKey
+				value *string
+				want  string
+			}{{xAPIModelHaiku, &f.api.haiku, "relay-haiku"}, {xAPIModelFable, &f.api.fable, "relay-fable"}} {
+				label, ok := tt.Find(tx(u.L(), field.key))
+				if !ok || label.Y < 0 || label.Y+label.H+40 > float32(settingsMinHeight) {
+					t.Fatalf("mapping input is unreachable after scrolling: %+v", label)
+				}
+				tt.ClickAt(label.X+40, label.Y+label.H+22)
+				tt.Type(field.want)
+				if *field.value != field.want {
+					t.Fatalf("scrolled mapping did not accept input: %q", *field.value)
+				}
+			}
+			if err := tt.Click(u.L().Text(l10n.KeyOk)); err != nil {
+				t.Fatal(err)
+			}
+			if !f.api.askApply {
+				t.Fatal("confirmation button could not be clicked after scrolling")
+			}
+			if err := tt.Click(u.L().Text(l10n.KeyCancel)); err != nil {
+				t.Fatal(err)
+			}
+			if f.api.askApply || f.mode == "" {
+				t.Fatal("cancel did not return from the apply choice to the editor")
+			}
+			if err := tt.Click(u.L().Text(l10n.KeyCancel)); err != nil {
+				t.Fatal(err)
+			}
+			if f.mode != "" {
+				t.Fatal("cancel button could not close the scrolled editor")
+			}
+		})
 	}
 }
