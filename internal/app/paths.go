@@ -14,7 +14,7 @@ import (
 // ~/Library/Application Support, %AppData% or ~/.config. It must run before
 // anything calls App.Path. It creates the directories (0700).
 //
-// mygo v0.5.5 offers App.SetPath for PathAppData, PathUserData, PathCache
+// mygo v0.6.2 offers App.SetPath for PathAppData, PathUserData, PathCache
 // and PathLogs; the single-instance socket lives in the temp directory and
 // cannot be moved (it is not a data file).
 func DirectMygoPaths(app *mygo.Application, home string) error {

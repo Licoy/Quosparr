@@ -14,7 +14,7 @@ type ClientFunc func(ctx context.Context) (*http.Client, error)
 
 // updaterTransport is the RoundTripper that replaces http.DefaultClient's
 // transport. This is the ONLY place in the application that replaces or uses
-// the global client, and it exists because mygo v0.5.5's updater hard-codes
+// the global client, and it exists because mygo v0.6.2's updater hard-codes
 // http.DefaultClient for every request it makes (feed, manifest, delta,
 // archive) and has no client option. Nothing else in the app may use
 // http.DefaultClient, http.DefaultTransport, http.Get or http.Post: all other

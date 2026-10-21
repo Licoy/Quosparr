@@ -5,7 +5,7 @@ go 1.27.1
 require (
 	github.com/BurntSushi/toml v1.6.0
 	github.com/ebitengine/purego v0.11.1
-	github.com/egoist/mygo v0.5.5
+	github.com/egoist/mygo v0.6.2
 	github.com/zalando/go-keyring v0.2.8
 	golang.org/x/image v0.46.0
 	golang.org/x/sys v0.48.0

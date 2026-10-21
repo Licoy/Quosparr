@@ -16,7 +16,7 @@ Quosparr 使用 `com.quosparr.app` 和 `quosparr://`，Git 仓库地址保留；
 
 产品版本只来自 `mygo.json` 的 `version`；macOS 的 `macos.infoPlist.CFBundleVersion` 是独立递增整数，必须至少为 100，并严格大于全部已发布 appcast 的构建号；宿主、Widget 和 Sparkle appcast 使用同一构建号
 
-GitHub Actions 需要 `MYGO_UPDATE_PRIVATE_KEY`、`SPARKLE_PUBLIC_KEY`、`SPARKLE_PRIVATE_KEY` 三个 secrets；本地脚本将 `MYGO_UPDATE_PRIVATE_KEY` 映射到 mygo v0.5.5 实际接受的 `MYGO_UPDATER_PRIVATE_KEY`；私钥只放受限临时文件或 secrets，不写配置、命令参数、仓库和日志
+GitHub Actions 需要 `MYGO_UPDATE_PRIVATE_KEY`、`SPARKLE_PUBLIC_KEY`、`SPARKLE_PRIVATE_KEY` 三个 secrets；本地脚本将 `MYGO_UPDATE_PRIVATE_KEY` 映射到 mygo v0.6.2 实际接受的 `MYGO_UPDATER_PRIVATE_KEY`；私钥只放受限临时文件或 secrets，不写配置、命令参数、仓库和日志
 
 mygo 与 Sparkle 使用独立密钥；保留现有 `SUPublicEDKey`；`SPARKLE_PRIVATE_KEY` 为 Sparkle `generate_keys -x` 导出的 base64 32 字节种子；appcast 不依赖 Sparkle 工具，由 `go run ./Scripts/release-assets sparkle-appcast` 直接生成，以 Ed25519 对 ZIP 原始字节签名，与 `sign_update` 的结果一致；`legacy-appcast.sh` 要求 Sparkle secret 的公钥等于该字段，生成后再用固定公钥执行 `release-assets verify-sparkle`；Go 宿主不携带 Sparkle 运行库
 
@@ -60,7 +60,7 @@ Windows 构建目录保留 mygo 的 `Quosparr Setup <version> <arch>.exe` 名称
 
 Windows 将对应架构的 SQLite DLL 嵌入 EXE，安装器和更新归档不再附带外置 DLL，单独复制 EXE 不会遗漏运行库；首次使用时从内嵌资源原子释放到 `~/.quosparr/runtime/sqlite/<SHA256>/mygo-sqlite3.dll`，目录和文件仅当前用户可访问，加载前检查内容；已有缓存损坏或路径异常会明确报错，不下载替代库、不加载 EXE 旁边的 DLL；缓存缺失时可从内嵌资源重新创建
 
-内嵌文件与 mygo v0.5.5 清单中的 Windows SHA256 一致；该版本 CLI 没有排除单个原生资源的配置，因此打包脚本复制固定版本 CLI 到临时目录，只调整 Windows SQLite 的外置资源收集，构建后清理副本，不修改 Go 模块缓存或升级框架；macOS / Linux 保留原有随包动态库
+内嵌文件与 mygo v0.6.2 清单中的 Windows SHA256 一致；该版本 CLI 没有排除单个原生资源的配置，因此打包脚本复制固定版本 CLI 到临时目录，只调整 Windows SQLite 的外置资源收集，构建后清理副本，不修改 Go 模块缓存或升级框架；macOS / Linux 保留原有随包动态库
 
 普通 CI 在 Windows 与 Linux 的 amd64、arm64 原生运行器上执行完整 Go 测试、构建开发安装包、核对载荷，并加载 SQLite 执行参数化查询；Windows 在一次性 Actions VM 内验证静默安装、临时 HOME 下的 `--self-check` 和卸载，并将 EXE 单独复制到空目录，通过 `QUOSPARR_DEV_VERIFY_SQLITE=1` 检查内嵌库解包和真实 SQLite 查询，删除缓存后再检查离线重建；Linux 用 `dpkg-deb` 解包后运行相同基础诊断；两者均不启动桌面界面、不登录真实账号；macOS 继续运行全量 race 和六目标交叉构建
 
@@ -84,7 +84,7 @@ bash Scripts/verify-v1-release.sh /absolute/path/to/dist mygo.json
 
 稳定版使用 `v<version>` 与生产 `/releases/latest/download/`；Beta 的 `mygo.json` 版本必须有 prerelease 后缀，并用 `V1_UPDATE_CHANNEL=beta` 生成；Beta 包内的 `updates.url` 固定为 `https://github.com/Licoy/Quosparr/releases/download/v1-beta`
 
-当前 Beta 候选只保存为 `beta-v<version>` 的 prerelease 草稿，不更新固定的 `v1-beta` 渠道；恢复分发时，候选与固定频道都必须 `latest=false`；mygo v0.5.5 的 GitHub `tagPrefix` 查询会排除 prerelease，所以不能用 prefix 查询代替这个固定渠道；生产 `/latest/` 与 Sparkle appcast 入口均不受 Beta 影响
+当前 Beta 候选只保存为 `beta-v<version>` 的 prerelease 草稿，不更新固定的 `v1-beta` 渠道；恢复分发时，候选与固定频道都必须 `latest=false`；mygo v0.6.2 的 GitHub `tagPrefix` 查询会排除 prerelease，所以不能用 prefix 查询代替这个固定渠道；生产 `/latest/` 与 Sparkle appcast 入口均不受 Beta 影响
 
 Homebrew Cask 准备目前暂停，恢复后仍须在全部资产校验通过后同步 DMG 的版本与 SHA256，默认卸载仅移除应用，自有配置仅在用户主动 `--zap` 时删除
 

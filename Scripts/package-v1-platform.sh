@@ -15,7 +15,7 @@ cd "$ROOT"
 mkdir -p "$ROOT/.build"
 CONFIG_STAGE="$(mktemp -d "$ROOT/.build/v1-package-config.XXXXXX")"
 trap 'rm -rf "$CONFIG_STAGE"' EXIT
-[[ "$(go list -m -f '{{.Version}}' github.com/egoist/mygo)" == v0.5.5 ]]
+[[ "$(go list -m -f '{{.Version}}' github.com/egoist/mygo)" == v0.6.2 ]]
 V1_DEVELOPMENT_PACKAGE="$DEVELOPMENT" python3 "$ROOT/Scripts/stage-v1-config.py" "$ROOT" "$CONFIG_STAGE"
 mkdir -p "$WORK/config"
 cp "$CONFIG_STAGE/mygo.json" "$WORK/config/mygo.json"
@@ -50,7 +50,7 @@ if [[ "$DEVELOPMENT" == 1 ]]; then
   exit 0
 fi
 # Add the explicit SHA256 field and re-sign the unchanged CLI archive
-# mygo v0.5.5 authenticates the SHA256 digest and ignores extra JSON fields
+# mygo v0.6.2 authenticates the SHA256 digest and ignores extra JSON fields
 go run ./Scripts/release-assets sign -config "$WORK/config/mygo.json" -dir "$STAGE" -targets "${TARGET//\//-}"
 go run ./Scripts/release-assets verify -config "$WORK/config/mygo.json" -dir "$STAGE" -targets "${TARGET//\//-}"
 python3 "$ROOT/Scripts/verify-v1-platform.py" verify "$WORK/config/mygo.json" "$STAGE" "$TARGET"

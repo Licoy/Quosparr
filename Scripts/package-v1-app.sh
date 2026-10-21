@@ -25,7 +25,7 @@ cd "$ROOT"
 mkdir -p "$ROOT/.build"
 CONFIG_STAGE="$(mktemp -d "$ROOT/.build/v1-package-config.XXXXXX")"
 trap 'rm -rf "$CONFIG_STAGE"' EXIT
-[[ "$(go list -m -f '{{.Version}}' github.com/egoist/mygo)" == v0.5.5 ]] || { printf 'MyGo v0.5.5 is required\n' >&2; exit 1; }
+[[ "$(go list -m -f '{{.Version}}' github.com/egoist/mygo)" == v0.6.2 ]] || { printf 'MyGo v0.6.2 is required\n' >&2; exit 1; }
 if [[ "$DEVELOPMENT" == 0 ]]; then
   export MYGO_UPDATER_PRIVATE_KEY="${MYGO_UPDATE_PRIVATE_KEY:-${MYGO_UPDATER_PRIVATE_KEY:-}}"
   [[ -n "$MYGO_UPDATER_PRIVATE_KEY" ]] || { printf 'Missing MYGO_UPDATE_PRIVATE_KEY\n' >&2; exit 1; }

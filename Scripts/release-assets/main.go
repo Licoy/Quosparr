@@ -1,4 +1,4 @@
-// release-assets signs final, post-processed archives using mygo v0.5.5's
+// release-assets signs final, post-processed archives using mygo v0.6.2's
 // Ed25519-over-SHA256 protocol, and writes the Sparkle feed of the Swift
 // releases; private keys are read only from the environment.
 package main
