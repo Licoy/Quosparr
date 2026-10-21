@@ -61,8 +61,8 @@ func TestAPIBalanceMeterWithoutTotal(t *testing.T) {
 func TestBalanceMeterCaptionsShowAmount(t *testing.T) {
 	m, _ := APIBalanceMeter(en, apiquota.Quota{Status: apiquota.StatusAvailable, Remaining: f64(8), Unit: "USD"})
 	now := m.ResetsAt
-	if got := CountdownCaption(m, now, en.Language()); got != "Balance $8.00" {
-		t.Errorf("countdown caption = %q", got)
+	if got := CountdownDetail(m, now, en.Language()); got != "$8.00" {
+		t.Errorf("countdown detail = %q", got)
 	}
 	if got := BatteryDetail(m, store.BatteryDetailCountdown, now, en.Language()); got != "$8.00" {
 		t.Errorf("battery detail = %q", got)
@@ -70,8 +70,8 @@ func TestBalanceMeterCaptionsShowAmount(t *testing.T) {
 	if got := MeterDetail(m, store.MetersDetailResetTime, now, en.Language()); got != "$8.00" {
 		t.Errorf("meter detail = %q", got)
 	}
-	if got := RingText(&m); got != "$8.00" {
-		t.Errorf("ring = %q", got)
+	if got := percentText(m); got != "$8.00" {
+		t.Errorf("percent = %q", got)
 	}
 	if got := WithShortTitle(en, m).Title; got != "Balance" {
 		t.Errorf("short title = %q", got)

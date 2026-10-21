@@ -81,16 +81,6 @@ func metersDetailKey(v store.MetersDetail) l10n.Key {
 	return l10n.KeyStatusBarMetersDetailRemainingPercent
 }
 
-func batteryScopeKey(v store.BatteryScope) l10n.Key {
-	switch v {
-	case store.BatteryScopeWeekly:
-		return l10n.KeyStatusBarBatteryScopeWeekly
-	case store.BatteryScopeBoth:
-		return l10n.KeyStatusBarBatteryScopeBoth
-	}
-	return l10n.KeyStatusBarBatteryScopeFiveHour
-}
-
 func batteryDetailKey(v store.BatteryDetail) l10n.Key {
 	if v == store.BatteryDetailRemainingPercent {
 		return l10n.KeyStatusBarBatteryDetailRemainingPercent

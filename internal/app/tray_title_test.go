@@ -2,53 +2,55 @@ package app
 
 import (
 	"bytes"
-	"image/color"
 	"image/png"
-	"reflect"
-	"strings"
 	"testing"
 	"time"
 
-	"github.com/egoist/mygo/ui"
 	"github.com/licoy/quosparr/internal/l10n"
 	"github.com/licoy/quosparr/internal/runway"
 	"github.com/licoy/quosparr/internal/store"
 )
 
-func TestTrayFromStatusPreservesStyleCaptions(t *testing.T) {
-	now := time.Date(2026, 10, 12, 9, 0, 0, 0, time.UTC)
-	meters := []runway.Meter{{Title: "5h", RemainingPercent: 80, ResetsAt: now.Add(3 * time.Hour)}, {Title: "Weekly", RemainingPercent: 35, ResetsAt: now.Add(48 * time.Hour)}}
-	prefs := store.DefaultPreferences()
-	prefs.StatusBarDisplayStyle = store.StatusBarStyleText
-	v := runway.BuildStatusBar(l10n.New(l10n.English), runway.StatusInputs{Prefs: prefs, Provider: store.ProviderCodex, CodexText: "3h", CodexMeters: meters, Now: now})
-	got := TrayFromStatus(v)
-	if !reflect.DeepEqual(got.Lines, []string{"80%", "35%"}) {
-		t.Fatalf("text style discarded percentage captions: got %q, want [80%% 35%%]", got.Lines)
+var trayTestNow = time.Date(2026, 10, 12, 9, 0, 0, 0, time.UTC)
+
+// trayTestInputs has two windows for every provider.
+func trayTestInputs(prefs store.Preferences) runway.StatusInputs {
+	now := trayTestNow
+	meter := func(title string, minutes, left int, health runway.Health, reset time.Duration) runway.Meter {
+		return runway.Meter{Title: title, WindowMinutes: minutes, RemainingPercent: left, ResetsAt: now.Add(reset), Health: health}
+	}
+	return runway.StatusInputs{Prefs: prefs, Provider: store.ProviderCodex, Now: now,
+		CodexMeters: []runway.Meter{meter("5h", 300, 80, runway.HealthGreen, 3*time.Hour), meter("Weekly", 10080, 35, runway.HealthYellow, 48*time.Hour)},
+		Claude: runway.ClaudeState{Availability: runway.ClaudeReady, Meters: []runway.Meter{
+			meter("5h", 300, 18, runway.HealthRed, 72*time.Minute), meter("Weekly", 10080, 64, runway.HealthGreen, 100*time.Hour)}},
+		Grok: runway.GrokState{Availability: runway.GrokReady, Meters: []runway.Meter{
+			meter("Weekly", 10080, 85, runway.HealthGreen, 30*time.Hour), meter("Monthly", 43200, 52, runway.HealthGreen, 400*time.Hour)}},
 	}
 }
 
 func trayTestStatus(style store.StatusBarStyle, customize func(*store.Preferences)) runway.StatusBarView {
-	now := time.Date(2026, 10, 12, 9, 0, 0, 0, time.UTC)
 	prefs := store.DefaultPreferences()
 	prefs.StatusBarDisplayStyle = style
-	prefs.StatusBarBatteryScope = store.BatteryScopeBoth
 	if customize != nil {
 		customize(&prefs)
 	}
-	meters := []runway.Meter{
-		{Title: "5h", WindowMinutes: 300, RemainingPercent: 80, ResetsAt: now.Add(3 * time.Hour), Health: runway.HealthGreen},
-		{Title: "Weekly", WindowMinutes: 10080, RemainingPercent: 35, ResetsAt: now.Add(48 * time.Hour), Health: runway.HealthYellow},
-	}
-	return runway.BuildStatusBar(l10n.New(l10n.English), runway.StatusInputs{Prefs: prefs, Provider: store.ProviderCodex, CodexText: "3h", CodexMeters: meters, Now: now})
+	return runway.BuildStatusBar(l10n.New(l10n.English), trayTestInputs(prefs))
+}
+
+func trayGroups(groups ...[]store.Provider) func(*store.Preferences) {
+	return func(p *store.Preferences) { p.SetStatusBarGroups(groups) }
 }
 
 func TestTrayStatusRendersFiveDifferentStyles(t *testing.T) {
-	styles := []store.StatusBarStyle{store.StatusBarStyleMeters, store.StatusBarStyleCountdown, store.StatusBarStyleBattery, store.StatusBarStyleRings, store.StatusBarStyleText}
 	seen := map[string]store.StatusBarStyle{}
-	for _, style := range styles {
-		v := trayTestStatus(style, nil)
-		r := TrayFromStatus(v)
-		if r.Style != style || r.RowsPerColumn != v.Plan.RowsPerColumn || len(r.Items) != 2 {
+	for _, style := range store.StatusBarStyles() {
+		r := TrayFromStatus(trayTestStatus(style, nil))
+		// The battery keeps the 5-hour window it had before the layout.
+		cells := 2
+		if style == store.StatusBarStyleBattery {
+			cells = 1
+		}
+		if r.Style != style || len(r.Components) != 1 || len(r.Components[0].Cells) != cells {
 			t.Fatalf("style/layout lost: %+v", r)
 		}
 		data, err := TrayImage(r, true, false)
@@ -87,46 +89,67 @@ func TestDesktopTrayKeepsApplicationLogoForEveryStatus(t *testing.T) {
 	}
 }
 
-func TestTrayDetailsReachRenderer(t *testing.T) {
-	seen := map[string]bool{}
-	for _, detail := range []store.MetersDetail{store.MetersDetailRemainingPercent, store.MetersDetailResetTime, store.MetersDetailBoth} {
-		v := trayTestStatus(store.StatusBarStyleMeters, func(p *store.Preferences) { p.StatusBarMetersDetailStyle = detail })
-		r := TrayFromStatus(v)
-		if r.Items[0].Caption != v.Items[0].MeterText {
-			t.Fatal("meter detail discarded")
-		}
-		image, err := TrayImage(r, true, false)
+func TestTrayVariantsRenderDifferently(t *testing.T) {
+	render := func(style store.StatusBarStyle, customize func(*store.Preferences)) string {
+		t.Helper()
+		data, err := TrayImage(TrayFromStatus(trayTestStatus(style, customize)), true, false)
 		if err != nil {
 			t.Fatal(err)
 		}
-		if seen[string(image)] {
-			t.Fatal("different meter details rendered identically")
+		return string(data)
+	}
+	variants := map[string]string{}
+	add := func(name, image string) {
+		t.Helper()
+		for other, prior := range variants {
+			if prior == image {
+				t.Fatalf("%s renders like %s", name, other)
+			}
 		}
-		seen[string(image)] = true
+		variants[name] = image
+	}
+	for _, detail := range []store.MetersDetail{store.MetersDetailRemainingPercent, store.MetersDetailResetTime, store.MetersDetailBoth} {
+		add("meters "+string(detail), render(store.StatusBarStyleMeters, func(p *store.Preferences) { p.StatusBarMetersDetailStyle = detail }))
 	}
 	for _, detail := range []store.BatteryDetail{store.BatteryDetailRemainingPercent, store.BatteryDetailCountdown} {
-		v := trayTestStatus(store.StatusBarStyleBattery, func(p *store.Preferences) {
-			p.StatusBarBatteryScope = store.BatteryScopeWeekly
-			p.StatusBarBatteryDetailStyle = detail
-		})
-		r := TrayFromStatus(v)
-		if len(r.Items) != 1 || r.Items[0].Caption != v.Items[0].BatteryDetail || strings.Contains(r.Items[0].Caption, "Weekly") {
-			t.Fatalf("single battery scope/detail discarded: %+v", r)
+		add("battery "+string(detail), render(store.StatusBarStyleBattery, func(p *store.Preferences) { p.StatusBarBatteryDetailStyle = detail }))
+	}
+	add("battery vertical", render(store.StatusBarStyleBattery, func(p *store.Preferences) { p.StatusBar.Battery = store.BatteryVertical }))
+	add("meters weekly", render(store.StatusBarStyleMeters, func(p *store.Preferences) { p.StatusBar.Window = store.StatusBarWindowWeekly }))
+	add("meters no icons", render(store.StatusBarStyleMeters, func(p *store.Preferences) { p.StatusBar.HideIcons = true }))
+}
+
+func TestTrayComponentsWidenTheItem(t *testing.T) {
+	pair := trayGroups([]store.Provider{store.ProviderCodex, store.ProviderClaude}, []store.Provider{store.ProviderGrok})
+	apart := trayGroups([]store.Provider{store.ProviderCodex}, []store.Provider{store.ProviderClaude}, []store.Provider{store.ProviderGrok})
+	for _, style := range store.StatusBarStyles() {
+		one := TrayFromStatus(trayTestStatus(style, trayGroups([]store.Provider{store.ProviderGrok})))
+		two := TrayFromStatus(trayTestStatus(style, pair))
+		three := TrayFromStatus(trayTestStatus(style, apart))
+		if len(three.Components) != 3 || style.Combines() && len(two.Components) != 2 {
+			t.Fatalf("%s components = %d / %d", style, len(two.Components), len(three.Components))
+		}
+		if !(trayContentWidth(one) < trayContentWidth(two) && trayContentWidth(two) <= trayContentWidth(three)) {
+			t.Errorf("%s widths %v %v %v", style, trayContentWidth(one), trayContentWidth(two), trayContentWidth(three))
 		}
 	}
 }
 
-func TestTrayDualProvidersKeepTwoRows(t *testing.T) {
-	v := trayTestStatus(store.StatusBarStyleMeters, nil)
+func TestTrayDrawsEmptyProviders(t *testing.T) {
 	prefs := store.DefaultPreferences()
-	prefs.StatusBarProviderScope = store.ProviderScopeBoth
-	v = runway.BuildStatusBar(l10n.New(l10n.English), runway.StatusInputs{Prefs: prefs, Provider: store.ProviderCodex, CodexText: "3h", CodexMeters: v.Plan.Meters, Grok: runway.GrokState{Meters: []runway.Meter{{WindowMinutes: 10080, RemainingPercent: 75}}}, Now: time.Now()})
-	r := TrayFromStatus(v)
-	if r.RowsPerColumn != 2 || len(r.Items) != 2 || !strings.Contains(r.Items[0].Caption, "Codex") || !strings.Contains(r.Items[1].Caption, "Grok") {
-		t.Fatalf("dual provider rows lost: %+v", r)
+	prefs.SetStatusBarGroups([][]store.Provider{{store.ProviderGrok}})
+	for _, style := range store.StatusBarStyles() {
+		prefs.StatusBarDisplayStyle = style
+		r := TrayFromStatus(runway.BuildStatusBar(l10n.New(l10n.English), runway.StatusInputs{Prefs: prefs, Now: trayTestNow}))
+		if !r.Components[0].Cells[0].Empty {
+			t.Fatalf("%s cells = %+v", style, r.Components[0].Cells)
+		}
+		if _, err := TrayImage(r, false, false); err != nil {
+			t.Fatal(err)
+		}
 	}
-	if got := makeTrayLayout(r); len(got.widths) != 1 || got.rows != 2 {
-		t.Fatalf("dual providers must share a two-row column: %+v", got)
+	if w := trayContentWidth(TrayRender{Style: store.StatusBarStyleMeters}); w <= 2*trayHorizontalPadding {
+		t.Errorf("no components drew nothing: %v", w)
 	}
 }
 
@@ -142,7 +165,7 @@ func TestTrayContentCacheDetectsChanges(t *testing.T) {
 	if !sameTrayRender(a, b) {
 		t.Fatal("unchanged snapshot must reuse its tray content")
 	}
-	b.Items[0].Caption = "changed detail"
+	b.Components[0].Cells[0].MeterText = "changed detail"
 	if sameTrayRender(a, b) {
 		t.Fatal("detail changes must redraw")
 	}
@@ -150,89 +173,25 @@ func TestTrayContentCacheDetectsChanges(t *testing.T) {
 	if sameTrayRender(a, b) {
 		t.Fatal("style changes must redraw")
 	}
+	rememberTray(nil, a, true)
+	a.Components[0].Cells[0].Percent = "changed"
+	if sameTrayRender(lastAppliedTray.render, a) {
+		t.Fatal("the remembered draw shares its cells")
+	}
+	lastAppliedTray.render = TrayRender{}
 }
 
-func TestTraySmallLabelsUseMeasuredFontAndBaseline(t *testing.T) {
+func TestTrayFitKeepsFittingText(t *testing.T) {
 	for _, label := range []string{"Weekly 35%", "每周 35%", "Недельная квота 35%"} {
-		font := trayFont(7)
-		metrics := font.Metrics()
-		if metrics.Ascent+metrics.Descent > 9 {
-			t.Fatalf("7pt label cannot fit 9pt battery body: %+v", metrics)
+		f := trayFontWeight(8.5, 600)
+		width := trayTextWidth(label, f)
+		// A float32 add/subtract from the layout may shrink the width by a
+		// fraction of a device pixel; it must still keep the last glyph.
+		if got := trayFit(label, f, (width+44)-44); got != label {
+			t.Fatalf("fitting label was truncated by float rounding: %q", got)
 		}
-		width := trayTextWidth(label, 7)
-		var fullWidth float32
-		for _, g := range ui.Shape(label, font) {
-			fullWidth = max(fullWidth, g.X+g.Advance)
+		if got := trayFit(label, f, width/2); got == label || trayTextWidth(got, f) > width/2 {
+			t.Fatalf("long label not shortened: %q", got)
 		}
-		if width != fullWidth {
-			t.Fatalf("measurement does not use the drawn font: %v / %v", width, fullWidth)
-		}
-		drawLabel := func(w float32) []byte {
-			img := ui.Render(func(c *ui.Context) {
-				theme := ui.LightTheme()
-				theme.Background = ui.Transparent
-				c.SetTheme(theme)
-				ui.Box(c).Fill().Draw(func(p *ui.Painter, _ ui.Rect) {
-					drawTrayText(p, label, ui.Rect{X: 0, Y: 2, W: w, H: 9}, 7, ui.RGB(0, 0, 0), false)
-				})
-			}, 300, 14, 2)
-			return img.Pix
-		}
-		// A float32 add/subtract from the bar layout may shrink the width
-		// by a fraction of a device pixel; it must still keep the last glyph
-		if !bytes.Equal(drawLabel(width), drawLabel((width+44)-44)) {
-			t.Fatalf("fitting label was truncated by float rounding: %s", label)
-		}
-	}
-}
-
-func TestMeterIcon(t *testing.T) {
-	if MeterIcon(nil, color.NRGBA{A: 255}) != nil {
-		t.Error("no meters, no icon")
-	}
-	ink := color.NRGBA{A: 255}
-	one := MeterIcon([]TrayMeter{{Remaining: 0.5}}, ink)
-	two := MeterIcon([]TrayMeter{{Remaining: 1}, {Remaining: 0}}, ink)
-	a, err := png.Decode(bytes.NewReader(one))
-	if err != nil {
-		t.Fatal(err)
-	}
-	b, err := png.Decode(bytes.NewReader(two))
-	if err != nil {
-		t.Fatal(err)
-	}
-	if b.Bounds().Dx() <= a.Bounds().Dx() || a.Bounds().Dy() != meterIconH {
-		t.Errorf("sizes %v %v", a.Bounds(), b.Bounds())
-	}
-}
-
-func TestMeterIconFillFollowsWhatIsLeft(t *testing.T) {
-	count := func(r float64) int {
-		img, err := png.Decode(bytes.NewReader(MeterIcon([]TrayMeter{{Remaining: r}}, color.NRGBA{A: 255})))
-		if err != nil {
-			t.Fatal(err)
-		}
-		n := 0
-		for y := 0; y < img.Bounds().Dy(); y++ {
-			for x := 0; x < img.Bounds().Dx(); x++ {
-				if _, _, _, a := img.At(x, y).RGBA(); a != 0 {
-					n++
-				}
-			}
-		}
-		return n
-	}
-	empty, half, full := count(0), count(0.5), count(1)
-	if !(empty < half && half < full) {
-		t.Errorf("filled pixels %d %d %d", empty, half, full)
-	}
-	if count(-3) != empty || count(9) != full {
-		t.Error("out-of-range fractions must clamp")
-	}
-}
-
-func TestTrayInk(t *testing.T) {
-	if trayInk(true) != (color.NRGBA{A: 255}) || trayInk(false) != (color.NRGBA{255, 255, 255, 255}) {
-		t.Error("ink must be dark on a light bar and light on a dark one")
 	}
 }

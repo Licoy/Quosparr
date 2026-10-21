@@ -559,10 +559,6 @@ const (
 	KeyStatusBarBatteryDetailCountdown                     Key = "statusBarBatteryDetailCountdown"
 	KeyStatusBarBatteryDetailRemainingPercent              Key = "statusBarBatteryDetailRemainingPercent"
 	KeyStatusBarBatteryDetailStyle                         Key = "statusBarBatteryDetailStyle"
-	KeyStatusBarBatteryScope                               Key = "statusBarBatteryScope"
-	KeyStatusBarBatteryScopeBoth                           Key = "statusBarBatteryScopeBoth"
-	KeyStatusBarBatteryScopeFiveHour                       Key = "statusBarBatteryScopeFiveHour"
-	KeyStatusBarBatteryScopeWeekly                         Key = "statusBarBatteryScopeWeekly"
 	KeyStatusBarCountdown                                  Key = "statusBarCountdown"
 	KeyStatusBarMetersDetailResetTime                      Key = "statusBarMetersDetailResetTime"
 	KeyStatusBarMetersDetailRemainingPercent               Key = "statusBarMetersDetailRemainingPercent"
@@ -571,7 +567,6 @@ const (
 	KeyStatusBarMeters                                     Key = "statusBarMeters"
 	KeyStatusBarProviderScope                              Key = "statusBarProviderScope"
 	KeyStatusBarProviders                                  Key = "statusBarProviders"
-	KeyStatusBarProvidersHint                              Key = "statusBarProvidersHint"
 	KeyStatusBarProviderScopeBoth                          Key = "statusBarProviderScopeBoth"
 	KeyStatusBarProviderScopeCustom                        Key = "statusBarProviderScopeCustom"
 	KeyStatusBarProviderScopeSelected                      Key = "statusBarProviderScopeSelected"
@@ -1204,10 +1199,6 @@ var allKeys = []Key{
 	KeyStatusBarBatteryDetailCountdown,
 	KeyStatusBarBatteryDetailRemainingPercent,
 	KeyStatusBarBatteryDetailStyle,
-	KeyStatusBarBatteryScope,
-	KeyStatusBarBatteryScopeBoth,
-	KeyStatusBarBatteryScopeFiveHour,
-	KeyStatusBarBatteryScopeWeekly,
 	KeyStatusBarCountdown,
 	KeyStatusBarMetersDetailResetTime,
 	KeyStatusBarMetersDetailRemainingPercent,
@@ -1216,7 +1207,6 @@ var allKeys = []Key{
 	KeyStatusBarMeters,
 	KeyStatusBarProviderScope,
 	KeyStatusBarProviders,
-	KeyStatusBarProvidersHint,
 	KeyStatusBarProviderScopeBoth,
 	KeyStatusBarProviderScopeCustom,
 	KeyStatusBarProviderScopeSelected,
@@ -1850,10 +1840,6 @@ var tables = map[Language]map[Key]string{
 		KeyStatusBarBatteryDetailCountdown:               "Reset countdown",
 		KeyStatusBarBatteryDetailRemainingPercent:        "Remaining percent",
 		KeyStatusBarBatteryDetailStyle:                   "Battery center text",
-		KeyStatusBarBatteryScope:                         "Battery quota",
-		KeyStatusBarBatteryScopeBoth:                     "All visible",
-		KeyStatusBarBatteryScopeFiveHour:                 "5-hour",
-		KeyStatusBarBatteryScopeWeekly:                   "Weekly",
 		KeyStatusBarCountdown:                            "Countdown",
 		KeyStatusBarMetersDetailResetTime:                "Reset time",
 		KeyStatusBarMetersDetailRemainingPercent:         "Remaining percent",
@@ -1862,7 +1848,6 @@ var tables = map[Language]map[Key]string{
 		KeyStatusBarMeters:                               "Quota bars",
 		KeyStatusBarProviderScope:                        "Status bar providers",
 		KeyStatusBarProviders:                            "Providers shown",
-		KeyStatusBarProvidersHint:                        "Choose up to two.",
 		KeyStatusBarProviderScopeBoth:                    "Codex + Grok",
 		KeyStatusBarProviderScopeCustom:                  "Custom",
 		KeyStatusBarProviderScopeSelected:                "Follow current panel",
@@ -2493,10 +2478,6 @@ var tables = map[Language]map[Key]string{
 		KeyStatusBarBatteryDetailCountdown:               "刷新倒计时",
 		KeyStatusBarBatteryDetailRemainingPercent:        "剩余百分比",
 		KeyStatusBarBatteryDetailStyle:                   "电池中心显示",
-		KeyStatusBarBatteryScope:                         "电池额度",
-		KeyStatusBarBatteryScopeBoth:                     "全部可见额度",
-		KeyStatusBarBatteryScopeFiveHour:                 "5小时",
-		KeyStatusBarBatteryScopeWeekly:                   "每周",
 		KeyStatusBarCountdown:                            "倒计时",
 		KeyStatusBarMetersDetailResetTime:                "重置时间",
 		KeyStatusBarMetersDetailRemainingPercent:         "剩余百分比",
@@ -2505,7 +2486,6 @@ var tables = map[Language]map[Key]string{
 		KeyStatusBarMeters:                               "额度条",
 		KeyStatusBarProviderScope:                        "状态栏服务商",
 		KeyStatusBarProviders:                            "显示的服务商",
-		KeyStatusBarProvidersHint:                        "最多选择两个",
 		KeyStatusBarProviderScopeBoth:                    "Codex + Grok",
 		KeyStatusBarProviderScopeCustom:                  "自定义",
 		KeyStatusBarProviderScopeSelected:                "跟随当前面板",
@@ -3131,10 +3111,6 @@ var tables = map[Language]map[Key]string{
 		KeyStatusBarBatteryDetailCountdown:               "重新整理倒計時",
 		KeyStatusBarBatteryDetailRemainingPercent:        "剩餘百分比",
 		KeyStatusBarBatteryDetailStyle:                   "電池中心顯示",
-		KeyStatusBarBatteryScope:                         "電池額度",
-		KeyStatusBarBatteryScopeBoth:                     "全部可見額度",
-		KeyStatusBarBatteryScopeFiveHour:                 "5小時",
-		KeyStatusBarBatteryScopeWeekly:                   "每週",
 		KeyStatusBarCountdown:                            "倒計時",
 		KeyStatusBarMetersDetailResetTime:                "重置時間",
 		KeyStatusBarMetersDetailRemainingPercent:         "剩餘百分比",
@@ -3143,7 +3119,6 @@ var tables = map[Language]map[Key]string{
 		KeyStatusBarMeters:                               "額度條",
 		KeyStatusBarProviderScope:                        "狀態欄服務商",
 		KeyStatusBarProviders:                            "顯示的服務商",
-		KeyStatusBarProvidersHint:                        "最多選擇兩個",
 		KeyStatusBarProviderScopeBoth:                    "Codex + Grok",
 		KeyStatusBarProviderScopeCustom:                  "自訂",
 		KeyStatusBarProviderScopeSelected:                "跟隨目前面板",
@@ -3774,10 +3749,6 @@ var tables = map[Language]map[Key]string{
 		KeyStatusBarBatteryDetailCountdown:               "리셋 카운트다운",
 		KeyStatusBarBatteryDetailRemainingPercent:        "남은 비율",
 		KeyStatusBarBatteryDetailStyle:                   "배터리 중앙 텍스트",
-		KeyStatusBarBatteryScope:                         "배터리 할당량",
-		KeyStatusBarBatteryScopeBoth:                     "모두 표시",
-		KeyStatusBarBatteryScopeFiveHour:                 "5시간",
-		KeyStatusBarBatteryScopeWeekly:                   "주간",
 		KeyStatusBarCountdown:                            "카운트다운",
 		KeyStatusBarMetersDetailResetTime:                "리셋 시각",
 		KeyStatusBarMetersDetailRemainingPercent:         "남은 비율",
@@ -3786,7 +3757,6 @@ var tables = map[Language]map[Key]string{
 		KeyStatusBarMeters:                               "할당량 막대",
 		KeyStatusBarProviderScope:                        "상태 막대 공급자",
 		KeyStatusBarProviders:                            "표시할 공급자",
-		KeyStatusBarProvidersHint:                        "최대 두 개까지 선택합니다",
 		KeyStatusBarProviderScopeBoth:                    "Codex + Grok",
 		KeyStatusBarProviderScopeCustom:                  "사용자 지정",
 		KeyStatusBarProviderScopeSelected:                "현재 패널 따르기",
@@ -4417,10 +4387,6 @@ var tables = map[Language]map[Key]string{
 		KeyStatusBarBatteryDetailCountdown:               "リセットのカウントダウン",
 		KeyStatusBarBatteryDetailRemainingPercent:        "残りのパーセント",
 		KeyStatusBarBatteryDetailStyle:                   "バッテリー中央のテキスト",
-		KeyStatusBarBatteryScope:                         "バッテリーのクォータ",
-		KeyStatusBarBatteryScopeBoth:                     "すべて表示",
-		KeyStatusBarBatteryScopeFiveHour:                 "5時間",
-		KeyStatusBarBatteryScopeWeekly:                   "週間",
 		KeyStatusBarCountdown:                            "カウントダウン",
 		KeyStatusBarMetersDetailResetTime:                "リセット時刻",
 		KeyStatusBarMetersDetailRemainingPercent:         "残りのパーセント",
@@ -4429,7 +4395,6 @@ var tables = map[Language]map[Key]string{
 		KeyStatusBarMeters:                               "クォータバー",
 		KeyStatusBarProviderScope:                        "ステータスバーのプロバイダー",
 		KeyStatusBarProviders:                            "表示するプロバイダー",
-		KeyStatusBarProvidersHint:                        "最大 2 つまで選べます",
 		KeyStatusBarProviderScopeBoth:                    "Codex + Grok",
 		KeyStatusBarProviderScopeCustom:                  "カスタム",
 		KeyStatusBarProviderScopeSelected:                "現在のパネルに合わせる",
@@ -5060,10 +5025,6 @@ var tables = map[Language]map[Key]string{
 		KeyStatusBarBatteryDetailCountdown:               "Обратный отсчёт сброса",
 		KeyStatusBarBatteryDetailRemainingPercent:        "Оставшийся процент",
 		KeyStatusBarBatteryDetailStyle:                   "Текст в центре батареи",
-		KeyStatusBarBatteryScope:                         "Квота батареи",
-		KeyStatusBarBatteryScopeBoth:                     "Все видимые",
-		KeyStatusBarBatteryScopeFiveHour:                 "5 часов",
-		KeyStatusBarBatteryScopeWeekly:                   "Неделя",
 		KeyStatusBarCountdown:                            "Обратный отсчёт",
 		KeyStatusBarMetersDetailResetTime:                "Время сброса",
 		KeyStatusBarMetersDetailRemainingPercent:         "Оставшийся процент",
@@ -5072,7 +5033,6 @@ var tables = map[Language]map[Key]string{
 		KeyStatusBarMeters:                               "Полосы квоты",
 		KeyStatusBarProviderScope:                        "Провайдеры в строке меню",
 		KeyStatusBarProviders:                            "Показываемые провайдеры",
-		KeyStatusBarProvidersHint:                        "Можно выбрать не больше двух",
 		KeyStatusBarProviderScopeBoth:                    "Codex + Grok",
 		KeyStatusBarProviderScopeCustom:                  "Свои",
 		KeyStatusBarProviderScopeSelected:                "Следовать текущей панели",
@@ -5703,10 +5663,6 @@ var tables = map[Language]map[Key]string{
 		KeyStatusBarBatteryDetailCountdown:               "Compte à rebours de réinit.",
 		KeyStatusBarBatteryDetailRemainingPercent:        "Pourcentage restant",
 		KeyStatusBarBatteryDetailStyle:                   "Texte au centre de la batterie",
-		KeyStatusBarBatteryScope:                         "Quota de la batterie",
-		KeyStatusBarBatteryScopeBoth:                     "Tous visibles",
-		KeyStatusBarBatteryScopeFiveHour:                 "5 heures",
-		KeyStatusBarBatteryScopeWeekly:                   "Hebdomadaire",
 		KeyStatusBarCountdown:                            "Compte à rebours",
 		KeyStatusBarMetersDetailResetTime:                "Heure de réinit.",
 		KeyStatusBarMetersDetailRemainingPercent:         "Pourcentage restant",
@@ -5715,7 +5671,6 @@ var tables = map[Language]map[Key]string{
 		KeyStatusBarMeters:                               "Barres de quota",
 		KeyStatusBarProviderScope:                        "Fournisseurs de la barre d’état",
 		KeyStatusBarProviders:                            "Fournisseurs affichés",
-		KeyStatusBarProvidersHint:                        "Choisissez-en deux au maximum",
 		KeyStatusBarProviderScopeBoth:                    "Codex + Grok",
 		KeyStatusBarProviderScopeCustom:                  "Personnalisé",
 		KeyStatusBarProviderScopeSelected:                "Suivre le panneau actuel",

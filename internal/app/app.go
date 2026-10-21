@@ -425,9 +425,10 @@ func (a *App) startBackground() {
 	a.stopBackground = a.opts.Seams.StartBackground(ctx)
 }
 
-// OpenSettingsTab opens the settings window on tab 0..10 (general,
-// accounts, appearance & menu, floating window, panel modules,
-// notifications, sessions, skills, MCP, advanced, about); for dev runs and screenshots.
+// OpenSettingsTab opens the settings window on tab 0..11 (general,
+// accounts, appearance & menu, menu bar item, floating window, panel
+// modules, notifications, sessions, skills, MCP, advanced, about); for dev
+// runs and screenshots.
 func (a *App) OpenSettingsTab(tab int) {
 	a.OpenSettings()
 	if a.setUI != nil && tab >= 0 && tab < len(settingsTabs) {
@@ -435,6 +436,9 @@ func (a *App) OpenSettingsTab(tab int) {
 		a.setWin.Invalidate()
 	}
 }
+
+// SettingsTabCount is how many tabs OpenSettingsTab opens.
+func SettingsTabCount() int { return len(settingsTabs) }
 
 // openAccountsSettings opens the accounts tab on one provider kind
 // (accountKindCodex and so on). A busy form keeps its provider.

@@ -64,6 +64,7 @@ const (
 	tabGeneral settingsTab = iota
 	tabAccounts
 	tabDisplay
+	tabStatusBar
 	tabFloating
 	tabModules
 	tabNotifications
@@ -74,11 +75,13 @@ const (
 	tabAbout
 )
 
-var settingsTabs = []settingsTab{tabGeneral, tabAccounts, tabDisplay, tabFloating, tabModules, tabNotifications, tabSessions, tabSkills, tabMCP, tabAdvanced, tabAbout}
+var settingsTabs = []settingsTab{tabGeneral, tabAccounts, tabDisplay, tabStatusBar, tabFloating, tabModules, tabNotifications, tabSessions, tabSkills, tabMCP, tabAdvanced, tabAbout}
 
 // title is the tab's name in the sidebar and above its page.
 func (t settingsTab) title(l l10n.Localizer) string {
 	switch t {
+	case tabStatusBar:
+		return tx(l, xStatusBarTab)
 	case tabFloating:
 		return tx(l, xFloatingSection)
 	case tabSkills:
@@ -88,15 +91,15 @@ func (t settingsTab) title(l l10n.Localizer) string {
 	case tabMCP:
 		return tx(l, xMCPSettingsTab)
 	}
-	return l.Text([...]l10n.Key{l10n.KeyGeneral, l10n.KeyAccounts, l10n.KeyDisplay, "", l10n.KeyPanelModules, l10n.KeyNotificationSettings, "", "", "", l10n.KeyAdvanced, l10n.KeyAbout}[t])
+	return l.Text([...]l10n.Key{l10n.KeyGeneral, l10n.KeyAccounts, l10n.KeyDisplay, "", "", l10n.KeyPanelModules, l10n.KeyNotificationSettings, "", "", "", l10n.KeyAdvanced, l10n.KeyAbout}[t])
 }
 
 func (t settingsTab) icon() *ui.SVG {
-	return [...]*ui.SVG{icGear, icUsers, icEye, icFloating, icLayout, icBell, icChat, icSkill, icPlug, icSliders, icInfo}[t]
+	return [...]*ui.SVG{icGear, icUsers, icEye, icGauge, icFloating, icLayout, icBell, icChat, icSkill, icPlug, icSliders, icInfo}[t]
 }
 
 func (t settingsTab) tint() Tint {
-	return [...]Tint{TintGray, TintGreen, TintBlue, TintTeal, TintPurple, TintRed, TintTeal, TintPink, TintBlue, TintOrange, TintIndigo}[t]
+	return [...]Tint{TintGray, TintGreen, TintBlue, TintOrange, TintTeal, TintPurple, TintRed, TintTeal, TintPink, TintBlue, TintOrange, TintIndigo}[t]
 }
 
 //go:embed assets/app-icon.png
@@ -215,6 +218,8 @@ func (u *settingsUI) pageContent(c *ui.Context) {
 			ui.Column(c).Gap(10).Children(func() { u.accountsPage(c) })
 		case tabDisplay:
 			u.displayPage(c)
+		case tabStatusBar:
+			u.statusBarPage(c)
 		case tabFloating:
 			u.floatingPage(c)
 		case tabModules:

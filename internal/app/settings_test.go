@@ -157,9 +157,14 @@ func TestSettingsEveryFieldHasItsControlSetter(t *testing.T) {
 		{"panel background", func(s *Settings) bool { return s.SetPanelBackground(store.PanelBackgroundOpaque) }, []string{"mainPanelBackgroundStyle"}},
 		{"status bar style", func(s *Settings) bool { return s.SetStatusBarStyle(store.StatusBarStyleRings) }, []string{"statusBarDisplayStyle"}},
 		{"meters detail", func(s *Settings) bool { return s.SetStatusBarMetersDetail(store.MetersDetailBoth) }, []string{"statusBarMetersDetailStyle"}},
-		{"battery scope", func(s *Settings) bool { return s.SetStatusBarBatteryScope(store.BatteryScopeBoth) }, []string{"statusBarBatteryScope"}},
 		{"battery detail", func(s *Settings) bool { return s.SetStatusBarBatteryDetail(store.BatteryDetailRemainingPercent) }, []string{"statusBarBatteryDetailStyle"}},
 		{"provider scope", func(s *Settings) bool { return s.SetStatusBarProviderScope(store.ProviderScopeBoth) }, []string{"statusBarProviderScope"}},
+		{"status bar groups", func(s *Settings) bool {
+			return s.SetStatusBarGroups([][]store.Provider{{store.ProviderClaude, grok}, {store.ProviderCodex}})
+		}, []string{"statusBarLayout", "statusBarProviderScope", "statusBarProviders"}},
+		{"status bar layout", func(s *Settings) bool {
+			return s.SetStatusBarLayout(func(l *store.StatusBarLayout) { l.Battery = store.BatteryVertical })
+		}, []string{"statusBarLayout"}},
 		{"refresh interval", func(s *Settings) bool { return s.SetRefreshInterval(600) }, []string{"refreshIntervalSeconds"}},
 		{"widget refresh", func(s *Settings) bool { return s.SetWidgetRefreshInterval(900) }, []string{"widgetRefreshIntervalSeconds"}},
 		{"cost range", func(s *Settings) bool { return s.SetAPICostRange(store.CostRangeThisMonth) }, []string{"apiCostSummaryRange"}},
@@ -190,16 +195,17 @@ func TestSettingsEveryFieldHasItsControlSetter(t *testing.T) {
 		{"export status json", flip(func(p *store.Preferences) *bool { return &p.ExportsStatusJSON }, (*Settings).SetExportsStatusJSON), []string{"exportsStatusJSON"}},
 		{"account privacy", flip(func(p *store.Preferences) *bool { return &p.AccountPrivacyModeEnabled }, (*Settings).SetAccountPrivacyMode), []string{"accountPrivacyModeEnabled"}},
 	}
-	// The 37 stored fields are each reached by exactly one case above, the
-	// login pair by one.
+	// The 38 stored fields are each reached by a case above, the login pair
+	// by one; statusBarBatteryScope is only kept for older versions, the
+	// status bar window took its place.
 	seen := map[string]bool{}
 	for _, c := range cases {
 		for _, f := range c.fields {
 			seen[f] = true
 		}
 	}
-	if len(seen) != 37 {
-		t.Errorf("cases cover %d preference fields, want 37", len(seen))
+	if len(seen) != 38 {
+		t.Errorf("cases cover %d preference fields, want 38", len(seen))
 	}
 
 	for _, c := range cases {

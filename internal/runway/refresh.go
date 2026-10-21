@@ -274,8 +274,10 @@ func (s *Service) providerWantedLocked(p store.Provider) bool {
 	if s.prefs.SelectedProvider == p {
 		return true
 	}
-	if slices.Contains(s.prefs.StatusBarSelection(), p) {
-		return true
+	for _, g := range s.prefs.StatusBarGroups() {
+		if slices.Contains(g, p) {
+			return true
+		}
 	}
 	return s.prefs.FloatingWindow.Enabled && slices.Contains(s.prefs.FloatingSelection(), p)
 }

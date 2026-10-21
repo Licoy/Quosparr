@@ -2,6 +2,7 @@ package app
 
 import (
 	"bytes"
+	"image"
 	"image/color"
 	"image/png"
 	"testing"
@@ -23,7 +24,7 @@ func TestTrayPaletteIgnoresApplicationAppearance(t *testing.T) {
 }
 
 func TestTrayLayersPreserveGlyphsAndAccents(t *testing.T) {
-	for _, style := range []store.StatusBarStyle{store.StatusBarStyleMeters, store.StatusBarStyleText, store.StatusBarStyleCountdown, store.StatusBarStyleBattery, store.StatusBarStyleRings} {
+	for _, style := range store.StatusBarStyles() {
 		r := TrayFromStatus(trayTestStatus(style, nil))
 		var boundsWidth int
 		for _, options := range []trayImageOptions{{light: true, foreground: true}, {colorsOnly: true}} {
@@ -90,7 +91,8 @@ func trayPixelMatchesBatteryLabel(pixel color.NRGBA) bool {
 		for i := range values {
 			values[i] = uint8(float32(values[i]) + float32(255-values[i])*fraction + 0.5)
 		}
-		if trayPixelMatches(pixel, ui.RGB(values[0], values[1], values[2])) {
+		// A glyph over the antialiased end of the fill rounds twice.
+		if trayPixelNear(pixel, ui.RGB(values[0], values[1], values[2]), 2) {
 			return true
 		}
 	}
@@ -109,12 +111,16 @@ func trayPixelMatchesAccent(pixel color.NRGBA) bool {
 // Render uses 8-bit premultiplied RGBA, so A=1 can lose all RGB components
 // Compare in that space rather than amplifying rounding by unpremultiplying
 func trayPixelMatches(pixel color.NRGBA, expected ui.Color) bool {
+	return trayPixelNear(pixel, expected, 1)
+}
+
+func trayPixelNear(pixel color.NRGBA, expected ui.Color, tolerance int) bool {
 	got := []uint8{pixel.R, pixel.G, pixel.B}
 	want := []uint8{expected.R, expected.G, expected.B}
 	for i := range got {
 		a := int(got[i]) * int(pixel.A) / 255
 		b := int(want[i]) * int(pixel.A) / 255
-		if delta := a - b; delta < -1 || delta > 1 {
+		if delta := a - b; delta < -tolerance || delta > tolerance {
 			return false
 		}
 	}
@@ -122,27 +128,19 @@ func trayPixelMatches(pixel color.NRGBA, expected ui.Color) bool {
 }
 
 func TestTrayBatteryWhiteGlyphsStayInsideColorFill(t *testing.T) {
-	r := TrayRender{Style: store.StatusBarStyleBattery, Items: []TrayItem{{Caption: "80%", Remaining: 0.35, Health: runway.HealthYellow}}}
-	data, err := renderTrayImage(r, trayImageOptions{colorsOnly: true})
-	if err != nil {
-		t.Fatal(err)
+	cell := runway.StatusBarCell{Provider: store.ProviderCodex, Remaining: 35, Health: runway.HealthYellow, Percent: "80%"}
+	// The color layer of one battery, with and without its percentage.
+	battery := func(text string) image.Image {
+		return ui.Render(func(c *ui.Context) {
+			theme := ui.LightTheme()
+			theme.Background = ui.Transparent
+			c.SetTheme(theme)
+			ui.Box(c).Fill().Draw(func(p *ui.Painter, _ ui.Rect) {
+				trayPen{p: p, paint: trayPaint{ink: ui.Transparent, colorOpacity: 1}}.hBattery(ui.Rect{X: 4, Y: 4.5, W: 32, H: 13}, cell, text, 9)
+			})
+		}, 44, trayContentHeight, 2)
 	}
-	labels, err := png.Decode(bytes.NewReader(data))
-	if err != nil {
-		t.Fatal(err)
-	}
-	r.Items[0].Caption = ""
-	data, err = renderTrayImage(r, trayImageOptions{colorsOnly: true})
-	if err != nil {
-		t.Fatal(err)
-	}
-	fill, err := png.Decode(bytes.NewReader(data))
-	if err != nil {
-		t.Fatal(err)
-	}
-	if labels.Bounds() != fill.Bounds() {
-		t.Fatal("fixture changed battery geometry")
-	}
+	labels, fill := battery(cell.Percent), battery("")
 	white := 0
 	for y := 0; y < labels.Bounds().Dy(); y++ {
 		for x := 0; x < labels.Bounds().Dx(); x++ {

@@ -362,53 +362,43 @@ func (s *Settings) SetStatusBarMetersDetail(v store.MetersDetail) bool {
 	return s.Update(func(p *store.Preferences) { p.StatusBarMetersDetailStyle = v })
 }
 
-// SetStatusBarBatteryScope selects the window of the battery style.
-func (s *Settings) SetStatusBarBatteryScope(v store.BatteryScope) bool {
-	return s.Update(func(p *store.Preferences) { p.StatusBarBatteryScope = v })
-}
-
 // SetStatusBarBatteryDetail selects the detail of the battery style.
 func (s *Settings) SetStatusBarBatteryDetail(v store.BatteryDetail) bool {
 	return s.Update(func(p *store.Preferences) { p.StatusBarBatteryDetailStyle = v })
 }
 
-// SetStatusBarProviderScope selects which providers the status item shows.
+// SetStatusBarProviderScope follows the panel, or shows the custom
+// components: the last ones chosen, else the panel's provider alone.
 func (s *Settings) SetStatusBarProviderScope(v store.StatusBarProviderScope) bool {
 	return s.Update(func(p *store.Preferences) {
-		p.StatusBarProviderScope = v
-		draft := *p
-		draft.StatusBarProviderScope = v
-		if v == store.ProviderScopeCustom && len(draft.StatusBarSelection()) == 0 {
+		if v != store.ProviderScopeCustom {
+			p.StatusBarProviderScope = v
+			return
+		}
+		groups := p.StatusBar.Groups
+		if len(groups) == 0 && len(p.StatusBarProviders) > 0 {
+			groups = [][]store.Provider{p.StatusBarProviders}
+		}
+		if len(groups) == 0 {
 			pick := p.SelectedProvider
 			if !pick.Valid() {
 				pick = store.ProviderCodex
 			}
-			p.StatusBarProviders = []store.Provider{pick}
+			groups = [][]store.Provider{{pick}}
 		}
+		p.SetStatusBarGroups(groups)
 	})
 }
 
-// SetStatusBarProviders stores a custom status-bar selection of one or two providers.
-func (s *Settings) SetStatusBarProviders(providers []store.Provider) bool {
-	return s.Update(func(p *store.Preferences) {
-		if codexAndGrokOnly(providers) {
-			p.StatusBarProviderScope = store.ProviderScopeBoth
-			p.StatusBarProviders = nil
-			return
-		}
-		p.StatusBarProviderScope = store.ProviderScopeCustom
-		p.StatusBarProviders = append([]store.Provider(nil), providers...)
-	})
+// SetStatusBarGroups chooses the custom components of the status item, in
+// order: a provider on its own, or two stacked.
+func (s *Settings) SetStatusBarGroups(groups [][]store.Provider) bool {
+	return s.Update(func(p *store.Preferences) { p.SetStatusBarGroups(groups) })
 }
 
-func codexAndGrokOnly(providers []store.Provider) bool {
-	seen := map[store.Provider]bool{}
-	for _, p := range providers {
-		if p.Valid() {
-			seen[p] = true
-		}
-	}
-	return len(seen) == 2 && seen[store.ProviderCodex] && seen[store.ProviderGrok]
+// SetStatusBarLayout changes the status item's window, battery and icons.
+func (s *Settings) SetStatusBarLayout(change func(*store.StatusBarLayout)) bool {
+	return s.Update(func(p *store.Preferences) { change(&p.StatusBar) })
 }
 
 // SetRefreshInterval sets the refresh interval, limited to 60...1800 s.

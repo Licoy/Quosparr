@@ -82,8 +82,8 @@ func TestFloatingTooltipNamesEveryMeter(t *testing.T) {
 }
 
 func TestFloatingSettingsIsATabAfterAppearance(t *testing.T) {
-	if i := slices.Index(settingsTabs, tabFloating); i == 0 || settingsTabs[i-1] != tabDisplay {
-		t.Fatalf("floating window tab at %d, want right after appearance", i)
+	if i := slices.Index(settingsTabs, tabFloating); i < 2 || settingsTabs[i-2] != tabDisplay || settingsTabs[i-1] != tabStatusBar {
+		t.Fatalf("floating window tab at %d, want after appearance and the menu bar item", i)
 	}
 	u := cardSettingsUI(t, store.LanguageEnglish)
 	l := u.L()

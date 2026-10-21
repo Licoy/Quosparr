@@ -55,6 +55,37 @@ func durationParts(value int, lang l10n.Language, includeSeconds bool) string {
 	return joinUnits(lang, parts)
 }
 
+// ShortDuration is DurationLocalized with short units, for the menu bar:
+// the two largest units, a zero second one left out. Seconds are rounded up.
+func ShortDuration(seconds float64, lang l10n.Language) string {
+	value := int(math.Ceil(seconds))
+	if math.IsNaN(seconds) || value < 0 {
+		value = 0
+	}
+	amounts := [...]int{value / 86_400, value % 86_400 / 3_600, value % 3_600 / 60, value % 60}
+	units := byLang(lang,
+		[4]string{"d", "h", "m", "s"},
+		[4]string{"天", "小时", "分", "秒"},
+		[4]string{"天", "小時", "分", "秒"},
+		[4]string{"일", "시간", "분", "초"},
+		[4]string{"日", "時間", "分", "秒"},
+		[4]string{"д", "ч", "мин", "с"},
+		[4]string{"j", "h", "min", "s"})
+	first := durationUnit(0)
+	for first < unitSecond && amounts[first] == 0 {
+		first++
+	}
+	parts := []string{strconv.Itoa(amounts[first]) + units[first]}
+	if first < unitMinute && amounts[first+1] > 0 {
+		parts = append(parts, strconv.Itoa(amounts[first+1])+units[first+1])
+	}
+	switch lang {
+	case l10n.SimplifiedChinese, l10n.TraditionalChinese, l10n.Japanese:
+		return strings.Join(parts, "")
+	}
+	return strings.Join(parts, " ")
+}
+
 func joinUnits(lang l10n.Language, parts []string) string {
 	switch lang {
 	case l10n.SimplifiedChinese, l10n.TraditionalChinese, l10n.Japanese, l10n.Korean:

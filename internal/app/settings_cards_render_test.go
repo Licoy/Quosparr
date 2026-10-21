@@ -50,7 +50,7 @@ func TestExportSettingsCardsReview(t *testing.T) {
 func exportSettingsCardPages(t *testing.T, u *settingsUI, output string, width int, dark bool, appearance string) {
 	t.Helper()
 	names := map[settingsTab]string{
-		tabGeneral: "general", tabAccounts: "accounts", tabDisplay: "display", tabFloating: "floating",
+		tabGeneral: "general", tabAccounts: "accounts", tabDisplay: "display", tabStatusBar: "statusbar", tabFloating: "floating",
 		tabModules: "modules", tabNotifications: "notifications", tabSessions: "sessions", tabSkills: "skills",
 		tabMCP: "mcp", tabAdvanced: "advanced", tabAbout: "about",
 	}

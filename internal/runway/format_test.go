@@ -249,3 +249,29 @@ func TestEndOfLocalDay(t *testing.T) {
 		t.Errorf("end of day: %v", got)
 	}
 }
+
+func TestShortDurationKeepsTwoUnits(t *testing.T) {
+	cases := []struct {
+		secs float64
+		lang l10n.Language
+		want string
+	}{
+		{3*3600 + 5*60, l10n.English, "3h 5m"},
+		{3 * 3600, l10n.English, "3h"},
+		{2*86400 + 4*3600 + 59*60, l10n.English, "2d 4h"},
+		{45*60 + 10, l10n.English, "45m"},
+		{30, l10n.English, "30s"},
+		{-5, l10n.English, "0s"},
+		{100 * 3600, l10n.SimplifiedChinese, "4天4小时"},
+		{72 * 60, l10n.TraditionalChinese, "1小時12分"},
+		{72 * 60, l10n.Japanese, "1時間12分"},
+		{72 * 60, l10n.Korean, "1시간 12분"},
+		{72 * 60, l10n.Russian, "1ч 12мин"},
+		{30 * 3600, l10n.French, "1j 6h"},
+	}
+	for _, c := range cases {
+		if got := ShortDuration(c.secs, c.lang); got != c.want {
+			t.Errorf("%v %s = %q, want %q", c.secs, c.lang, got, c.want)
+		}
+	}
+}

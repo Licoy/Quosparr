@@ -7,6 +7,7 @@ import (
 	"net/http/httptest"
 	"net/url"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"testing"
 	"time"
@@ -74,18 +75,15 @@ func TestPlatformCredentialsMapStoreErrors(t *testing.T) {
 	}
 }
 
-func TestTrayFromStatusUsesRemainingFraction(t *testing.T) {
+func TestTrayFromStatusKeepsTheComponents(t *testing.T) {
 	view := runway.StatusBarView{
-		Text:    "12m",
-		Tooltip: "Quosparr · 12m",
-		Plan:    runway.MakeRenderPlan(store.StatusBarStyleMeters, store.BatteryScopeFiveHour, []runway.Meter{{RemainingPercent: 25}, {RemainingPercent: 100}}),
+		Style: store.StatusBarStyleBattery, Battery: store.BatteryVertical, HideIcons: true, Tooltip: "Quosparr\nCodex: 5h 25%",
+		Components: []runway.StatusBarComponent{{Provider: store.ProviderCodex, Cells: []runway.StatusBarCell{{Provider: store.ProviderCodex, Remaining: 25}}}},
 	}
 	got := TrayFromStatus(view)
-	if len(got.Lines) != 1 || got.Lines[0] != "12m" || got.ToolTip != view.Tooltip {
-		t.Fatalf("lines/tooltip = %#v", got)
-	}
-	if len(got.Meters) != 2 || got.Meters[0].Remaining != 0.25 || got.Meters[1].Remaining != 1 {
-		t.Fatalf("meters = %#v", got.Meters)
+	want := TrayRender{Style: view.Style, Battery: view.Battery, HideIcons: true, Components: view.Components, ToolTip: view.Tooltip}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("tray = %#v", got)
 	}
 }
 

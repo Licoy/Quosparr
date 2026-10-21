@@ -12,14 +12,23 @@ import (
 	"github.com/licoy/quosparr/internal/store"
 )
 
-const trayContentHeight = 22
-const trayHorizontalPadding float32 = 4
+// The menu bar content is a row of components, one per provider or two
+// stacked, drawn in the Swift status item's 22 pt coordinate system.
+const (
+	trayContentHeight             = 22
+	trayHorizontalPadding float32 = 4
+	// trayComponentGap sets the components apart.
+	trayComponentGap float32 = 10
+	// trayIconSize is the logo of a component's provider, trayRowIconSize
+	// the logo of a stacked row.
+	trayIconSize    float32 = 13
+	trayRowIconSize float32 = 9
+)
 
-type trayLayout struct {
-	widths        []float32
-	gap, fontSize float32
-	rows          int
-}
+// trayRowCenters are the vertical centers of one row, or of two stacked.
+var trayRowCenters = [...][]float32{{11}, {6, 16}}
+
+func trayRows(n int) []float32 { return trayRowCenters[min(2, max(1, n))-1] }
 
 // TrayImage renders menu bar content or returns the desktop application logo.
 // No window, account access or display server is needed.
@@ -35,21 +44,19 @@ type trayImageOptions struct {
 	foreground, colorsOnly bool
 }
 
+// trayPaint is one layer's colors: the ink of glyphs, tracks and logos, and
+// how opaque the quota colors are. macOS draws the ink as a template image
+// and the colors over it, each with the other left out.
 type trayPaint struct {
 	ink          ui.Color
 	colorOpacity float32
 }
 
 func renderTrayImage(r TrayRender, options trayImageOptions) ([]byte, error) {
-	if r.Style != store.StatusBarStyleMeters && r.Style != store.StatusBarStyleBattery && r.Style != store.StatusBarStyleRings && r.Style != store.StatusBarStyleCountdown && r.Style != store.StatusBarStyleText {
+	if !r.Style.Valid() {
 		return nil, fmt.Errorf("unsupported tray style %q", r.Style)
 	}
-	layout := makeTrayLayout(r)
-	width := float32(0)
-	for _, w := range layout.widths {
-		width += w
-	}
-	width += float32(max(0, len(layout.widths)-1))*layout.gap + 2*trayHorizontalPadding
+	width := trayContentWidth(r)
 	img := ui.Render(func(c *ui.Context) {
 		theme := ui.LightTheme()
 		theme.Background = ui.Transparent
@@ -66,7 +73,7 @@ func renderTrayImage(r TrayRender, options trayImageOptions) ([]byte, error) {
 			if options.colorsOnly {
 				paint.ink = ui.Transparent
 			}
-			drawTrayContent(p, r, layout, paint)
+			drawTrayContent(p, r, paint)
 		})
 	}, int(math.Ceil(float64(width))), trayContentHeight, 2)
 	var out bytes.Buffer
@@ -76,203 +83,397 @@ func renderTrayImage(r TrayRender, options trayImageOptions) ([]byte, error) {
 	return out.Bytes(), nil
 }
 
-func makeTrayLayout(r TrayRender) trayLayout {
-	l := trayLayout{rows: max(1, r.RowsPerColumn), fontSize: 8.5, gap: 6}
-	switch r.Style {
-	case store.StatusBarStyleText:
-		l.rows, l.fontSize, l.gap = 1, 14, 4
-		for _, text := range r.Lines {
-			l.widths = append(l.widths, max(24, trayTextWidth(text, 14)+4))
-		}
-	case store.StatusBarStyleCountdown:
-		l.rows, l.fontSize, l.gap = 1, 10, 2
-		if len(r.Items) <= 1 {
-			l.fontSize = 14
-			l.widths = []float32{min(180, max(42, trayTextWidth(r.Text, 14)+14))}
-		} else {
-			for _, item := range r.Items {
-				l.widths = append(l.widths, min(112, max(42, trayTextWidth(item.Caption, 10)+10)))
-			}
-		}
-	case store.StatusBarStyleRings:
-		l.rows, l.fontSize, l.gap = 1, 6, 4
-		for range max(1, len(r.Items)) {
-			l.widths = append(l.widths, 20)
-		}
-	case store.StatusBarStyleBattery:
-		l.fontSize, l.gap = 7, 5
-		if len(r.Items) <= 1 {
-			l.fontSize = 10.5
-			text := "--"
-			if len(r.Items) == 1 {
-				text = r.Items[0].Caption
-			}
-			l.widths = []float32{min(150, max(72, trayTextWidth(text, l.fontSize)+32))}
-		}
-	}
-	if len(l.widths) == 0 {
-		for i := 0; i < len(r.Items); i += l.rows {
-			w := float32(0)
-			for _, item := range r.Items[i:min(i+l.rows, len(r.Items))] {
-				w = max(w, trayTextWidth(item.Caption, l.fontSize))
-			}
-			if r.Style == store.StatusBarStyleBattery {
-				w = min(156, max(92, w+18))
-			} else {
-				w = min(166, max(64, w+44))
-			}
-			l.widths = append(l.widths, w)
-		}
-	}
-	if len(l.widths) == 0 {
-		l.widths = []float32{70}
-	}
-	return l
+// trayContentWidth is the width the content takes, padding included.
+func trayContentWidth(r TrayRender) float32 { return layoutTray(trayPen{}, r) }
+
+// drawTrayContent draws the content from the origin.
+func drawTrayContent(p *ui.Painter, r TrayRender, paint trayPaint) {
+	layoutTray(trayPen{p: p, paint: paint}, r)
 }
 
-func trayTextWidth(s string, size float32) float32 {
+// layoutTray places every component and returns the total width; the same
+// pass measures and draws, so the two cannot drift apart.
+func layoutTray(d trayPen, r TrayRender) float32 {
+	x := trayHorizontalPadding
+	comps := r.Components
+	if len(comps) == 0 {
+		comps = []runway.StatusBarComponent{{Cells: []runway.StatusBarCell{{Empty: true, Percent: "--", Countdown: "--", MeterText: "--", BatteryText: "--"}}}}
+	}
+	for i, comp := range comps {
+		if i > 0 {
+			x += trayComponentGap
+		}
+		x += layoutTrayComponent(d, r, comp, x)
+	}
+	return x + trayHorizontalPadding
+}
+
+// layoutTrayComponent lays out one component from x and returns its width.
+// A provider alone leads with its logo; stacked providers lead each row
+// with theirs.
+func layoutTrayComponent(d trayPen, r TrayRender, comp runway.StatusBarComponent, x float32) float32 {
+	if len(comp.Cells) == 0 {
+		return 0
+	}
+	start := x
+	icons := !r.HideIcons
+	if r.Style == store.StatusBarStyleRings {
+		return trayRings(d, comp, x, icons)
+	}
+	if icons && comp.Provider != "" {
+		d.icon(comp.Provider, x, 11, trayIconSize)
+		x += trayIconSize + 4
+	}
+	// Rows are told apart by the logo where two providers stack, by the
+	// window name where one provider shows two windows.
+	rowIcons := icons && comp.Provider == ""
+	switch r.Style {
+	case store.StatusBarStyleMeters:
+		x += trayMeters(d, comp.Cells, x, rowIcons)
+	case store.StatusBarStyleCountdown:
+		x += trayCountdown(d, comp.Cells, x, rowIcons)
+	case store.StatusBarStyleBattery:
+		if r.Battery == store.BatteryVertical {
+			x += trayVerticalBatteries(d, comp.Cells, x, rowIcons)
+		} else {
+			x += trayHorizontalBatteries(d, comp.Cells, x, rowIcons)
+		}
+	case store.StatusBarStyleText:
+		x += trayText(d, comp.Cells, x)
+	}
+	return x - start
+}
+
+// ---- Meters: a bar per window, the detail after it.
+
+func trayMeters(d trayPen, cells []runway.StatusBarCell, x float32, rowIcons bool) float32 {
+	if len(cells) == 1 {
+		c := cells[0]
+		d.bar(x, 11, 34, 6, c)
+		return 34 + 5 + d.text(c.MeterText, x+39, 11, 11, 600, 1, 96)
+	}
+	lead := d.rowLead(cells, x, rowIcons)
+	w := float32(0)
+	for i, c := range cells[:2] {
+		cy := trayRows(2)[i]
+		rx := x + lead
+		d.bar(rx, cy, 28, 4, c)
+		rx += 28 + 4
+		rx += d.text(c.MeterText, rx, cy, 8.5, 600, 1, 84)
+		w = max(w, rx-x)
+	}
+	return w
+}
+
+// ---- Countdown: the time left until the reset.
+
+func trayCountdown(d trayPen, cells []runway.StatusBarCell, x float32, rowIcons bool) float32 {
+	if len(cells) == 1 {
+		return d.text(cells[0].Countdown, x, 11, 12.5, 600, 1, 120)
+	}
+	lead := d.rowLead(cells, x, rowIcons)
+	w := float32(0)
+	for i, c := range cells[:2] {
+		w = max(w, lead+d.text(c.Countdown, x+lead, trayRows(2)[i], 9, 600, 1, 96))
+	}
+	return w
+}
+
+// ---- Battery lying flat: one window is a battery with the percentage
+// inside and the detail after it; stacked rows are too low for text
+// inside, so the detail follows a small battery.
+
+func trayHorizontalBatteries(d trayPen, cells []runway.StatusBarCell, x float32, rowIcons bool) float32 {
+	if len(cells) == 1 {
+		c := cells[0]
+		w := max(30, d.measure(c.Percent, 9, 700)+12)
+		d.hBattery(ui.Rect{X: x, Y: 4.5, W: w, H: 13}, c, c.Percent, 9)
+		w += 2.5
+		if c.BatteryText != c.Percent {
+			w += 5 + d.text(c.BatteryText, x+w+5, 11, 11, 600, 1, 96)
+		}
+		return w
+	}
+	lead := d.rowLead(cells, x, rowIcons)
+	w := float32(0)
+	for i, c := range cells[:2] {
+		cy := trayRows(2)[i]
+		rx := x + lead
+		d.hBattery(ui.Rect{X: rx, Y: cy - 4, W: 17, H: 8}, c, "", 0)
+		rx += 17 + 2 + 4
+		rx += d.text(c.BatteryText, rx, cy, 8.5, 600, 1, 84)
+		w = max(w, rx-x)
+	}
+	return w
+}
+
+// ---- Battery standing: a slim battery per window, filling up, with the
+// text beside them: the percentage over the countdown for one window, a
+// row of the chosen detail per window otherwise.
+
+func trayVerticalBatteries(d trayPen, cells []runway.StatusBarCell, x float32, rowIcons bool) float32 {
+	start := x
+	for i, c := range cells[:min(2, len(cells))] {
+		if i > 0 {
+			x += 2.5
+		}
+		d.vBattery(ui.Rect{X: x, Y: 4.5, W: 8.5, H: 15}, c)
+		x += 8.5
+	}
+	x += 5
+	if len(cells) == 1 {
+		c := cells[0]
+		if c.Countdown == c.Percent || c.Empty {
+			return x - start + d.text(c.Percent, x, 11, 11, 650, 1, 96)
+		}
+		w := d.text(c.Percent, x, 6.5, 9, 700, 1, 96)
+		w = max(w, d.text(c.Countdown, x, 16, 8, 500, 0.62, 96))
+		return x - start + w
+	}
+	lead := d.rowLead(cells, x, rowIcons)
+	w := float32(0)
+	for i, c := range cells[:2] {
+		w = max(w, lead+d.text(c.BatteryText, x+lead, trayRows(2)[i], 8.5, 600, 1, 84))
+	}
+	return x - start + w
+}
+
+// ---- Rings: a ring around the logo, or concentric rings after it, the
+// first window outside; the percentages beside them.
+
+func trayRings(d trayPen, comp runway.StatusBarComponent, x float32, icons bool) float32 {
+	cells := comp.Cells
+	start := x
+	if len(cells) > 1 && icons {
+		// Two rings leave no room inside for the logo.
+		d.icon(cells[0].Provider, x, 11, trayIconSize)
+		x += trayIconSize + 4
+	}
+	cx, cy := x+10.25, float32(11)
+	if len(cells) == 1 {
+		d.ring(cx, cy, 8.4, 2.3, cells[0])
+		if icons {
+			d.icon(cells[0].Provider, cx-4.75, cy, 9.5)
+		}
+	} else {
+		d.ring(cx, cy, 9.1, 2, cells[0])
+		d.ring(cx, cy, 5.4, 2, cells[1])
+	}
+	x += 20.5 + 4
+	if len(cells) == 1 {
+		return x - start + d.text(cells[0].Percent, x, 11, 11, 650, 1, 96)
+	}
+	w := float32(0)
+	for i, c := range cells[:2] {
+		w = max(w, d.text(c.Percent, x, trayRows(2)[i], 8.5, 600, 1, 84))
+	}
+	return x - start + w
+}
+
+// ---- Text: the main window large, the second small after it.
+
+func trayText(d trayPen, cells []runway.StatusBarCell, x float32) float32 {
+	w := d.text(cells[0].Percent, x, 11, 12.5, 650, 1, 96)
+	if len(cells) > 1 {
+		w += 3 + d.text(cells[1].Percent, x+w+3, 12, 9.5, 500, 0.6, 72)
+	}
+	return w
+}
+
+// trayPen draws in a layer, or only measures without a painter.
+type trayPen struct {
+	p     *ui.Painter
+	paint trayPaint
+}
+
+func (d trayPen) draws() bool { return d.p != nil }
+
+func (d trayPen) inks() bool { return d.p != nil && d.paint.ink.A > 0 }
+
+func (d trayPen) measure(s string, size float32, weight int) float32 {
+	return trayTextWidth(s, trayFontWeight(size, weight))
+}
+
+// text draws s centered on cy from x, at most maxW wide, and returns its
+// width. alpha dims the ink of secondary text.
+func (d trayPen) text(s string, x, cy, size float32, weight int, alpha, maxW float32) float32 {
+	f := trayFontWeight(size, weight)
+	s = trayFit(s, f, maxW)
+	w := trayTextWidth(s, f)
+	if d.inks() {
+		m := f.Metrics()
+		d.p.Glyphs(ui.Shape(s, f), x, cy-(m.Ascent+m.Descent)/2+m.Ascent, d.paint.ink.Alpha(alpha))
+	}
+	return w
+}
+
+// rowLead draws what tells two stacked rows apart, the providers' logos or
+// the windows' names, and returns the width it takes.
+func (d trayPen) rowLead(cells []runway.StatusBarCell, x float32, icons bool) float32 {
+	if icons {
+		for i, c := range cells[:min(2, len(cells))] {
+			d.icon(c.Provider, x, trayRows(2)[i], trayRowIconSize)
+		}
+		return trayRowIconSize + 3.5
+	}
+	w := float32(0)
+	for _, c := range cells {
+		if c.Label != "" {
+			w = max(w, d.measure(c.Label, 8, 500))
+		}
+	}
+	if w == 0 {
+		return 0
+	}
+	for i, c := range cells[:min(2, len(cells))] {
+		d.text(c.Label, x, trayRows(2)[i], 8, 500, 0.62, 40)
+	}
+	return min(w, 40) + 4
+}
+
+func (d trayPen) icon(prov store.Provider, x, cy, size float32) {
+	if !d.inks() {
+		return
+	}
+	if svg := trayProviderIcon(prov); svg != nil {
+		d.p.Icon(svg, ui.Rect{X: x, Y: cy - size/2, W: size, H: size}, d.paint.ink)
+	}
+}
+
+// level is the cell's quota color, as this layer draws it, and the
+// fraction left.
+func (d trayPen) level(c runway.StatusBarCell) (ui.Color, float32) {
+	if c.Empty {
+		return ui.Transparent, 0
+	}
+	return trayLevelColor(c.Health, true).Alpha(d.paint.colorOpacity), float32(min(100, max(0, c.Remaining))) / 100
+}
+
+func (d trayPen) bar(x, cy, w, h float32, c runway.StatusBarCell) {
+	if !d.draws() {
+		return
+	}
+	r := ui.Rect{X: x, Y: cy - h/2, W: w, H: h}
+	if d.inks() {
+		d.p.Fill(r, d.paint.ink.Alpha(0.22), h/2)
+	}
+	if fill, level := d.level(c); level > 0 && fill.A > 0 {
+		r.W = max(h, w*level)
+		d.p.Fill(r, fill, h/2)
+	}
+}
+
+func (d trayPen) ring(cx, cy, radius, width float32, c runway.StatusBarCell) {
+	if !d.draws() {
+		return
+	}
+	if d.inks() {
+		d.p.StrokePath((&ui.Path{}).Circle(cx, cy, radius), width, d.paint.ink.Alpha(0.22))
+	}
+	if fill, level := d.level(c); level > 0 && fill.A > 0 {
+		ringArc(d.p, cx, cy, radius, width, float64(level), fill)
+	}
+}
+
+// hBattery is a battery lying in body, its cap at the right, with text
+// inside when size is set. The text is ink over the empty part and white
+// over the fill, which the color layer covers the ink with.
+func (d trayPen) hBattery(body ui.Rect, c runway.StatusBarCell, text string, size float32) {
+	if !d.draws() {
+		return
+	}
+	stroke, radius, inset := float32(1.1), body.H*0.3, float32(1.9)
+	if body.H < 10 {
+		stroke, radius, inset = 1, 2.2, 1.6
+	}
+	if d.inks() {
+		d.p.Stroke(body, d.paint.ink.Alpha(0.5), radius, stroke)
+		d.p.Fill(ui.Rect{X: body.X + body.W + 0.9, Y: body.Y + body.H*0.32, W: 1.6, H: body.H * 0.36}, d.paint.ink.Alpha(0.5), 0.8)
+	}
+	track := inset2(body, inset)
+	fill, level := d.level(c)
+	filled := track
+	filled.W = min(track.W, max(1.5, track.W*level))
+	if level > 0 && fill.A > 0 {
+		d.p.Fill(filled, fill, max(1, radius-inset))
+	}
+	if text == "" {
+		return
+	}
+	f := trayFontWeight(size, 700)
+	text = trayFit(text, f, track.W-2)
+	w := trayTextWidth(text, f)
+	m := f.Metrics()
+	tx, base := track.X+(track.W-w)/2, body.Y+(body.H-m.Ascent-m.Descent)/2+m.Ascent
+	if d.inks() {
+		d.p.Glyphs(ui.Shape(text, f), tx, base, d.paint.ink)
+	}
+	if level > 0 && fill.A > 0 {
+		d.p.Clip(filled, max(1, radius-inset), func() { d.p.Glyphs(ui.Shape(text, f), tx, base, ui.RGB(255, 255, 255)) })
+	}
+}
+
+// vBattery is a battery standing in body, its cap on top, filling up.
+func (d trayPen) vBattery(body ui.Rect, c runway.StatusBarCell) {
+	if !d.draws() {
+		return
+	}
+	if d.inks() {
+		d.p.Stroke(body, d.paint.ink.Alpha(0.5), 2.4, 1.1)
+		d.p.Fill(ui.Rect{X: body.X + body.W*0.3, Y: body.Y - 2.2, W: body.W * 0.4, H: 1.5}, d.paint.ink.Alpha(0.5), 0.7)
+	}
+	if fill, level := d.level(c); level > 0 && fill.A > 0 {
+		track := inset2(body, 1.8)
+		h := min(track.H, max(1.5, track.H*level))
+		d.p.Fill(ui.Rect{X: track.X, Y: track.Y + track.H - h, W: track.W, H: h}, fill, 1)
+	}
+}
+
+func inset2(r ui.Rect, d float32) ui.Rect {
+	return ui.Rect{X: r.X + d, Y: r.Y + d, W: max(0, r.W-2*d), H: max(0, r.H-2*d)}
+}
+
+// trayProviderIcon is the monochrome logo; the menu bar tints it.
+func trayProviderIcon(p store.Provider) *ui.SVG {
+	switch p {
+	case store.ProviderCodex:
+		return codexMonoProviderIcon
+	case store.ProviderClaude:
+		return claudeMonoProviderIcon
+	case store.ProviderGrok:
+		return grokProviderIcon
+	}
+	return nil
+}
+
+func trayTextWidth(s string, font ui.Font) float32 {
 	var width float32
-	for _, g := range ui.Shape(s, trayFont(size)) {
+	for _, g := range ui.Shape(s, font) {
 		width = max(width, g.X+g.Advance)
 	}
 	return width
 }
 
-func trayFont(size float32) ui.Font {
-	font := ui.Font{Size: size, Weight: 600, Features: "tnum"}
-	if size <= 7 {
-		// Native fonts have different ascenders; compact labels must fit the
-		// 9pt battery body and the smaller ring without clipping their glyphs.
-		m := font.Metrics()
-		font.Size *= min(1, (size+2)/(m.Ascent+m.Descent))
-	}
-	return font
+// trayFontWeight is the menu bar font: tabular digits keep a ticking
+// countdown from shifting what follows it.
+func trayFontWeight(size float32, weight int) ui.Font {
+	return ui.Font{Size: size, Weight: weight, Features: "tnum"}
 }
 
-func drawTrayContent(p *ui.Painter, r TrayRender, l trayLayout, paint trayPaint) {
-	ink := paint.ink
-	x := trayHorizontalPadding
-	for col, width := range l.widths {
-		start := col * l.rows
-		count := min(l.rows, len(r.Items)-start)
-		if r.Style == store.StatusBarStyleText {
-			text := "--"
-			if col < len(r.Lines) {
-				text = r.Lines[col]
-			}
-			drawTrayText(p, text, ui.Rect{X: x, W: width, H: 22}, 14, ink, true)
-		} else if r.Style == store.StatusBarStyleCountdown && len(r.Items) <= 1 {
-			drawTrayText(p, r.Text, ui.Rect{X: x, W: width, H: 22}, 14, ink, true)
-		} else {
-			for row := 0; row < max(1, count); row++ {
-				item := TrayItem{Caption: "--"}
-				if start+row < len(r.Items) {
-					item = r.Items[start+row]
-				}
-				height := float32(22)
-				if count > 1 {
-					height = 10
-				}
-				box := ui.Rect{X: x, Y: (22-float32(max(1, count))*height)/2 + float32(row)*height, W: width, H: height}
-				drawTrayItem(p, item, r.Style, box, l.fontSize, paint)
-			}
-		}
-		x += width + l.gap
+// trayFit shortens s with an ellipsis to fit maxW. A subpixel float32
+// difference must not replace a fitting last glyph with the ellipsis.
+func trayFit(s string, f ui.Font, maxW float32) string {
+	if maxW <= 0 || trayTextWidth(s, f) <= maxW+0.01 {
+		return s
 	}
-}
-
-func drawTrayItem(p *ui.Painter, item TrayItem, style store.StatusBarStyle, box ui.Rect, size float32, paint trayPaint) {
-	ink := paint.ink
-	level := min(1, max(0, item.Remaining))
-	fill := trayLevelColor(item.Health, true).Alpha(paint.colorOpacity)
-	switch style {
-	case store.StatusBarStyleMeters:
-		bar := ui.Rect{X: box.X, Y: box.Y + box.H/2 - 2.5, W: 40, H: 5}
-		if ink.A > 0 {
-			p.Fill(bar, ink.Alpha(0.25), 2.5)
-		}
-		bar.W *= float32(level)
-		if level > 0 {
-			p.Fill(bar, fill, 2.5)
-		}
-		textBox := box
-		textBox.X, textBox.W = box.X+44, box.W-44
-		drawTrayText(p, item.Caption, textBox, size, ink, false)
-	case store.StatusBarStyleBattery:
-		drawTrayBattery(p, item, box, size, ink, fill)
-	case store.StatusBarStyleRings:
-		cx, cy := box.X+box.W/2, box.Y+box.H/2
-		if ink.A > 0 {
-			p.StrokePath((&ui.Path{}).Circle(cx, cy, 8), 2.5, ink.Alpha(0.25))
-		}
-		if level > 0 {
-			path := &ui.Path{}
-			steps := max(1, int(math.Ceil(level*64)))
-			for i := 0; i <= steps; i++ {
-				a := -math.Pi/2 + level*2*math.Pi*float64(i)/float64(steps)
-				x, y := cx+float32(8*math.Cos(a)), cy+float32(8*math.Sin(a))
-				if i == 0 {
-					path.MoveTo(x, y)
-				} else {
-					path.LineTo(x, y)
-				}
-			}
-			p.StrokePath(path, 2.5, fill)
-		}
-		drawTrayText(p, item.Caption, box, 6, ink, true)
-	case store.StatusBarStyleCountdown:
-		drawTrayText(p, item.Caption, box, size, ink, true)
-	}
-}
-
-func drawTrayBattery(p *ui.Painter, item TrayItem, box ui.Rect, size float32, ink, fill ui.Color) {
-	height, inset, stroke, radius := float32(12), float32(2.15), float32(1.35), float32(3.25)
-	if box.H <= 10 {
-		height, inset, stroke, radius = 9, 1.6, 1.1, 2.1
-	}
-	body := ui.Rect{X: box.X + 2, Y: box.Y + (box.H-height)/2, W: box.W - 7, H: height}
-	if ink.A > 0 {
-		p.Stroke(body, ink.Alpha(0.92), radius, stroke)
-		p.Fill(ui.Rect{X: body.X + body.W + 0.85, Y: body.Y + height*0.31, W: 1.75, H: height * 0.38}, ink.Alpha(0.92), 0.7)
-	}
-	track := ui.Rect{X: body.X + inset, Y: body.Y + inset, W: body.W - 2*inset, H: body.H - 2*inset}
-	level := float32(min(1, max(0, item.Remaining)))
-	if level > 0 {
-		part := track
-		part.W = min(track.W, max(2, track.W*level))
-		p.Fill(part, fill, 1)
-	}
-	drawTrayText(p, item.Caption, body, size, ink, true)
-	if level > 0 && fill.A > 0 {
-		filled := track
-		filled.W = min(track.W, max(2, track.W*level))
-		p.Clip(filled, 1, func() { drawTrayText(p, item.Caption, body, size, ui.RGB(255, 255, 255), true) })
-	}
-}
-
-func drawTrayText(p *ui.Painter, text string, box ui.Rect, size float32, ink ui.Color, center bool) {
-	if ink.A == 0 {
-		return
-	}
-	font := trayFont(size)
-	w := trayTextWidth(text, size)
-	// Layout adds and subtracts bar widths in float32; a subpixel rounding
-	// difference must not replace a fitting last glyph with an ellipsis
-	if w > box.W+0.01 {
-		runes := []rune(text)
-		for len(runes) > 0 && w > box.W+0.01 {
-			runes = runes[:len(runes)-1]
-			text = strings.TrimSpace(string(runes)) + "…"
-			w = trayTextWidth(text, size)
+	runes := []rune(s)
+	for len(runes) > 1 {
+		runes = runes[:len(runes)-1]
+		if t := strings.TrimSpace(string(runes)) + "…"; trayTextWidth(t, f) <= maxW+0.01 {
+			return t
 		}
 	}
-	x := box.X
-	if center {
-		x += max(0, (box.W-w)/2)
-	}
-	m := font.Metrics()
-	baseline := box.Y + (box.H-m.Ascent-m.Descent)/2 + m.Ascent
-	p.Clip(box, 0, func() { p.Glyphs(ui.Shape(text, font), x, baseline, ink) })
+	return "…"
 }
 
 // Bright status accents stay consistent while AppKit tints template foregrounds

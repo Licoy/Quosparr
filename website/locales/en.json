@@ -46,7 +46,7 @@
     ],
     "commonTitle": "For every provider",
     "common": [
-      { "title": "Menu bar at a glance", "text": "Follow the active tab, or keep up to two providers in the menu bar." },
+      { "title": "Menu bar at a glance", "text": "Follow the active tab, or show every provider on its own, in five styles you can preview." },
       { "title": "Floating window", "text": "An always-on-top window on all three platforms with up to three providers, in capsule, card, rings or battery style, with adjustable opacity and a lockable position." },
       { "title": "Focused main panel", "text": "Hide the providers you don't use from the main panel. With only one left, the provider tabs go away." },
       { "title": "API-equivalent cost", "text": "Today, this cycle, last cycle, this month or a custom range, computed from local logs." },

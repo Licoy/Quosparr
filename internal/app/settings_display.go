@@ -85,7 +85,6 @@ func (u *settingsUI) appearanceGroup(c *ui.Context) {
 				}
 			})
 		})
-		u.statusBarRows(c, row, p, ro, sys.StatusBarStyles, macNote(sys.StatusBarStyles))
 	})
 }
 
@@ -163,102 +162,6 @@ func (u *settingsUI) panelProviderRows(c *ui.Context, row rowFunc, p store.Prefe
 				}
 			}
 		})
-	})
-}
-
-// statusBarRows are the settings of the status item. Where the OS has no
-// such status item they stay, disabled and explained, with their values.
-func (u *settingsUI) statusBarRows(c *ui.Context, row rowFunc, p store.Preferences, ro, supported bool, note string) {
-	s, l := u.s, u.L()
-	off := ro || !supported
-	row(l.Text(l10n.KeyStatusBarStyle), note, func() {
-		if v, ok := choose(c, "sb-style", l.Text(l10n.KeyStatusBarStyle), p.StatusBarDisplayStyle, store.StatusBarStyles(),
-			func(v store.StatusBarStyle) string { return l.Text(statusBarStyleKey(v)) }, off); ok {
-			s.SetStatusBarStyle(v)
-		}
-	})
-	row(l.Text(l10n.KeyStatusBarProviderScope), note, func() {
-		cur := p.StatusBarProviderScope
-		if cur != store.ProviderScopeSelected {
-			cur = store.ProviderScopeCustom
-		}
-		scopes := []store.StatusBarProviderScope{store.ProviderScopeSelected, store.ProviderScopeCustom}
-		if v, ok := choose(c, "sb-scope", l.Text(l10n.KeyStatusBarProviderScope), cur, scopes,
-			func(v store.StatusBarProviderScope) string { return l.Text(providerScopeKey(v)) }, off); ok {
-			s.SetStatusBarProviderScope(v)
-		}
-	})
-	if p.StatusBarProviderScope != store.ProviderScopeSelected {
-		hint := note
-		if hint == "" {
-			hint = l.Text(l10n.KeyStatusBarProvidersHint)
-		}
-		row(l.Text(l10n.KeyStatusBarProviders), hint, func() {
-			statusBarProviderChecks(c, l, s, p, off)
-		})
-	}
-	if p.StatusBarDisplayStyle == store.StatusBarStyleMeters {
-		row(l.Text(l10n.KeyStatusBarMetersDetailStyle), note, func() {
-			if v, ok := choose(c, "sb-meters", l.Text(l10n.KeyStatusBarMetersDetailStyle), p.StatusBarMetersDetailStyle, store.MetersDetails(),
-				func(v store.MetersDetail) string { return l.Text(metersDetailKey(v)) }, off); ok {
-				s.SetStatusBarMetersDetail(v)
-			}
-		})
-	}
-	if p.StatusBarDisplayStyle == store.StatusBarStyleBattery {
-		row(l.Text(l10n.KeyStatusBarBatteryScope), note, func() {
-			if v, ok := choose(c, "sb-bscope", l.Text(l10n.KeyStatusBarBatteryScope), p.StatusBarBatteryScope, store.BatteryScopes(),
-				func(v store.BatteryScope) string { return l.Text(batteryScopeKey(v)) }, off); ok {
-				s.SetStatusBarBatteryScope(v)
-			}
-		})
-		row(l.Text(l10n.KeyStatusBarBatteryDetailStyle), note, func() {
-			if v, ok := choose(c, "sb-bdetail", l.Text(l10n.KeyStatusBarBatteryDetailStyle), p.StatusBarBatteryDetailStyle, store.BatteryDetails(),
-				func(v store.BatteryDetail) string { return l.Text(batteryDetailKey(v)) }, off); ok {
-				s.SetStatusBarBatteryDetail(v)
-			}
-		})
-	}
-}
-
-func statusBarProviderChecks(c *ui.Context, l l10n.Localizer, s *Settings, p store.Preferences, off bool) {
-	selected := map[store.Provider]bool{}
-	for _, item := range p.StatusBarSelection() {
-		selected[item] = true
-	}
-	if p.StatusBarProviderScope == store.ProviderScopeBoth {
-		selected[store.ProviderCodex] = true
-		selected[store.ProviderGrok] = true
-	}
-	n := 0
-	for _, on := range selected {
-		if on {
-			n++
-		}
-	}
-	ui.Row(c).Gap(12).Wrap().Children(func() {
-		for _, prov := range store.Providers() {
-			on := selected[prov]
-			// A third pick and dropping the last one are not offered.
-			box := ui.Checkbox(c.Key("sb-prov-"+string(prov)), &on, l.Text(providerKey(prov))).
-				Disabled(off || (!on && n >= 2) || (on && n <= 1))
-			if !box.Changed() || off {
-				continue
-			}
-			next := make([]store.Provider, 0, 2)
-			for _, item := range store.Providers() {
-				want := selected[item]
-				if item == prov {
-					want = on
-				}
-				if want {
-					next = append(next, item)
-				}
-			}
-			if len(next) >= 1 && len(next) <= 2 {
-				s.SetStatusBarProviders(next)
-			}
-		}
 	})
 }
 

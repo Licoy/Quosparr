@@ -1,7 +1,6 @@
 package runway
 
 import (
-	"strconv"
 	"strings"
 	"time"
 
@@ -9,71 +8,7 @@ import (
 	"github.com/licoy/quosparr/internal/store"
 )
 
-// RenderPlan says which meters the status item shows and how they stack
-// (Swift StatusBarRenderPlan).
-type RenderPlan struct {
-	Meters        []Meter
-	RowsPerColumn int
-}
-
-// Columns chunks the meters into columns of RowsPerColumn.
-func (p RenderPlan) Columns() [][]Meter {
-	if p.RowsPerColumn <= 0 {
-		return nil
-	}
-	var cols [][]Meter
-	for start := 0; start < len(p.Meters); start += p.RowsPerColumn {
-		cols = append(cols, p.Meters[start:min(start+p.RowsPerColumn, len(p.Meters))])
-	}
-	return cols
-}
-
-// MakeRenderPlan filters the meters for the style and picks the row count.
-func MakeRenderPlan(style store.StatusBarStyle, scope store.BatteryScope, meters []Meter) RenderPlan {
-	visible := meters
-	if style == store.StatusBarStyleBattery {
-		visible = batteryMeters(scope, meters)
-	}
-	rows := 1
-	if (style == store.StatusBarStyleBattery || style == store.StatusBarStyleMeters) && len(visible) > 1 {
-		rows = 2
-	}
-	return RenderPlan{Meters: visible, RowsPerColumn: rows}
-}
-
-func batteryMeters(scope store.BatteryScope, meters []Meter) []Meter {
-	if scope == store.BatteryScopeBoth {
-		return meters
-	}
-	var standard, specific []Meter
-	for _, m := range meters {
-		if m.Source == SourceStandard {
-			standard = append(standard, m)
-		} else {
-			specific = append(specific, m)
-		}
-	}
-	want := WeeklyMinutes
-	if scope == store.BatteryScopeFiveHour {
-		want = FiveHourMinutes
-	}
-	var picked *Meter
-	for i := range standard {
-		if standard[i].WindowMinutes == want {
-			picked = &standard[i]
-			break
-		}
-	}
-	if picked == nil && len(standard) > 0 {
-		picked = &standard[0]
-	}
-	if picked == nil {
-		return specific
-	}
-	return append([]Meter{*picked}, specific...)
-}
-
-// Preferred window lengths when one meter per provider is chosen.
+// Preferred window lengths of a provider's main window.
 var (
 	codexPreferredWindows  = []int{FiveHourMinutes, WeeklyMinutes}
 	grokPreferredWindows   = []int{WeeklyMinutes, MonthlyMinutes}
@@ -133,29 +68,6 @@ func WithShortTitle(lc l10n.Localizer, m Meter) Meter {
 	return m
 }
 
-// DualProviderMeters picks one meter per provider, Codex first, titled
-// "Codex · 5h" style.
-func DualProviderMeters(lc l10n.Localizer, codex, grok []Meter, codexLabel, grokLabel string) []Meter {
-	var out []Meter
-	if m, ok := PrimaryStandardMeter(codex, codexPreferredWindows); ok {
-		m.Title = codexLabel + " · " + meterTitle(lc, m)
-		out = append(out, m)
-	}
-	var g Meter
-	ok := false
-	if len(grok) > 0 {
-		g, ok = PrimaryStandardMeter(grok[:1], grokPreferredWindows)
-	}
-	if !ok && len(grok) > 0 {
-		g, ok = grok[0], true
-	}
-	if ok {
-		g.Title = grokLabel + " · " + meterTitle(lc, g)
-		out = append(out, g)
-	}
-	return out
-}
-
 // StatusInputs is everything the status item selection reads.
 type StatusInputs struct {
 	Prefs    store.Preferences
@@ -189,18 +101,6 @@ func GrokStatusText(lc l10n.Localizer, g GrokState, now time.Time) string {
 		return DurationLocalized(m.ResetsAt.Sub(now).Seconds(), lc.Language(), false)
 	}
 	return percentText(m)
-}
-
-// statusProviders is the ordered status-bar selection. An empty custom list
-// and the selected scope follow the main panel.
-func statusProviders(in StatusInputs) []store.Provider {
-	if sel := in.Prefs.StatusBarSelection(); len(sel) > 0 {
-		return sel
-	}
-	if in.Provider.Valid() {
-		return []store.Provider{in.Provider}
-	}
-	return []store.Provider{store.ProviderCodex}
 }
 
 func statusTextFor(lc l10n.Localizer, in StatusInputs, p store.Provider) string {
@@ -241,75 +141,6 @@ func ClaudeStatusText(lc l10n.Localizer, g ClaudeState, now time.Time) string {
 	return percentText(m)
 }
 
-// SelectedStatusText is the status item text for the chosen provider scope.
-func SelectedStatusText(lc l10n.Localizer, in StatusInputs) string {
-	picked := statusProviders(in)
-	if len(picked) == 2 && !statusHasMeters(in, picked[0]) {
-		return statusTextFor(lc, in, picked[1])
-	}
-	return statusTextFor(lc, in, picked[0])
-}
-
-// statusHasMeters reports whether a provider has a reading to show; a pair
-// falls back to the second provider's text otherwise.
-func statusHasMeters(in StatusInputs, p store.Provider) bool {
-	if p == store.ProviderCodex {
-		return len(in.CodexMeters) > 0 && in.CodexText != ""
-	}
-	return len(metersOf(in, p)) > 0
-}
-
-// SelectedMeters are the meters the status item draws.
-func SelectedMeters(lc l10n.Localizer, in StatusInputs) []Meter {
-	picked := statusProviders(in)
-	if len(picked) == 2 && picked[0] == store.ProviderCodex && picked[1] == store.ProviderGrok {
-		return DualProviderMeters(lc, in.CodexMeters, in.Grok.Meters,
-			lc.Text(l10n.KeyProviderCodex), lc.Text(l10n.KeyProviderGrok))
-	}
-	if len(picked) == 2 {
-		return combinedMeters(lc, in, picked[0], picked[1])
-	}
-	switch picked[0] {
-	case store.ProviderCodex:
-		return in.CodexMeters
-	case store.ProviderGrok:
-		if len(in.Grok.Meters) == 0 {
-			return nil
-		}
-		return []Meter{WithShortTitle(lc, in.Grok.Meters[0])}
-	case store.ProviderClaude:
-		return claudeStatusMeters(lc, in.Claude.Meters)
-	default:
-		return nil
-	}
-}
-
-// claudeStatusMeters are the 5-hour and weekly meters with short titles;
-// per-model windows stay in the panel.
-func claudeStatusMeters(lc l10n.Localizer, meters []Meter) []Meter {
-	var out []Meter
-	for _, m := range meters {
-		if m.Source == SourceStandard {
-			out = append(out, WithShortTitle(lc, m))
-		}
-	}
-	if len(out) == 0 && len(meters) > 0 {
-		out = append(out, WithShortTitle(lc, meters[0]))
-	}
-	return out
-}
-
-func combinedMeters(lc l10n.Localizer, in StatusInputs, a, b store.Provider) []Meter {
-	var out []Meter
-	if m, ok := labeledMeter(lc, metersOf(in, a), preferredOf(a), lc.Text(providerStatusKey(a))); ok {
-		out = append(out, m)
-	}
-	if m, ok := labeledMeter(lc, metersOf(in, b), preferredOf(b), lc.Text(providerStatusKey(b))); ok {
-		out = append(out, m)
-	}
-	return out
-}
-
 func metersOf(in StatusInputs, p store.Provider) []Meter {
 	switch p {
 	case store.ProviderGrok:
@@ -343,87 +174,143 @@ func providerStatusKey(p store.Provider) l10n.Key {
 	}
 }
 
-func labeledMeter(lc l10n.Localizer, meters []Meter, preferred []int, label string) (Meter, bool) {
-	m, ok := PrimaryStandardMeter(meters, preferred)
-	if !ok && len(meters) > 0 {
-		m, ok = meters[0], true
-	}
-	if !ok {
-		return Meter{}, false
-	}
-	m.Title = label + " · " + meterTitle(lc, m)
-	return m, true
+// StatusBarCell is one quota reading of a status bar component.
+type StatusBarCell struct {
+	Provider store.Provider
+	// Label is the short window name where a provider shows two windows.
+	Label string
+	// Remaining is the percentage left, Health its color.
+	Remaining int
+	Health    Health
+	// Empty is a provider without a reading; its texts are "--".
+	Empty bool
+	// Percent is "NN%" or the balance amount, Countdown the time left until
+	// the reset (the amount of a balance).
+	Percent   string
+	Countdown string
+	// MeterText and BatteryText are the details the meters and the battery
+	// styles are set to show.
+	MeterText   string
+	BatteryText string
 }
 
-// StatusBarItem is the text data of one meter in the status item.
-type StatusBarItem struct {
-	Meter Meter
-	// Ring is the remaining percentage ("--" without a meter).
-	Ring          string
-	Countdown     string
-	Battery       string
-	BatteryDetail string
-	MeterText     string
+// StatusBarComponent is one component of the status item: a provider on its
+// own, or two stacked.
+type StatusBarComponent struct {
+	// Provider is the provider shown alone, whose windows the cells are; it
+	// is empty where two providers share the component, a cell each.
+	Provider store.Provider
+	Cells    []StatusBarCell
 }
 
 // StatusBarView is the data side of the status item: what to draw, no pixels.
 type StatusBarView struct {
-	Style store.StatusBarStyle
-	Text  string
-	Plan  RenderPlan
-	Items []StatusBarItem
-	// TextCaptions are the captions of the "text" style ("NN%" or "--").
-	TextCaptions []string
-	Tooltip      string
+	Style      store.StatusBarStyle
+	Battery    store.BatteryOrientation
+	HideIcons  bool
+	Components []StatusBarComponent
+	Tooltip    string
 }
 
 // BuildStatusBar computes the status item content for the preferences.
 func BuildStatusBar(lc l10n.Localizer, in StatusInputs) StatusBarView {
-	text := SelectedStatusText(lc, in)
-	meters := SelectedMeters(lc, in)
-	plan := MakeRenderPlan(in.Prefs.StatusBarDisplayStyle, in.Prefs.StatusBarBatteryScope, meters)
-	view := StatusBarView{Style: in.Prefs.StatusBarDisplayStyle, Text: text, Plan: plan}
+	layout := in.Prefs.StatusBar
+	v := StatusBarView{Style: in.Prefs.StatusBarDisplayStyle, Battery: layout.Battery, HideIcons: layout.HideIcons}
+	tips := []string{"Quosparr"}
+	window := in.Prefs.StatusBarQuotaWindow()
+	for _, group := range statusGroups(in) {
+		var comp StatusBarComponent
+		if len(group) == 1 {
+			comp.Provider = group[0]
+		}
+		for _, p := range group {
+			picked := statusMeters(metersOf(in, p), preferredOf(p), window, len(group) == 1)
+			comp.Cells = append(comp.Cells, statusCells(lc, in, p, picked)...)
+			tips = append(tips, statusTip(lc, in, p, picked))
+		}
+		v.Components = append(v.Components, comp)
+	}
+	v.Tooltip = strings.Join(tips, "\n")
+	return v
+}
+
+// statusGroups are the providers of each component. Following the panel is
+// its provider alone; rings and text show every provider on its own.
+func statusGroups(in StatusInputs) [][]store.Provider {
+	groups := in.Prefs.StatusBarGroups()
+	if groups == nil {
+		p := in.Provider
+		if !p.Valid() {
+			p = store.ProviderCodex
+		}
+		return [][]store.Provider{{p}}
+	}
+	if in.Prefs.StatusBarDisplayStyle.Combines() {
+		return groups
+	}
+	var out [][]store.Provider
+	for _, g := range groups {
+		for _, p := range g {
+			out = append(out, []store.Provider{p})
+		}
+	}
+	return out
+}
+
+// statusMeters picks the windows a provider shows: the chosen window, else
+// its main window; automatically, up to two main windows when it has the
+// component to itself.
+func statusMeters(meters []Meter, preferred []int, window store.StatusBarWindow, alone bool) []Meter {
+	switch {
+	case window == store.StatusBarWindowFiveHour:
+		preferred = []int{FiveHourMinutes}
+	case window == store.StatusBarWindowWeekly:
+		preferred = []int{WeeklyMinutes}
+	case alone:
+		return floatingMeters(meters, preferred)
+	}
+	if m, ok := PrimaryStandardMeter(meters, preferred); ok {
+		return []Meter{m}
+	}
+	return nil
+}
+
+func statusCells(lc l10n.Localizer, in StatusInputs, p store.Provider, picked []Meter) []StatusBarCell {
+	if len(picked) == 0 {
+		return []StatusBarCell{{Provider: p, Empty: true, Percent: "--", Countdown: "--", MeterText: "--", BatteryText: "--"}}
+	}
 	lang := lc.Language()
-	for _, m := range plan.Meters {
-		view.Items = append(view.Items, StatusBarItem{
-			Meter:         m,
-			Ring:          RingText(&m),
-			Countdown:     CountdownCaption(m, in.Now, lang),
-			Battery:       BatteryCaption(m, in.Prefs.StatusBarBatteryDetailStyle, in.Now, lang),
-			BatteryDetail: BatteryDetail(m, in.Prefs.StatusBarBatteryDetailStyle, in.Now, lang),
-			MeterText:     MeterCaption(m, in.Prefs.StatusBarMetersDetailStyle, in.Now, lang),
-		})
-		view.TextCaptions = append(view.TextCaptions, percentText(m))
+	cells := make([]StatusBarCell, len(picked))
+	for i, m := range picked {
+		cells[i] = StatusBarCell{
+			Provider: p, Remaining: m.RemainingPercent, Health: m.Health,
+			Percent:     percentText(m),
+			Countdown:   CountdownDetail(m, in.Now, lang),
+			MeterText:   MeterDetail(m, in.Prefs.StatusBarMetersDetailStyle, in.Now, lang),
+			BatteryText: BatteryDetail(m, in.Prefs.StatusBarBatteryDetailStyle, in.Now, lang),
+		}
+		if len(picked) > 1 {
+			cells[i].Label = meterTitle(lc, m)
+		}
 	}
-	if len(plan.Meters) == 0 {
-		view.TextCaptions = []string{RingText(nil)}
-	}
-	view.Tooltip = Tooltip(text, meters)
-	return view
+	return cells
 }
 
-// Tooltip is "Quosparr · text" plus one "title: NN%" line.
-func Tooltip(text string, meters []Meter) string {
-	head := "Quosparr · " + text
-	if len(meters) == 0 {
-		return head
+// statusTip is the provider's tooltip line: every window shown, with the
+// time left, or why there is none.
+func statusTip(lc l10n.Localizer, in StatusInputs, p store.Provider, picked []Meter) string {
+	name := lc.Text(providerStatusKey(p))
+	if len(picked) == 0 {
+		return name + ": " + floatingStatus(lc, in, p)
 	}
-	parts := make([]string, len(meters))
-	for i, m := range meters {
-		parts[i] = m.Title + ": " + percentText(m)
+	parts := make([]string, len(picked))
+	for i, m := range picked {
+		parts[i] = meterTitle(lc, m) + " " + percentText(m)
+		if m.HasReset() && !m.Balance {
+			parts[i] += " (" + resetCountdown(m, in.Now, lc.Language()) + ")"
+		}
 	}
-	return head + "\n" + strings.Join(parts, " · ")
-}
-
-// RingText is the remaining percentage, the balance amount, or "--".
-func RingText(m *Meter) string {
-	if m == nil {
-		return "--"
-	}
-	if m.ValueText != "" {
-		return m.ValueText
-	}
-	return strconv.Itoa(m.RemainingPercent)
+	return name + ": " + strings.Join(parts, " · ")
 }
 
 func resetCountdown(m Meter, now time.Time, lang l10n.Language) string {
@@ -433,19 +320,21 @@ func resetCountdown(m Meter, now time.Time, lang l10n.Language) string {
 	return DurationLocalized(m.ResetsAt.Sub(now).Seconds(), lang, false)
 }
 
-func titled(m Meter, detail string) string {
-	if m.Source == SourceModelSpecific {
-		return detail + " " + m.Title
+// shortCountdown is the time left until the reset in short units.
+func shortCountdown(m Meter, now time.Time, lang l10n.Language) string {
+	if !m.HasReset() {
+		return "--"
 	}
-	return m.Title + " " + detail
+	return ShortDuration(m.ResetsAt.Sub(now).Seconds(), lang)
 }
 
-// CountdownCaption is the caption of the "countdown" style.
-func CountdownCaption(m Meter, now time.Time, lang l10n.Language) string {
+// CountdownDetail is the text of the "countdown" style: the time left until
+// the reset, or the amount of a balance.
+func CountdownDetail(m Meter, now time.Time, lang l10n.Language) string {
 	if m.Balance {
-		return titled(m, percentText(m))
+		return percentText(m)
 	}
-	return titled(m, resetCountdown(m, now, lang))
+	return shortCountdown(m, now, lang)
 }
 
 // BatteryDetail is the detail text of the "battery" style.
@@ -453,12 +342,7 @@ func BatteryDetail(m Meter, style store.BatteryDetail, now time.Time, lang l10n.
 	if style == store.BatteryDetailRemainingPercent || m.Balance {
 		return percentText(m)
 	}
-	return resetCountdown(m, now, lang)
-}
-
-// BatteryCaption is the caption of the "battery" style.
-func BatteryCaption(m Meter, style store.BatteryDetail, now time.Time, lang l10n.Language) string {
-	return titled(m, BatteryDetail(m, style, now, lang))
+	return shortCountdown(m, now, lang)
 }
 
 // MeterDetail is the detail text of the "meters" style.
@@ -476,9 +360,4 @@ func MeterDetail(m Meter, style store.MetersDetail, now time.Time, lang l10n.Lan
 		return percentText(m) + " · " + reset
 	}
 	return percentText(m)
-}
-
-// MeterCaption is the caption of the "meters" style.
-func MeterCaption(m Meter, style store.MetersDetail, now time.Time, lang l10n.Language) string {
-	return titled(m, MeterDetail(m, style, now, lang))
 }

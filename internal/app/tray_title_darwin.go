@@ -4,7 +4,6 @@ package app
 
 import (
 	"fmt"
-	"strings"
 
 	"github.com/ebitengine/purego/objc"
 	"github.com/egoist/mygo"
@@ -57,49 +56,6 @@ func setTrayContent(tray *mygo.Tray, r TrayRender, _ bool) error {
 		return setTrayColorOverlay(button, colors)
 	}
 	return fmt.Errorf("status item image has no height")
-}
-
-// setTrayLines shows lines one over the other, in a small font, as the title
-// of the menu bar item. mygo sets only plain titles, so the item's button is
-// found among the app's windows, by the action mygo gives it, and given an
-// attributed title. Without a color of its own the text takes the menu bar's.
-// No lines clears the title.
-func setTrayLines(tray *mygo.Tray, lines []string) {
-	if len(lines) == 0 {
-		tray.SetTitle("")
-		return
-	}
-	mygo.RunOnMain(func() {
-		button := trayButton()
-		if button == 0 {
-			tray.SetTitle(strings.Join(lines, " · "))
-			return
-		}
-		pool := objc.ID(objc.GetClass("NSAutoreleasePool")).Send(objc.RegisterName("new"))
-		defer pool.Send(objc.RegisterName("drain"))
-
-		const size, lineHeight = 9.0, 10.0
-		para := objc.ID(objc.GetClass("NSMutableParagraphStyle")).Send(objc.RegisterName("new"))
-		defer para.Send(objc.RegisterName("release"))
-		para.Send(objc.RegisterName("setMinimumLineHeight:"), float64(lineHeight))
-		para.Send(objc.RegisterName("setMaximumLineHeight:"), float64(lineHeight))
-		const weightMedium = 0.23 // NSFontWeightMedium
-		font := objc.ID(objc.GetClass("NSFont")).Send(objc.RegisterName("monospacedDigitSystemFontOfSize:weight:"), float64(size), float64(weightMedium))
-		// The lines are lowered to sit around the middle of the bar, beside
-		// the bars of the icon, which are lineHeight apart.
-		offset := objc.ID(objc.GetClass("NSNumber")).Send(objc.RegisterName("numberWithDouble:"), -lineHeight*float64(len(lines)-1)/2+0.75)
-
-		attrs := objc.ID(objc.GetClass("NSMutableDictionary")).Send(objc.RegisterName("dictionary"))
-		set := objc.RegisterName("setObject:forKey:")
-		attrs.Send(set, font, nsStr("NSFont"))
-		attrs.Send(set, para, nsStr("NSParagraphStyle"))
-		attrs.Send(set, offset, nsStr("NSBaselineOffset"))
-
-		title := objc.ID(objc.GetClass("NSAttributedString")).Send(objc.RegisterName("alloc")).
-			Send(objc.RegisterName("initWithString:attributes:"), nsStr(strings.Join(lines, "\n")), attrs)
-		defer title.Send(objc.RegisterName("release"))
-		button.Send(objc.RegisterName("setAttributedTitle:"), title)
-	})
 }
 
 // trayButton is the button of the app's menu bar item: the content of a

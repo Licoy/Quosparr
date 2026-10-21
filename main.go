@@ -274,7 +274,7 @@ func run(command app.Command) int {
 // quits. Dev only (a scratch preferences domain is set).
 func devScreenshots(ui *app.App, base string) {
 	time.Sleep(1500 * time.Millisecond)
-	for tab := 0; tab < 11; tab++ {
+	for tab := 0; tab < app.SettingsTabCount(); tab++ {
 		mygo.RunOnMain(func() { ui.OpenSettingsTab(tab) })
 		time.Sleep(700 * time.Millisecond)
 		png, err := ui.CaptureSettings()

@@ -22,7 +22,3 @@ func setTrayContent(tray *mygo.Tray, r TrayRender, light bool) error {
 	tray.SetTitle("")
 	return nil
 }
-
-// setTrayLines: only the macOS menu bar has a title; elsewhere the text is
-// the tooltip (ApplyTray sets it), and Windows/Linux trays stay icon-only.
-func setTrayLines(*mygo.Tray, []string) {}

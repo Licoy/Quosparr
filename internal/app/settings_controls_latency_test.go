@@ -28,11 +28,13 @@ func TestSettingsOtherControlEventLatency(t *testing.T) {
 		{"provider", (*settingsUI).appearanceGroup, text(l10n.KeyProviderGrok), text(l10n.KeyProviderGrok)},
 		{"panel background", (*settingsUI).appearanceGroup, text(l10n.KeyMainPanelBackground), func(u *settingsUI) string { return u.text(panelBackgroundKey(store.PanelBackgroundOpaque)) }},
 		{"panel height", (*settingsUI).appearanceGroup, func(u *settingsUI) string { return tx(u.L(), xPanelHeight) }, nil},
-		{"statusbar style", (*settingsUI).appearanceGroup, text(l10n.KeyStatusBarStyle), func(u *settingsUI) string { return u.text(statusBarStyleKey(store.StatusBarStyleRings)) }},
-		{"statusbar provider scope", (*settingsUI).appearanceGroup, text(l10n.KeyStatusBarProviderScope), nil},
-		{"statusbar meters detail", (*settingsUI).appearanceGroup, text(l10n.KeyStatusBarMetersDetailStyle), func(u *settingsUI) string { return u.text(metersDetailKey(store.MetersDetailBoth)) }},
-		{"statusbar battery scope", (*settingsUI).appearanceGroup, text(l10n.KeyStatusBarBatteryScope), func(u *settingsUI) string { return u.text(batteryScopeKey(store.BatteryScopeBoth)) }},
-		{"statusbar battery detail", (*settingsUI).appearanceGroup, text(l10n.KeyStatusBarBatteryDetailStyle), func(u *settingsUI) string { return u.text(batteryDetailKey(store.BatteryDetailRemainingPercent)) }},
+		{"statusbar style", (*settingsUI).statusBarPage, nil, func(u *settingsUI) string { return u.text(statusBarStyleKey(store.StatusBarStyleRings)) }},
+		{"statusbar provider scope", (*settingsUI).statusBarPage, text(l10n.KeyStatusBarProviderScope), nil},
+		{"statusbar meters detail", (*settingsUI).statusBarPage, text(l10n.KeyStatusBarMetersDetailStyle), func(u *settingsUI) string { return u.text(metersDetailKey(store.MetersDetailBoth)) }},
+		{"statusbar battery orientation", (*settingsUI).statusBarPage, nil, func(u *settingsUI) string { return tx(u.L(), xBatteryVertical) }},
+		{"statusbar battery detail", (*settingsUI).statusBarPage, func(u *settingsUI) string { return tx(u.L(), xBatteryText) }, func(u *settingsUI) string { return u.text(batteryDetailKey(store.BatteryDetailRemainingPercent)) }},
+		{"statusbar window", (*settingsUI).statusBarPage, func(u *settingsUI) string { return tx(u.L(), xStatusBarWindow) }, func(u *settingsUI) string { return statusBarWindowName(u.L(), store.StatusBarWindowWeekly) }},
+		{"statusbar icons", (*settingsUI).statusBarPage, func(u *settingsUI) string { return tx(u.L(), xStatusBarIcons) }, nil},
 		{"restore module order", (*settingsUI).modulesGroup, text(l10n.KeyRestoreDefaultOrder), nil},
 		{"privacy", (*settingsUI).privacyGroup, text(l10n.KeyAccountPrivacyMode), nil},
 		{"quota alert", (*settingsUI).notificationsGroup, text(l10n.KeyQuotaAlerts), nil},
@@ -57,7 +59,7 @@ func TestSettingsOtherControlEventLatency(t *testing.T) {
 				t.Fatal(err)
 			}
 			e.s.sys.Widgets = true
-			if check.name == "statusbar battery scope" || check.name == "statusbar battery detail" {
+			if check.name == "statusbar battery orientation" || check.name == "statusbar battery detail" {
 				e.s.prefs.StatusBarDisplayStyle = store.StatusBarStyleBattery
 			}
 			if check.name == "restore module order" {
@@ -68,7 +70,7 @@ func TestSettingsOtherControlEventLatency(t *testing.T) {
 			tt.SetPreferences(ui.Preferences{ReduceMotion: true})
 			before := e.s.Prefs()
 			var elapsed time.Duration
-			if check.name == "appearance" || check.name == "panel background" || check.name == "provider" {
+			if check.label == nil || check.name == "appearance" || check.name == "panel background" || check.name == "provider" {
 				start := time.Now()
 				if err := tt.Click(check.choice(u)); err != nil {
 					t.Fatal(err)
@@ -110,39 +112,56 @@ func TestSettingsOtherControlEventLatency(t *testing.T) {
 	}
 }
 
-// The provider check boxes bind a per-frame value, so a click must be read
-// through Changed in the same pass or it is lost.
-func TestStatusBarProviderChecksToggle(t *testing.T) {
+// The arrangement switches and check boxes bind a per-frame value, so a
+// click must be read through Changed in the same pass or it is lost.
+func TestStatusBarArrangementEditsTheComponents(t *testing.T) {
 	e := newEnv(t, nil)
 	if err := e.s.Load(); err != nil {
 		t.Fatal(err)
 	}
-	e.s.sys.StatusBarStyles = true
-	e.s.prefs.StatusBarProviderScope = store.ProviderScopeCustom
-	e.s.prefs.StatusBarProviders = []store.Provider{store.ProviderCodex}
+	e.s.prefs.SetStatusBarGroups([][]store.Provider{{store.ProviderCodex}})
 	u := newSettingsUI(e.s, SettingsOptions{})
-	tt := ui.NewTester(func(c *ui.Context) {
-		settingsGroup(c, "", "", nil, func(row rowFunc) {
-			u.statusBarRows(c, row, e.s.Prefs(), false, true, "")
-		})
-	}, settingsWidth, settingsHeight)
+	tt := ui.NewTester(func(c *ui.Context) { u.statusBarArrangement(c, e.s.Prefs(), false) }, settingsWidth, settingsHeight)
 	tt.SetPreferences(ui.Preferences{ReduceMotion: true})
-	if err := tt.Click(u.text(l10n.KeyProviderClaude)); err != nil {
-		t.Fatal(err)
+	l := u.L()
+	name := func(p store.Provider) string { return l.Text(providerKey(p)) }
+	step := func(label string, want [][]store.Provider) {
+		t.Helper()
+		if err := tt.Click(label); err != nil {
+			t.Fatal(err)
+		}
+		tt.Frame()
+		if got := e.s.Prefs().StatusBarGroups(); !reflect.DeepEqual(got, want) {
+			t.Fatalf("after %q groups = %v, want %v", label, got, want)
+		}
 	}
-	if got := e.s.Prefs().StatusBarSelection(); !reflect.DeepEqual(got, []store.Provider{store.ProviderCodex, store.ProviderClaude}) {
-		t.Fatalf("after Claude = %v", got)
+	codex, claude, grok := store.ProviderCodex, store.ProviderClaude, store.ProviderGrok
+	step(tx(l, xStatusBarShowProvider, name(grok)), [][]store.Provider{{codex}, {grok}})
+	step(tx(l, xStatusBarShowProvider, name(claude)), [][]store.Provider{{codex}, {grok}, {claude}})
+	step(tx(l, xStatusBarJoinProvider, name(grok)), [][]store.Provider{{codex, grok}, {claude}})
+	// Claude would make a third of the pair.
+	step(tx(l, xStatusBarJoinProvider, name(claude)), [][]store.Provider{{codex, grok}, {claude}})
+	// The first line moves down; the pair stays in place.
+	step(l.Text(l10n.KeyAccountsMoveDown), [][]store.Provider{{grok, codex}, {claude}})
+	step(tx(l, xStatusBarShowProvider, name(grok)), [][]store.Provider{{codex}, {claude}})
+	if got := e.s.Prefs().StatusBarSelection(); !reflect.DeepEqual(got, []store.Provider{codex, claude}) {
+		t.Fatalf("older versions read %v", got)
 	}
-	tt.Frame()
-	// A third provider is not offered while two are chosen.
-	_ = tt.Click(u.text(l10n.KeyProviderGrok))
-	if got := e.s.Prefs().StatusBarSelection(); len(got) != 2 {
-		t.Fatalf("third pick = %v", got)
+}
+
+func TestStatusBarSlotsKeepComponentsInPlace(t *testing.T) {
+	codex, claude, grok := store.ProviderCodex, store.ProviderClaude, store.ProviderGrok
+	slots := statusBarSlots([][]store.Provider{{codex, claude}, {grok}})
+	if !reflect.DeepEqual(statusBarGroupsOf(slots), [][]store.Provider{{codex, claude}, {grok}}) {
+		t.Fatalf("round trip = %v", statusBarGroupsOf(slots))
 	}
-	if err := tt.Click(u.text(l10n.KeyProviderCodex)); err != nil {
-		t.Fatal(err)
+	if canJoinStatusBarSlot(slots, 2) || canJoinStatusBarSlot(slots, 0) {
+		t.Error("a third provider joined a pair")
 	}
-	if got := e.s.Prefs().StatusBarSelection(); !reflect.DeepEqual(got, []store.Provider{store.ProviderClaude}) {
-		t.Fatalf("after Codex off = %v", got)
+	if got := statusBarGroupsOf(withoutStatusBarSlot(slots, 0)); !reflect.DeepEqual(got, [][]store.Provider{{claude}, {grok}}) {
+		t.Errorf("without the head = %v", got)
+	}
+	if got := statusBarGroupsOf(swapStatusBarSlots(slots, 1, 2)); !reflect.DeepEqual(got, [][]store.Provider{{codex, grok}, {claude}}) {
+		t.Errorf("swapped = %v", got)
 	}
 }

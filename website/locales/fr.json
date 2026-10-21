@@ -46,7 +46,7 @@
     ],
     "commonTitle": "Pour tous les fournisseurs",
     "common": [
-      { "title": "La barre de menus en un coup d’œil", "text": "Suivez l’onglet actif ou affichez jusqu’à deux fournisseurs dans la barre de menus." },
+      { "title": "La barre de menus en un coup d’œil", "text": "Suivez l’onglet actif ou affichez chaque fournisseur à part, dans cinq styles à prévisualiser." },
       { "title": "Fenêtre flottante", "text": "Une fenêtre toujours au premier plan sur les trois plateformes, avec jusqu’à trois fournisseurs en style capsule, carte, anneaux ou batterie, opacité réglable et position verrouillable." },
       { "title": "Panneau principal épuré", "text": "Masquez les fournisseurs inutilisés du panneau principal ; s’il n’en reste qu’un, les onglets disparaissent." },
       { "title": "Coût équivalent API", "text": "Aujourd’hui, ce cycle, le cycle précédent, ce mois-ci ou une période personnalisée, calculé à partir des journaux locaux." },

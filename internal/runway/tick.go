@@ -55,16 +55,12 @@ func tickKey(s Snapshot) string {
 	b.WriteByte(0)
 	b.WriteString(s.Codex.CostSubtitle)
 	b.WriteByte(0)
-	b.WriteString(s.StatusBar.Text)
-	b.WriteByte(0)
 	b.WriteString(s.StatusBar.Tooltip)
-	for _, c := range s.StatusBar.TextCaptions {
-		b.WriteByte(0)
-		b.WriteString(c)
-	}
-	for _, it := range s.StatusBar.Items {
-		b.WriteByte(0)
-		b.WriteString(it.Ring + "|" + it.Countdown + "|" + it.Battery + "|" + it.MeterText)
+	for _, comp := range s.StatusBar.Components {
+		for _, c := range comp.Cells {
+			b.WriteByte(0)
+			b.WriteString(c.Percent + "|" + c.Countdown + "|" + c.BatteryText + "|" + c.MeterText)
+		}
 	}
 	b.WriteByte(0)
 	b.WriteString(s.ResetToday.Text)

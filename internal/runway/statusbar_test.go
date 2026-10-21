@@ -2,6 +2,7 @@ package runway
 
 import (
 	"reflect"
+	"strings"
 	"testing"
 	"time"
 
@@ -17,76 +18,127 @@ func testMeter(title string, used, minutes int, src MeterSource) Meter {
 		ResetsAt: now.Add(time.Duration(minutes) * time.Minute)}, now, DefaultMarkers(), src)
 }
 
-var allStyles = []store.StatusBarStyle{
-	store.StatusBarStyleMeters, store.StatusBarStyleCountdown, store.StatusBarStyleBattery,
-	store.StatusBarStyleRings, store.StatusBarStyleText,
+func cellPercents(comp StatusBarComponent) []string {
+	var out []string
+	for _, c := range comp.Cells {
+		out = append(out, c.Percent)
+	}
+	return out
 }
 
-func TestWeeklyOnlyQuotaCompactsEveryStyle(t *testing.T) {
-	weekly := testMeter("每周", 11, 10080, SourceStandard)
-	for _, st := range allStyles {
-		p := MakeRenderPlan(st, store.BatteryScopeBoth, []Meter{weekly})
-		if !reflect.DeepEqual(p.Meters, []Meter{weekly}) || !reflect.DeepEqual(p.Columns(), [][]Meter{{weekly}}) {
-			t.Errorf("style %s: %+v", st, p)
+func TestStatusBarFollowsThePanelWithTwoWindows(t *testing.T) {
+	five := testMeter("5小时", 20, FiveHourMinutes, SourceStandard)
+	weekly := testMeter("每周", 11, WeeklyMinutes, SourceStandard)
+	spark := testMeter("GPT-5.3-Codex-Spark", 0, WeeklyMinutes, SourceModelSpecific)
+	v := BuildStatusBar(zh, StatusInputs{Prefs: store.DefaultPreferences(), Provider: store.ProviderCodex,
+		CodexText: "6天23小时", CodexMeters: []Meter{weekly, spark, five}, Now: time.Now()})
+	if len(v.Components) != 1 || v.Components[0].Provider != store.ProviderCodex {
+		t.Fatalf("components = %+v", v.Components)
+	}
+	cells := v.Components[0].Cells
+	if len(cells) != 2 || cells[0].Label != "5小时" || cells[1].Label != "每周" || cells[0].Percent != "80%" || cells[1].Percent != "89%" {
+		t.Fatalf("cells = %+v, want the 5-hour window first and no model window", cells)
+	}
+	if cells[0].Countdown == "--" || cells[0].Remaining != 80 || cells[0].Health != five.Health {
+		t.Errorf("first cell = %+v", cells[0])
+	}
+}
+
+func TestStatusBarGroupsStackOrSeparateProviders(t *testing.T) {
+	five := testMeter("5-hour", 20, FiveHourMinutes, SourceStandard)
+	weekly := testMeter("Weekly", 60, WeeklyMinutes, SourceStandard)
+	grokWeek := testMeter("周度包含额度", 42, WeeklyMinutes, SourceStandard)
+	build := testMeter("Build", 10, WeeklyMinutes, SourceModelSpecific)
+	p := store.DefaultPreferences()
+	p.SetStatusBarGroups([][]store.Provider{{store.ProviderCodex, store.ProviderClaude}, {store.ProviderGrok}})
+	in := StatusInputs{Prefs: p, Provider: store.ProviderCodex, CodexMeters: []Meter{weekly, five},
+		Claude: ClaudeState{Availability: ClaudeReady, Meters: []Meter{weekly, five}},
+		Grok:   GrokState{Availability: GrokReady, Meters: []Meter{grokWeek, build}}, Now: time.Now()}
+	for _, st := range store.StatusBarStyles() {
+		in.Prefs.StatusBarDisplayStyle = st
+		v := BuildStatusBar(zh, in)
+		if !st.Combines() {
+			if len(v.Components) != 3 || v.Components[0].Provider != store.ProviderCodex || len(v.Components[0].Cells) != 2 {
+				t.Errorf("%s shows every provider alone: %+v", st, v.Components)
+			}
+			continue
+		}
+		if len(v.Components) != 2 {
+			t.Fatalf("%s components = %+v", st, v.Components)
+		}
+		pair, grok := v.Components[0], v.Components[1]
+		if pair.Provider != "" || len(pair.Cells) != 2 || pair.Cells[0].Provider != store.ProviderCodex || pair.Cells[1].Provider != store.ProviderClaude {
+			t.Errorf("%s pair = %+v", st, pair)
+		}
+		if !reflect.DeepEqual(cellPercents(pair), []string{"80%", "80%"}) || pair.Cells[0].Label != "" {
+			t.Errorf("%s pair shows the main windows unlabeled: %+v", st, pair.Cells)
+		}
+		if grok.Provider != store.ProviderGrok || !reflect.DeepEqual(cellPercents(grok), []string{"58%"}) || grok.Cells[0].Label != "" {
+			t.Errorf("%s grok = %+v", st, grok)
 		}
 	}
 }
 
-func TestBatteryScopesUseWindowDuration(t *testing.T) {
-	weekly := testMeter("每周", 11, 10080, SourceStandard)
-	spark := testMeter("GPT-5.3-Codex-Spark", 0, 10080, SourceModelSpecific)
-	for _, scope := range []store.BatteryScope{store.BatteryScopeWeekly, store.BatteryScopeFiveHour} {
-		p := MakeRenderPlan(store.StatusBarStyleBattery, scope, []Meter{weekly, spark})
-		if !reflect.DeepEqual(p.Meters, []Meter{weekly, spark}) {
-			t.Errorf("scope %s: %v", scope, p.Meters)
+func TestStatusBarWindowChoosesOneWindowEach(t *testing.T) {
+	five := testMeter("5-hour", 20, FiveHourMinutes, SourceStandard)
+	weekly := testMeter("Weekly", 60, WeeklyMinutes, SourceStandard)
+	monthly := testMeter("Monthly", 30, MonthlyMinutes, SourceStandard)
+	p := store.DefaultPreferences()
+	p.SetStatusBarGroups([][]store.Provider{{store.ProviderCodex}, {store.ProviderGrok}})
+	in := StatusInputs{Prefs: p, CodexMeters: []Meter{five, weekly}, Grok: GrokState{Availability: GrokReady, Meters: []Meter{monthly}}, Now: time.Now()}
+	for window, want := range map[store.StatusBarWindow][]string{
+		store.StatusBarWindowAuto:     {"80%", "40%", "70%"},
+		store.StatusBarWindowFiveHour: {"80%", "70%"},
+		store.StatusBarWindowWeekly:   {"40%", "70%"},
+	} {
+		in.Prefs.StatusBar.Window = window
+		var got []string
+		for _, comp := range BuildStatusBar(zh, in).Components {
+			got = append(got, cellPercents(comp)...)
+		}
+		if !reflect.DeepEqual(got, want) {
+			t.Errorf("window %q = %v, want %v", window, got, want)
 		}
 	}
 }
 
-func TestThreeVisibleQuotasAreGrouped(t *testing.T) {
-	five := testMeter("5小时", 20, 300, SourceStandard)
-	weekly := testMeter("每周", 11, 10080, SourceStandard)
-	spark := testMeter("GPT-5.3-Codex-Spark", 0, 10080, SourceModelSpecific)
-	all := []Meter{five, weekly, spark}
-	for _, st := range allStyles {
-		p := MakeRenderPlan(st, store.BatteryScopeBoth, all)
-		want := [][]Meter{{five}, {weekly}, {spark}}
-		if st == store.StatusBarStyleMeters || st == store.StatusBarStyleBattery {
-			want = [][]Meter{{five, weekly}, {spark}}
-		}
-		if !reflect.DeepEqual(p.Meters, all) || !reflect.DeepEqual(p.Columns(), want) {
-			t.Errorf("style %s: columns %v", st, p.Columns())
-		}
+func TestStatusBarProviderWithoutReading(t *testing.T) {
+	five := testMeter("5-hour", 20, FiveHourMinutes, SourceStandard)
+	p := store.DefaultPreferences()
+	p.SetStatusBarGroups([][]store.Provider{{store.ProviderGrok}, {store.ProviderClaude}})
+	v := BuildStatusBar(zh, StatusInputs{Prefs: p, Grok: GrokState{Availability: GrokNotLoggedIn},
+		Claude: ClaudeState{Availability: ClaudeReady, Meters: []Meter{five}}, Now: time.Now()})
+	grok := v.Components[0]
+	if len(grok.Cells) != 1 || !grok.Cells[0].Empty || grok.Cells[0].Percent != "--" || grok.Cells[0].Countdown != "--" {
+		t.Fatalf("grok = %+v", grok)
 	}
-	fiveBattery := MakeRenderPlan(store.StatusBarStyleBattery, store.BatteryScopeFiveHour, all)
-	weeklyBattery := MakeRenderPlan(store.StatusBarStyleBattery, store.BatteryScopeWeekly, all)
-	if !reflect.DeepEqual(fiveBattery.Meters, []Meter{five, spark}) {
-		t.Errorf("five-hour battery: %v", fiveBattery.Meters)
-	}
-	if !reflect.DeepEqual(weeklyBattery.Meters, []Meter{weekly, spark}) {
-		t.Errorf("weekly battery: %v", weeklyBattery.Meters)
+	lines := strings.Split(v.Tooltip, "\n")
+	if len(lines) != 3 || lines[0] != "Quosparr" || lines[1] != "Grok: "+zh.Text(l10n.KeyStatusLogin) || !strings.HasPrefix(lines[2], "Claude: 5小时 80% (") {
+		t.Errorf("tooltip = %q", v.Tooltip)
 	}
 }
 
-func TestTextStyleUsesRingPercentages(t *testing.T) {
-	five := testMeter("5小时", 20, 300, SourceStandard)
-	weekly := testMeter("每周", 11, 10080, SourceStandard)
-	prefs := store.DefaultPreferences()
-	prefs.StatusBarDisplayStyle = store.StatusBarStyleText
-	v := BuildStatusBar(zh, StatusInputs{Prefs: prefs, Provider: store.ProviderCodex,
-		CodexText: "6天23小时", CodexMeters: []Meter{five, weekly}, Now: time.Now()})
-	if !reflect.DeepEqual(v.TextCaptions, []string{"80%", "89%"}) {
-		t.Errorf("captions = %v", v.TextCaptions)
+func TestStatusBarDetailsReachTheCells(t *testing.T) {
+	five := testMeter("5-hour", 20, FiveHourMinutes, SourceStandard)
+	p := store.DefaultPreferences()
+	p.StatusBarMetersDetailStyle = store.MetersDetailBoth
+	p.StatusBarBatteryDetailStyle = store.BatteryDetailRemainingPercent
+	now := time.Now()
+	c := BuildStatusBar(zh, StatusInputs{Prefs: p, Provider: store.ProviderCodex, CodexMeters: []Meter{five}, Now: now}).Components[0].Cells[0]
+	if c.MeterText != MeterDetail(five, store.MetersDetailBoth, now, zh.Language()) || !strings.Contains(c.MeterText, " · ") {
+		t.Errorf("meter text = %q", c.MeterText)
 	}
-	if RingText(&five) != "80" {
-		t.Errorf("ring text = %q", RingText(&five))
+	if c.BatteryText != "80%" || c.Countdown != CountdownDetail(five, now, zh.Language()) {
+		t.Errorf("cell = %+v", c)
 	}
-	none := BuildStatusBar(zh, StatusInputs{Prefs: prefs, Provider: store.ProviderCodex, CodexText: "x", Now: time.Now()})
-	if !reflect.DeepEqual(none.TextCaptions, []string{"--"}) {
-		t.Errorf("no-quota captions = %v", none.TextCaptions)
-	}
-	if v.Tooltip == "" || none.Tooltip != "Quosparr · x" {
-		t.Errorf("tooltips %q / %q", v.Tooltip, none.Tooltip)
+}
+
+func TestStatusBarFollowsTheSelectedProvider(t *testing.T) {
+	week := testMeter("7-day", 11, WeeklyMinutes, SourceStandard)
+	v := BuildStatusBar(zh, StatusInputs{Prefs: store.DefaultPreferences(), Provider: store.ProviderClaude,
+		Claude: ClaudeState{Availability: ClaudeReady, Meters: []Meter{week}}, Now: time.Now()})
+	if len(v.Components) != 1 || v.Components[0].Provider != store.ProviderClaude || v.Components[0].Cells[0].Label != "" {
+		t.Errorf("components = %+v", v.Components)
 	}
 }
 
@@ -114,69 +166,6 @@ func TestGrokPrefersWeeklyOverMonthly(t *testing.T) {
 	pick, _ := PrimaryStandardMeter([]Meter{monthly, weekly}, grokPreferredWindows)
 	if pick.Title != "week" {
 		t.Fatalf("pick = %+v", pick)
-	}
-}
-
-func TestDualStackOrderAndPrefix(t *testing.T) {
-	five := testMeter("5-hour", 20, 300, SourceStandard)
-	weekly := testMeter("Weekly", 11, 10080, SourceStandard)
-	grokWeek := testMeter("周度包含额度", 42, 10080, SourceStandard)
-	grokProduct := testMeter("Build", 10, 10080, SourceStandard)
-	m := DualProviderMeters(zh, []Meter{five, weekly}, []Meter{grokWeek, grokProduct}, "Codex", "Grok")
-	if len(m) != 2 || m[0].Title != "Codex · 5小时" || m[0].WindowMinutes != 300 ||
-		m[1].Title != "Grok · 每周" || m[1].WindowMinutes != 10080 {
-		t.Fatalf("meters = %+v", m)
-	}
-	only := DualProviderMeters(zh, nil, []Meter{grokWeek}, "Codex", "Grok")
-	if len(only) != 1 || only[0].Title != "Grok · 每周" {
-		t.Fatalf("grok only = %+v", only)
-	}
-}
-
-func TestClaudeStatusPrefersFiveHour(t *testing.T) {
-	five := testMeter("5-hour", 20, 300, SourceStandard)
-	week := testMeter("7-day", 11, 10080, SourceStandard)
-	in := StatusInputs{
-		Prefs:       store.Preferences{StatusBarProviderScope: store.ProviderScopeCustom, StatusBarProviders: []store.Provider{store.ProviderCodex, store.ProviderClaude}},
-		Provider:    store.ProviderCodex,
-		CodexMeters: []Meter{five},
-		Claude:      ClaudeState{Meters: []Meter{week, five}},
-		Now:         time.Now(),
-	}
-	meters := SelectedMeters(zh, in)
-	if len(meters) != 2 || meters[1].WindowMinutes != 300 || meters[1].Title != "Claude · 5小时" {
-		t.Fatalf("meters = %+v", meters)
-	}
-}
-
-func TestClaudeAloneShowsStandardMeters(t *testing.T) {
-	five := testMeter("5-hour", 20, 300, SourceStandard)
-	week := testMeter("7-day", 11, 10080, SourceStandard)
-	opus := testMeter("Opus", 5, 10080, SourceModelSpecific)
-	in := StatusInputs{
-		Prefs:    store.Preferences{StatusBarProviderScope: store.ProviderScopeCustom, StatusBarProviders: []store.Provider{store.ProviderClaude}},
-		Provider: store.ProviderCodex,
-		Claude:   ClaudeState{Meters: []Meter{five, week, opus}},
-		Now:      time.Now(),
-	}
-	meters := SelectedMeters(zh, in)
-	if len(meters) != 2 || meters[0].Title != "5小时" || meters[1].Title != "每周" {
-		t.Fatalf("meters = %+v", meters)
-	}
-}
-
-func TestPairTextFallsBackToSecondProvider(t *testing.T) {
-	five := testMeter("5-hour", 20, 300, SourceStandard)
-	in := StatusInputs{
-		Prefs:     store.Preferences{StatusBarProviderScope: store.ProviderScopeCustom, StatusBarProviders: []store.Provider{store.ProviderGrok, store.ProviderClaude}},
-		Provider:  store.ProviderCodex,
-		Grok:      GrokState{Availability: GrokNotLoggedIn},
-		Claude:    ClaudeState{Availability: ClaudeReady, Meters: []Meter{five}},
-		CodexText: "codex",
-		Now:       time.Now(),
-	}
-	if got, want := SelectedStatusText(zh, in), ClaudeStatusText(zh, in.Claude, in.Now); got != want {
-		t.Fatalf("text = %q, want %q", got, want)
 	}
 }
 

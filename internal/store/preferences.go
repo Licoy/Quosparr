@@ -122,6 +122,9 @@ type Preferences struct {
 	// FloatingWindow is Go-only: the desktop floating window, omitted while
 	// it is at its default.
 	FloatingWindow FloatingWindow `json:"floatingWindow,omitzero"`
+	// StatusBar is Go-only: the status item's components, quota windows and
+	// battery orientation, omitted while at its default.
+	StatusBar StatusBarLayout `json:"statusBarLayout,omitzero"`
 	// PanelProviders is Go-only: the providers the main panel offers, in
 	// Providers() order. Empty shows every provider and is not written.
 	PanelProviders []Provider `json:"panelProviders,omitempty"`
@@ -186,6 +189,7 @@ func (p Preferences) Clone() Preferences {
 	p.MainPanelModuleOrder = slices.Clone(p.MainPanelModuleOrder)
 	p.StatusBarProviders = slices.Clone(p.StatusBarProviders)
 	p.FloatingWindow = p.FloatingWindow.clone()
+	p.StatusBar = p.StatusBar.clone()
 	p.PanelProviders = slices.Clone(p.PanelProviders)
 	p.QuotaAlertThresholds = slices.Clone(p.QuotaAlertThresholds)
 	p.extra = maps.Clone(p.extra)
@@ -247,6 +251,7 @@ func (p *Preferences) Normalize() {
 	p.ProxyTestURL = NormalizeProxyTestURL(p.ProxyTestURL)
 	p.normalizeStatusBarProviders()
 	p.FloatingWindow.normalize()
+	p.StatusBar.normalize()
 	p.normalizePanelProviders()
 	if p.QuotaAlertThresholds == nil {
 		p.QuotaAlertThresholds = DefaultQuotaAlertThresholds()
