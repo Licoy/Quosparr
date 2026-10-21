@@ -1,11 +1,9 @@
 package app
 
 import (
-	"encoding/json"
 	"errors"
 	"log"
 	"os"
-	"path/filepath"
 	"runtime"
 	"strings"
 	"sync"
@@ -15,7 +13,6 @@ import (
 	"github.com/egoist/mygo/plugins/updater"
 	"github.com/egoist/mygo/plugins/updater/native"
 	"github.com/licoy/quosparr/internal/l10n"
-	"github.com/licoy/quosparr/internal/platform"
 )
 
 // releasesURL is the formal download entry, offered when an installation
@@ -23,49 +20,8 @@ import (
 const releasesURL = "https://github.com/Licoy/Quosparr/releases/latest"
 
 // UpdateInterval is the time between background update checks while the
-// app runs; with ForgetLastUpdateCheck, the first one of a launch runs
-// shortly after it starts.
+// app runs; mygo runs the first one of a launch shortly after it starts.
 const UpdateInterval = time.Hour
-
-// updaterStateFile is the updater's state file in mygo's user data
-// directory (~/.quosparr, see DirectMygoPaths).
-const updaterStateFile = "updater.json"
-
-// ForgetLastUpdateCheck makes the first background check of a launch due at
-// once. mygo schedules a check an interval after the last successful one,
-// which it keeps in updater.json, so this drops that time and keeps the
-// user's other choices. It must run before the updater first reads the file
-// (Reapply); the scheduler still waits its few seconds after the app is
-// ready. A damaged file is left alone, as the updater ignores it too.
-func ForgetLastUpdateCheck(app *mygo.Application) error {
-	dir, err := app.Path(mygo.PathUserData)
-	if err != nil {
-		return err
-	}
-	return forgetLastCheck(filepath.Join(dir, updaterStateFile))
-}
-
-func forgetLastCheck(path string) error {
-	data, err := os.ReadFile(path)
-	if errors.Is(err, os.ErrNotExist) {
-		return nil
-	}
-	if err != nil {
-		return err
-	}
-	var state map[string]json.RawMessage
-	if json.Unmarshal(data, &state) != nil {
-		return nil
-	}
-	if _, ok := state["lastCheck"]; !ok {
-		return nil
-	}
-	delete(state, "lastCheck")
-	if data, err = json.Marshal(state); err != nil {
-		return err
-	}
-	return platform.WriteFileAtomic(path, data, 0o644)
-}
 
 // UpdateBlock says why an update check cannot run at all.
 type UpdateBlock int

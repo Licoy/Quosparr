@@ -200,10 +200,7 @@ func run(command app.Command) int {
 		log.Println("updater:", err)
 	}
 	if upd != nil && !dev {
-		// Each launch checks once (when checks are on), then hourly.
-		if err := app.ForgetLastUpdateCheck(mg); err != nil {
-			log.Println("updater state:", err)
-		}
+		// mygo checks soon after each launch (when checks are on), then hourly.
 		upd.Reapply(settings)
 	}
 	notifier := app.NewNotifier()
