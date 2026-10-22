@@ -12,6 +12,8 @@ import (
 	"github.com/egoist/mygo/ui"
 	"github.com/licoy/quosparr/internal/cachehit"
 	"github.com/licoy/quosparr/internal/l10n"
+	"github.com/licoy/quosparr/internal/runway"
+	"github.com/licoy/quosparr/internal/sessions"
 	"github.com/licoy/quosparr/internal/store"
 )
 
@@ -227,6 +229,29 @@ func TestCacheDropsChangedContextResult(t *testing.T) {
 func TestCacheZeroInputIsUnknown(t *testing.T) {
 	if got := cachePercent(cachehit.Totals{CachedInputTokens: 50}); got != "—" {
 		t.Fatalf("zero input displayed as %q", got)
+	}
+}
+
+func TestCacheHealthThresholds(t *testing.T) {
+	for _, tc := range []struct {
+		cached int64
+		want   runway.Health
+	}{
+		{9_010, runway.HealthGreen}, {9_000, runway.HealthYellow}, {8_000, runway.HealthYellow}, {7_999, runway.HealthRed},
+	} {
+		if got, ok := cacheHealth(cachehit.Totals{InputTokens: 10_000, CachedInputTokens: tc.cached}); !ok || got != tc.want {
+			t.Errorf("cached %d of 10000: health %v, %v; want %v", tc.cached, got, ok, tc.want)
+		}
+	}
+	if _, ok := cacheHealth(cachehit.Totals{}); ok {
+		t.Error("zero input graded")
+	}
+}
+
+func TestSessionCacheTotalsCountsWholeInput(t *testing.T) {
+	got := sessionCacheTotals(sessions.Totals{UncachedInputTokens: 500, CachedInputTokens: 400, OutputTokens: 300})
+	if got.InputTokens != 900 || got.CachedInputTokens != 400 || cachePercent(got) != "44.4%" {
+		t.Fatalf("session cache totals = %+v (%s)", got, cachePercent(got))
 	}
 }
 

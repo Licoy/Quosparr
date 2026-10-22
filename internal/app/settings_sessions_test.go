@@ -197,7 +197,7 @@ func TestSettingsSessionsListAndDetailRender(t *testing.T) {
 		return sessions.ManagedDetail{Session: item, Messages: []sessions.ManagedMessage{{Role: "user", Text: "Please review the release", At: item.UpdatedAt}, {Role: "assistant", Text: "The release checks pass"}}, Truncated: true}, nil
 	}}
 	u, tt, queue := settingsSessionsView(t, actions)
-	for _, text := range []string{"Codex", "Claude", "Grok", "Review session management", tx(u.L(), xSessionsSelectFiltered, 2)} {
+	for _, text := range []string{"Codex", "Claude", "Grok", "Review session management", tx(u.L(), xSessionsSelectFiltered, 2), "· " + tx(u.L(), xSessionsCacheHitRate), "44.4%"} {
 		if !tt.HasText(text) {
 			t.Fatalf("list missing %q; texts %q", text, tt.Texts())
 		}
@@ -206,7 +206,7 @@ func TestSettingsSessionsListAndDetailRender(t *testing.T) {
 	tt.Frame()
 	finishDetail(t, queue)
 	tt.Frame()
-	for _, text := range []string{tx(u.L(), xSessionsPreview), tx(u.L(), xSessionsRoleUser), "Please review the release", tx(u.L(), xSessionsPreviewTruncated), "gpt-6"} {
+	for _, text := range []string{tx(u.L(), xSessionsPreview), tx(u.L(), xSessionsRoleUser), "Please review the release", tx(u.L(), xSessionsPreviewTruncated), "gpt-6", tx(u.L(), xSessionsCacheHitRate), "44.4%"} {
 		if !tt.HasText(text) {
 			t.Fatalf("detail missing %q; texts %q", text, tt.Texts())
 		}

@@ -62,25 +62,39 @@ func (u *settingsUI) sessionMetadata(c *ui.Context, item sessions.ManagedSession
 		model = *item.Model
 	}
 	cost := recentCost(item.Item)
-	fields := []struct{ label, value string }{
-		{tx(l, xSessionsID), item.ID},
-		{tx(l, xSessionsProject), item.ProjectName},
-		{tx(l, xSessionsModel), model},
-		{tx(l, xSessionsUpdated), item.UpdatedAt.Local().Format("2006-01-02 15:04:05")},
-		{tx(l, xSessionsTokenBreakdown), tx(l, xSessionsTokenValues, tokenCompact(item.Totals.TotalTokens), tokenCompact(item.Totals.UncachedInputTokens), tokenCompact(item.Totals.CachedInputTokens), tokenCompact(item.Totals.OutputTokens), item.Totals.Turns)},
-		{tx(l, xSessionsEstimatedCost), cost},
-		{tx(l, xSessionsFiles), fmt.Sprint(len(item.Files))},
-		{tx(l, xSessionsPath), item.Path},
+	cache := sessionCacheTotals(item.Totals)
+	var cacheInk *ui.Color
+	if h, ok := cacheHealth(cache); ok {
+		ink := healthInk(t, h)
+		cacheInk = &ink
+	}
+	type metaField struct {
+		label, value string
+		color        *ui.Color
+	}
+	fields := []metaField{
+		{tx(l, xSessionsID), item.ID, nil},
+		{tx(l, xSessionsProject), item.ProjectName, nil},
+		{tx(l, xSessionsModel), model, nil},
+		{tx(l, xSessionsUpdated), item.UpdatedAt.Local().Format("2006-01-02 15:04:05"), nil},
+		{tx(l, xSessionsTokenBreakdown), tx(l, xSessionsTokenValues, tokenCompact(item.Totals.TotalTokens), tokenCompact(item.Totals.UncachedInputTokens), tokenCompact(item.Totals.CachedInputTokens), tokenCompact(item.Totals.OutputTokens), item.Totals.Turns), nil},
+		{tx(l, xSessionsCacheHitRate), cachePercent(cache), cacheInk},
+		{tx(l, xSessionsEstimatedCost), cost, nil},
+		{tx(l, xSessionsFiles), fmt.Sprint(len(item.Files)), nil},
+		{tx(l, xSessionsPath), item.Path, nil},
 	}
 	if item.Problem != "" {
-		fields = append(fields, struct{ label, value string }{tx(l, xSessionsProblem), item.Problem})
+		fields = append(fields, metaField{tx(l, xSessionsProblem), item.Problem, nil})
 	}
 	Panel(c).Children(func() {
 		for i, field := range fields {
 			settingsRule(c, i)
 			ui.Row(c).Gap(12).Padding(7, 0).Children(func() {
 				ui.Text(c, field.label).Width(120).FontSize(11).TextColor(t.TextMuted)
-				ui.Text(c, field.value).FontSize(11).Grow(1).Basis(0).Selectable()
+				v := ui.Text(c, field.value).FontSize(11).Grow(1).Basis(0).Selectable()
+				if field.color != nil {
+					v.TextColor(*field.color).FontWeight(600)
+				}
 			})
 		}
 	})

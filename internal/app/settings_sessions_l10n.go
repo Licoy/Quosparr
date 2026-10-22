@@ -49,6 +49,7 @@ const (
 	xSessionsTokenBreakdown       textKey = "sessionsTokenBreakdown"
 	xSessionsTokenValues          textKey = "sessionsTokenValues"
 	xSessionsEstimatedCost        textKey = "sessionsEstimatedCost"
+	xSessionsCacheHitRate         textKey = "sessionsCacheHitRate"
 	xSessionsUpdated              textKey = "sessionsUpdated"
 	xSessionsFiles                textKey = "sessionsFiles"
 	xSessionsPath                 textKey = "sessionsPath"
@@ -116,6 +117,7 @@ func init() {
 		xSessionsTokenBreakdown:       {"Token usage", "Token 用量", "Token 用量", "토큰 사용량", "トークン使用量", "Токены", "Utilisation des jetons"},
 		xSessionsTokenValues:          {"%s total · %s input · %s cached · %s output · %d turns", "总计 %s · 输入 %s · 缓存 %s · 输出 %s · %d 轮", "總計 %s · 輸入 %s · 快取 %s · 輸出 %s · %d 輪", "전체 %s · 입력 %s · 캐시 %s · 출력 %s · %d턴", "合計 %s · 入力 %s · キャッシュ %s · 出力 %s · %d ターン", "Всего %s · вход %s · кэш %s · выход %s · ходов %d", "Total %s · entrée %s · cache %s · sortie %s · %d tours"},
 		xSessionsEstimatedCost:        {"API-equivalent cost", "API 等价成本", "API 等價成本", "API 환산 비용", "API 相当コスト", "Эквивалентная стоимость API", "Coût équivalent API"},
+		xSessionsCacheHitRate:         {"Cache hit rate", "缓存命中率", "快取命中率", "캐시 적중률", "キャッシュヒット率", "Доля попаданий в кэш", "Taux d’accès au cache"},
 		xSessionsUpdated:              {"Last activity", "最后活动时间", "最後活動時間", "마지막 활동", "最終アクティビティ", "Последняя активность", "Dernière activité"},
 		xSessionsFiles:                {"Session files", "会话文件", "工作階段檔案", "세션 파일", "セッションファイル", "Файлы сеанса", "Fichiers de session"},
 		xSessionsPath:                 {"Location", "位置", "位置", "위치", "場所", "Расположение", "Emplacement"},

@@ -10,6 +10,7 @@ import (
 	"github.com/licoy/quosparr/internal/cachehit"
 	"github.com/licoy/quosparr/internal/l10n"
 	"github.com/licoy/quosparr/internal/runway"
+	"github.com/licoy/quosparr/internal/sessions"
 	"github.com/licoy/quosparr/internal/store"
 	"github.com/licoy/quosparr/internal/usage"
 )
@@ -48,7 +49,10 @@ func panelCache(c *ui.Context, l l10n.Localizer, _ runway.Snapshot, acts PanelAc
 func cacheSummaryContent(c *ui.Context, l l10n.Localizer, r cachehit.Report) {
 	t := c.Theme()
 	ui.Row(c).Gap(8).AlignItems(ui.End).Children(func() {
-		ui.Text(c, cachePercent(r.Totals)).FontSize(fsTitle3).FontWeight(600).FontFeatures("tnum")
+		rate := ui.Text(c, cachePercent(r.Totals)).FontSize(fsTitle3).FontWeight(600).FontFeatures("tnum")
+		if h, ok := cacheHealth(r.Totals); ok {
+			rate.TextColor(healthInk(t, h))
+		}
 		calloutDim(c, tx(l, xCacheHitRate))
 	})
 	ui.Text(c, tx(l, xCacheTokenRatio, tokenCompact(int(r.Totals.CachedInputTokens)), tokenCompact(int(r.Totals.InputTokens)))).
@@ -66,6 +70,27 @@ func cachePercent(t cachehit.Totals) string {
 		return fmt.Sprintf("%.0f%%", p)
 	}
 	return fmt.Sprintf("%.1f%%", p)
+}
+
+// cacheHealth grades a hit rate: above 90% green, from 80% yellow, below
+// red. ok is false without input, where the rate is a dash.
+func cacheHealth(t cachehit.Totals) (runway.Health, bool) {
+	p, ok := t.Percent()
+	switch {
+	case !ok:
+		return runway.HealthGreen, false
+	case p > 90:
+		return runway.HealthGreen, true
+	case p >= 80:
+		return runway.HealthYellow, true
+	}
+	return runway.HealthRed, true
+}
+
+// sessionCacheTotals is a session's whole input, of which the cached part
+// was read from the cache.
+func sessionCacheTotals(t sessions.Totals) cachehit.Totals {
+	return cachehit.Totals{InputTokens: int64(t.UncachedInputTokens) + int64(t.CachedInputTokens), CachedInputTokens: int64(t.CachedInputTokens)}
 }
 
 func cacheRangeText(l l10n.Localizer, r cachehit.Report) string {
@@ -174,8 +199,9 @@ func cacheDetailContent(c *ui.Context, l l10n.Localizer, s *panelCacheState) {
 
 func cacheDetailSummary(c *ui.Context, l l10n.Localizer, r cachehit.Report) {
 	t := c.Theme()
+	h, _ := cacheHealth(r.Totals)
 	statGrid(c,
-		func() { statCard(c, tx(l, xCacheHitRate), cachePercent(r.Totals), sys(t, sysGreen)) },
+		func() { statCard(c, tx(l, xCacheHitRate), cachePercent(r.Totals), healthFill(t, h)) },
 		func() {
 			statCard(c, tx(l, xCacheCachedInput), tokenCompact(int(r.Totals.CachedInputTokens)), sys(t, sysBlue))
 		},
@@ -234,8 +260,11 @@ func cacheRows(c *ui.Context, l l10n.Localizer, title string, rows []cachehit.Ro
 					if row.Totals.MissingSamples > 0 {
 						rate += " *"
 					}
-					ui.Text(c, rate).FontSize(fsCaption).FontFeatures("tnum").Width(58).TextAlign(ui.End).SingleLine().
+					rateText := ui.Text(c, rate).FontSize(fsCaption).FontFeatures("tnum").Width(58).TextAlign(ui.End).SingleLine().
 						Tooltip(cacheRowRateHelp(l, row.Totals))
+					if h, ok := cacheHealth(row.Totals); ok {
+						rateText.TextColor(healthInk(t, h))
+					}
 					ratio := tokenCompact(int(row.Totals.CachedInputTokens)) + " / " + tokenCompact(int(row.Totals.InputTokens))
 					ui.Text(c, ratio).FontSize(fsCaption).FontFeatures("tnum").TextColor(inkSecondary(t)).Width(100).TextAlign(ui.End).SingleLine()
 				})

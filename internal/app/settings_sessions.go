@@ -200,7 +200,15 @@ func (u *settingsUI) sessionRow(c *ui.Context, item sessions.ManagedSession, act
 					}
 				})
 				meta := []string{item.ProjectName, item.UpdatedAt.Local().Format("2006-01-02 15:04"), tokenCompact(item.Totals.TotalTokens) + " " + l.Text(l10n.KeyTokens)}
-				ui.Text(c, strings.Join(nonEmpty(meta), " · ")).FontSize(11).TextColor(t.TextMuted).SingleLine().Ellipsis("…")
+				ui.Row(c).Gap(4).AlignItems(ui.Center).Children(func() {
+					ui.Text(c, strings.Join(nonEmpty(meta), " · ")).FontSize(11).TextColor(t.TextMuted).SingleLine().Ellipsis("…").Shrink(1)
+					// The hit rate stays whole while the rest of the line shortens.
+					cache := sessionCacheTotals(item.Totals)
+					if h, ok := cacheHealth(cache); ok {
+						ui.Text(c, "· "+tx(l, xSessionsCacheHitRate)).FontSize(11).TextColor(t.TextMuted).SingleLine().Shrink(0)
+						ui.Text(c, cachePercent(cache)).FontSize(11).FontWeight(600).FontFeatures("tnum").TextColor(healthInk(t, h)).SingleLine().Shrink(0)
+					}
+				})
 			})
 		})
 		if button.Clicked() {
