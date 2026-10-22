@@ -50,6 +50,14 @@ func trayPreviewVariants() []trayPreviewVariant {
 		if style.Combines() {
 			out = append(out, trayPreviewVariant{string(style) + " 2+1", style, paired})
 		}
+		if style == store.StatusBarStyleRings {
+			values := func(p *store.Preferences) { p.StatusBar.RingValues = true }
+			out = append(out,
+				trayPreviewVariant{"rings values", style, values},
+				trayPreviewVariant{"values ×3", style, func(p *store.Preferences) { apart(p); values(p) }},
+				trayPreviewVariant{"values 5h ×3", style, func(p *store.Preferences) { single(p); values(p) }},
+				trayPreviewVariant{"values no icons", style, func(p *store.Preferences) { values(p); p.StatusBar.HideIcons = true }})
+		}
 		if style == store.StatusBarStyleBattery {
 			out = append(out,
 				trayPreviewVariant{"battery vertical", style, vertical},

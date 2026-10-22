@@ -94,6 +94,12 @@ func (u *settingsUI) statusBarOptionRows(c *ui.Context, row rowFunc, p store.Pre
 				s.SetStatusBarBatteryDetail(v)
 			}
 		})
+	case store.StatusBarStyleRings:
+		row(tx(l, xRingValues), tx(l, xRingValuesHint), func() {
+			if v, ok := toggle(c, "sb-ring-values", tx(l, xRingValues), p.StatusBar.RingValues, off); ok {
+				s.SetStatusBarLayout(func(b *store.StatusBarLayout) { b.RingValues = v })
+			}
+		})
 	}
 	row(tx(l, xStatusBarWindow), tx(l, xStatusBarWindowHint), func() {
 		if v, ok := choose(c, "sb-window", tx(l, xStatusBarWindow), p.StatusBarQuotaWindow(), store.StatusBarWindows(),

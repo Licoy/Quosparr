@@ -22,6 +22,8 @@ const (
 	xBatteryHorizontal        textKey = "batteryHorizontal"
 	xBatteryVertical          textKey = "batteryVertical"
 	xBatteryText              textKey = "batteryText"
+	xRingValues               textKey = "ringValues"
+	xRingValuesHint           textKey = "ringValuesHint"
 )
 
 func init() {
@@ -95,6 +97,16 @@ func init() {
 		xBatteryHorizontal: {"Horizontal", "横向", "橫向", "가로", "横", "Горизонтально", "Horizontale"},
 		xBatteryVertical:   {"Vertical", "竖向", "直向", "세로", "縦", "Вертикально", "Verticale"},
 		xBatteryText:       {"Text beside battery", "电池旁显示", "電池旁顯示", "배터리 옆 텍스트", "バッテリー横のテキスト", "Текст рядом с батареей", "Texte à côté de la batterie"},
+		xRingValues:        {"Values inside rings", "数值置于圆环内", "數值置於圓環內", "링 안에 값 표시", "値をリング内に表示", "Значения внутри колец", "Valeurs dans les anneaux"},
+		xRingValuesHint: {
+			"Each window gets a ring of its own with the percentage inside, without the % sign; a balance stays beside its ring",
+			"每个周期单独一个圆环，数值显示在环内且不带 %；余额仍显示在圆环旁",
+			"每個週期單獨一個圓環，數值顯示在環內且不帶 %；餘額仍顯示在圓環旁",
+			"기간마다 링을 따로 두고 % 기호 없이 링 안에 값을 표시하며, 잔액은 링 옆에 표시합니다",
+			"期間ごとにリングを分け、% 記号なしで値をリング内に表示します。残高はリングの横に表示します",
+			"У каждого периода своё кольцо со значением внутри, без знака %; баланс остаётся рядом с кольцом",
+			"Chaque période a son propre anneau, la valeur à l’intérieur, sans le signe % ; un solde reste à côté de son anneau",
+		},
 	} {
 		extraTexts[key] = texts
 	}

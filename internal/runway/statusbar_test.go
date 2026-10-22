@@ -128,8 +128,22 @@ func TestStatusBarDetailsReachTheCells(t *testing.T) {
 	if c.MeterText != MeterDetail(five, store.MetersDetailBoth, now, zh.Language()) || !strings.Contains(c.MeterText, " · ") {
 		t.Errorf("meter text = %q", c.MeterText)
 	}
-	if c.BatteryText != "80%" || c.Countdown != CountdownDetail(five, now, zh.Language()) {
+	if c.BatteryText != "80%" || c.Countdown != CountdownDetail(five, now, zh.Language()) || c.RingText != "80" {
 		t.Errorf("cell = %+v", c)
+	}
+}
+
+func TestStatusBarRingTextLeavesBalancesOut(t *testing.T) {
+	balance := Meter{Title: "Balance", Source: SourceStandard, RemainingPercent: 30, ValueText: "$30.00", Balance: true}
+	p := store.DefaultPreferences()
+	p.StatusBar.RingValues = true
+	v := BuildStatusBar(zh, StatusInputs{Prefs: p, Provider: store.ProviderCodex, CodexMeters: []Meter{balance}, Now: time.Now()})
+	if c := v.Components[0].Cells[0]; !v.RingValues || c.RingText != "" || c.Percent != "$30.00" {
+		t.Errorf("view = %+v", v)
+	}
+	v = BuildStatusBar(zh, StatusInputs{Prefs: p, Provider: store.ProviderGrok, Now: time.Now()})
+	if c := v.Components[0].Cells[0]; !c.Empty || c.RingText != "--" {
+		t.Errorf("empty cell = %+v", c)
 	}
 }
 

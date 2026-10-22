@@ -117,6 +117,25 @@ func TestTrayVariantsRenderDifferently(t *testing.T) {
 	add("battery vertical", render(store.StatusBarStyleBattery, func(p *store.Preferences) { p.StatusBar.Battery = store.BatteryVertical }))
 	add("meters weekly", render(store.StatusBarStyleMeters, func(p *store.Preferences) { p.StatusBar.Window = store.StatusBarWindowWeekly }))
 	add("meters no icons", render(store.StatusBarStyleMeters, func(p *store.Preferences) { p.StatusBar.HideIcons = true }))
+	add("rings", render(store.StatusBarStyleRings, nil))
+	add("rings values", render(store.StatusBarStyleRings, func(p *store.Preferences) { p.StatusBar.RingValues = true }))
+}
+
+func TestTrayRingValuesKeepBalancesBesideTheRing(t *testing.T) {
+	cell := runway.StatusBarCell{Provider: store.ProviderCodex, Remaining: 30, Percent: "30%", RingText: "30"}
+	r := TrayRender{Style: store.StatusBarStyleRings, Components: []runway.StatusBarComponent{{Provider: store.ProviderCodex, Cells: []runway.StatusBarCell{cell}}}}
+	beside := trayContentWidth(r)
+	r.RingValues = true
+	if inside := trayContentWidth(r); inside >= beside {
+		t.Errorf("value inside the ring is %v wide, beside it %v", inside, beside)
+	}
+	cell.Percent, cell.RingText = "$30.00", ""
+	r.Components[0].Cells[0] = cell
+	withValues := trayContentWidth(r)
+	r.RingValues = false
+	if withValues != trayContentWidth(r) {
+		t.Errorf("a balance is drawn inside its ring: %v", withValues)
+	}
 }
 
 func TestTrayComponentsWidenTheItem(t *testing.T) {

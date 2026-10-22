@@ -15,6 +15,7 @@ type TrayRender struct {
 	Style      store.StatusBarStyle
 	Battery    store.BatteryOrientation
 	HideIcons  bool
+	RingValues bool
 	Components []runway.StatusBarComponent
 	// ToolTip is the hover text.
 	ToolTip string

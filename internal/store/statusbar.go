@@ -66,6 +66,8 @@ type StatusBarLayout struct {
 	Window    StatusBarWindow    `json:"window,omitempty"`
 	Battery   BatteryOrientation `json:"battery,omitempty"`
 	HideIcons bool               `json:"hideIcons,omitempty"`
+	// RingValues puts each window's value inside a ring of its own.
+	RingValues bool `json:"ringValues,omitempty"`
 }
 
 func (l StatusBarLayout) clone() StatusBarLayout {

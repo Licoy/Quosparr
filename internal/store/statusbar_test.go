@@ -19,6 +19,7 @@ func TestStatusBarLayoutIsGoOnlyAndOmittedByDefault(t *testing.T) {
 	p.StatusBar.Window = StatusBarWindowWeekly
 	p.StatusBar.Battery = BatteryVertical
 	p.StatusBar.HideIcons = true
+	p.StatusBar.RingValues = true
 	if enc, err = EncodePreferences(p); err != nil {
 		t.Fatal(err)
 	}
@@ -40,6 +41,7 @@ func TestStatusBarLayoutDecodesLeniently(t *testing.T) {
 		`12`:                                {},
 		`{"window":"daily","battery":"up"}`: {},
 		`{"hideIcons":"yes"}`:               {},
+		`{"ringValues":1}`:                  {},
 		`{"groups":[["codex","codex","x"],[],["claude","grok","codex"]]}`: {Groups: [][]Provider{{ProviderCodex}, {ProviderClaude, ProviderGrok}}},
 		`{"groups":[["codex","claude","grok"]]}`:                          {Groups: [][]Provider{{ProviderCodex, ProviderClaude}, {ProviderGrok}}},
 		`{"groups":[]}`:                                                   {},

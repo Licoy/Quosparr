@@ -97,7 +97,7 @@ func layoutTray(d trayPen, r TrayRender) float32 {
 	x := trayHorizontalPadding
 	comps := r.Components
 	if len(comps) == 0 {
-		comps = []runway.StatusBarComponent{{Cells: []runway.StatusBarCell{{Empty: true, Percent: "--", Countdown: "--", MeterText: "--", BatteryText: "--"}}}}
+		comps = []runway.StatusBarComponent{{Cells: []runway.StatusBarCell{{Empty: true, Percent: "--", Countdown: "--", MeterText: "--", BatteryText: "--", RingText: "--"}}}}
 	}
 	for i, comp := range comps {
 		if i > 0 {
@@ -118,6 +118,9 @@ func layoutTrayComponent(d trayPen, r TrayRender, comp runway.StatusBarComponent
 	start := x
 	icons := !r.HideIcons
 	if r.Style == store.StatusBarStyleRings {
+		if r.RingValues && ringValuesFit(comp.Cells) {
+			return trayValueRings(d, comp.Cells, x, icons)
+		}
 		return trayRings(d, comp, x, icons)
 	}
 	if icons && comp.Provider != "" {
@@ -270,6 +273,38 @@ func trayRings(d trayPen, comp runway.StatusBarComponent, x float32, icons bool)
 	return x - start + w
 }
 
+// ---- Rings with values: the logo, then a ring per window with its value
+// inside, the first window first.
+
+func trayValueRings(d trayPen, cells []runway.StatusBarCell, x float32, icons bool) float32 {
+	start := x
+	if icons {
+		d.icon(cells[0].Provider, x, 11, trayIconSize)
+		x += trayIconSize + 4
+	}
+	for i, c := range cells[:min(2, len(cells))] {
+		if i > 0 {
+			x += 3
+		}
+		cx := x + 10.25
+		d.ring(cx, 11, 9.1, 2, c)
+		d.ringText(c.RingText, cx, 11, 8.1)
+		x += 20.5
+	}
+	return x - start
+}
+
+// ringValuesFit reports whether every window has a value for inside a
+// ring; a balance keeps its amount beside the ring.
+func ringValuesFit(cells []runway.StatusBarCell) bool {
+	for _, c := range cells {
+		if c.RingText == "" {
+			return false
+		}
+	}
+	return true
+}
+
 // ---- Text: the main window large, the second small after it.
 
 func trayText(d trayPen, cells []runway.StatusBarCell, x float32) float32 {
@@ -305,6 +340,16 @@ func (d trayPen) text(s string, x, cy, size float32, weight int, alpha, maxW flo
 		d.p.Glyphs(ui.Shape(s, f), x, cy-(m.Ascent+m.Descent)/2+m.Ascent, d.paint.ink.Alpha(alpha))
 	}
 	return w
+}
+
+// ringText draws s centered inside a ring of that inner radius, smaller
+// where three digits would touch the ring.
+func (d trayPen) ringText(s string, cx, cy, radius float32) {
+	size, room := float32(9.5), 2*radius-3
+	if w := d.measure(s, size, 650); w > room {
+		size *= room / w
+	}
+	d.text(s, cx-d.measure(s, size, 650)/2, cy, size, 650, 1, 0)
 }
 
 // rowLead draws what tells two stacked rows apart, the providers' logos or

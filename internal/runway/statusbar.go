@@ -1,6 +1,7 @@
 package runway
 
 import (
+	"strconv"
 	"strings"
 	"time"
 
@@ -192,6 +193,9 @@ type StatusBarCell struct {
 	// styles are set to show.
 	MeterText   string
 	BatteryText string
+	// RingText is the value inside a ring: the percentage without its sign,
+	// empty for a balance, whose amount does not fit.
+	RingText string
 }
 
 // StatusBarComponent is one component of the status item: a provider on its
@@ -208,6 +212,7 @@ type StatusBarView struct {
 	Style      store.StatusBarStyle
 	Battery    store.BatteryOrientation
 	HideIcons  bool
+	RingValues bool
 	Components []StatusBarComponent
 	Tooltip    string
 }
@@ -215,7 +220,7 @@ type StatusBarView struct {
 // BuildStatusBar computes the status item content for the preferences.
 func BuildStatusBar(lc l10n.Localizer, in StatusInputs) StatusBarView {
 	layout := in.Prefs.StatusBar
-	v := StatusBarView{Style: in.Prefs.StatusBarDisplayStyle, Battery: layout.Battery, HideIcons: layout.HideIcons}
+	v := StatusBarView{Style: in.Prefs.StatusBarDisplayStyle, Battery: layout.Battery, HideIcons: layout.HideIcons, RingValues: layout.RingValues}
 	tips := []string{"Quosparr"}
 	window := in.Prefs.StatusBarQuotaWindow()
 	for _, group := range statusGroups(in) {
@@ -277,7 +282,7 @@ func statusMeters(meters []Meter, preferred []int, window store.StatusBarWindow,
 
 func statusCells(lc l10n.Localizer, in StatusInputs, p store.Provider, picked []Meter) []StatusBarCell {
 	if len(picked) == 0 {
-		return []StatusBarCell{{Provider: p, Empty: true, Percent: "--", Countdown: "--", MeterText: "--", BatteryText: "--"}}
+		return []StatusBarCell{{Provider: p, Empty: true, Percent: "--", Countdown: "--", MeterText: "--", BatteryText: "--", RingText: "--"}}
 	}
 	lang := lc.Language()
 	cells := make([]StatusBarCell, len(picked))
@@ -288,6 +293,9 @@ func statusCells(lc l10n.Localizer, in StatusInputs, p store.Provider, picked []
 			Countdown:   CountdownDetail(m, in.Now, lang),
 			MeterText:   MeterDetail(m, in.Prefs.StatusBarMetersDetailStyle, in.Now, lang),
 			BatteryText: BatteryDetail(m, in.Prefs.StatusBarBatteryDetailStyle, in.Now, lang),
+		}
+		if !m.Balance {
+			cells[i].RingText = strconv.Itoa(m.RemainingPercent)
 		}
 		if len(picked) > 1 {
 			cells[i].Label = meterTitle(lc, m)
