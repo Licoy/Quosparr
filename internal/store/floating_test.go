@@ -16,7 +16,7 @@ func TestFloatingWindowIsGoOnlyAndOmittedByDefault(t *testing.T) {
 	}
 	p := DefaultPreferences()
 	p.FloatingWindow = FloatingWindow{Enabled: true, Style: FloatingStyleRings, Providers: []Provider{ProviderGrok, ProviderCodex}, Opacity: 80, Locked: true, OverFullScreen: true,
-		AppFilter: FloatingAppFilterBlock, Apps: []FloatingApp{{ID: "com.openai.codex", Name: "Codex", Path: "/Applications/Codex.app"}}}
+		AppFilter: FloatingAppFilterAllow, Apps: []FloatingApp{{ID: "com.openai.codex", Name: "Codex", Path: "/Applications/Codex.app"}}, HideOffList: true}
 	if enc, err = EncodePreferences(p); err != nil {
 		t.Fatal(err)
 	}
@@ -42,7 +42,9 @@ func TestFloatingWindowDecodesLeniently(t *testing.T) {
 		`{"appFilter":"allow","apps":[{"id":""},{"id":"a","name":"A"},{"id":"a"},{"id":"b"}]}`: {
 			AppFilter: FloatingAppFilterAllow, Apps: []FloatingApp{{ID: "a", Name: "A"}, {ID: "b"}},
 		},
-		`{"apps":[]}`: {},
+		`{"apps":[]}`:           {},
+		`{"hideOffList":"yes"}`: {},
+		`{"hideOffList":false}`: {},
 	} {
 		if got := mustDecode(t, `{"floatingWindow":`+raw+`}`).FloatingWindow; !reflect.DeepEqual(got, want) {
 			t.Errorf("floatingWindow %s decoded to %+v, want %+v", raw, got, want)

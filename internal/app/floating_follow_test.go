@@ -125,11 +125,69 @@ func TestFloatingFollowKeyChangesWithTheList(t *testing.T) {
 	}
 	f.AppFilter = store.FloatingAppFilterAllow
 	allow := floatingFollowKey(f)
+	f.HideOffList = true
+	allowHiding := floatingFollowKey(f)
 	f.AppFilter = store.FloatingAppFilterBlock
 	block := floatingFollowKey(f)
+	f.HideOffList = false
+	if block != floatingFollowKey(f) {
+		t.Error("hiding off the list changes the block list's key")
+	}
 	f.Apps = append(f.Apps, store.FloatingApp{ID: "b"})
-	if allow == "" || allow == block || block == floatingFollowKey(f) {
-		t.Errorf("keys do not tell the settings apart: %q %q", allow, block)
+	if allow == "" || allow == block || allow == allowHiding || allowHiding == block || block == floatingFollowKey(f) {
+		t.Errorf("keys do not tell the settings apart: %q %q %q", allow, allowHiding, block)
+	}
+}
+
+func TestFloatingFollowLowersOnlyForTheAllowList(t *testing.T) {
+	cases := []struct {
+		filter store.FloatingAppFilter
+		hide   bool
+		lowers bool
+	}{
+		{store.FloatingAppFilterAllow, false, true},
+		{store.FloatingAppFilterAllow, true, false},
+		{store.FloatingAppFilterBlock, false, false},
+		{store.FloatingAppFilterBlock, true, false},
+		{store.FloatingAppFilterOff, false, false},
+	}
+	for _, tc := range cases {
+		if got := floatingFollowLowers(store.FloatingWindow{AppFilter: tc.filter, HideOffList: tc.hide}); got != tc.lowers {
+			t.Errorf("%q hiding %v: lowers %v, want %v", tc.filter, tc.hide, got, tc.lowers)
+		}
+	}
+}
+
+func TestFloatingOffListChoosesLowerOrHide(t *testing.T) {
+	if !foregroundSupported() {
+		t.Skip("no app in front to follow here")
+	}
+	u := cardSettingsUI(t, store.LanguageEnglish)
+	l := u.L()
+	u.tab = tabFloating
+	u.s.SetFloatingWindow(func(f *store.FloatingWindow) { f.AppFilter = store.FloatingAppFilterBlock })
+	tt := ui.NewTester(u.view, settingsWidth, settingsHeight*3)
+	if tt.HasText(tx(l, xFloatingOffList)) {
+		t.Fatal("the block list offers what to do off the list")
+	}
+	u.s.SetFloatingWindow(func(f *store.FloatingWindow) { f.AppFilter = store.FloatingAppFilterAllow })
+	tt.Frame()
+	for _, want := range []string{tx(l, xFloatingOffList), tx(l, xFloatingOffListLower), tx(l, xFloatingOffListLowerHint)} {
+		if !tt.HasText(want) {
+			t.Fatalf("%q missing", want)
+		}
+	}
+	if err := tt.Click(tx(l, xFloatingOffListLower)); err != nil {
+		t.Fatal(err)
+	}
+	if err := tt.Click(tx(l, xFloatingOffListHide)); err != nil {
+		t.Fatal(err)
+	}
+	if !u.s.Prefs().FloatingWindow.HideOffList {
+		t.Fatal("choosing hide did not save it")
+	}
+	if !tt.HasText(tx(l, xFloatingOffListHideHint)) {
+		t.Error("the hint does not follow the choice")
 	}
 }
 

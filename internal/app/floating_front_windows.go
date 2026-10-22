@@ -11,6 +11,7 @@ import (
 	"syscall"
 	"unsafe"
 
+	"github.com/egoist/mygo"
 	"github.com/licoy/quosparr/internal/store"
 	"golang.org/x/sys/windows"
 )
@@ -20,6 +21,8 @@ var (
 	procSHGetPropertyStoreForWindow = windows.NewLazySystemDLL("shell32.dll").NewProc("SHGetPropertyStoreForWindow")
 	procSHCreateItemFromParsingName = windows.NewLazySystemDLL("shell32.dll").NewProc("SHCreateItemFromParsingName")
 	procPropVariantClear            = windows.NewLazySystemDLL("ole32.dll").NewProc("PropVariantClear")
+	procSetWindowPos                = windows.NewLazySystemDLL("user32.dll").NewProc("SetWindowPos")
+	procGetWindowLong               = windows.NewLazySystemDLL("user32.dll").NewProc("GetWindowLongW")
 
 	iidIPropertyStore = windows.GUID{Data1: 0x886d8eeb, Data2: 0x8cf2, Data3: 0x4446, Data4: [8]byte{0x8d, 0x02, 0xcd, 0xba, 0x1d, 0xbd, 0xcf, 0x99}}
 	iidIShellItem2    = windows.GUID{Data1: 0x7e9fb0d3, Data2: 0x919f, Data3: 0x4307, Data4: [8]byte{0xab, 0x2e, 0x9b, 0x18, 0x60, 0x31, 0x0c, 0x93}}
@@ -258,6 +261,32 @@ func shellLinkTarget(path string) string {
 	}
 	defer windows.CoTaskMemFree(unsafe.Pointer(s))
 	return windows.UTF16PtrToString(s)
+}
+
+// SetWindowPos flags and the extended style of topmost windows.
+const (
+	swpNoSize     = 0x0001
+	swpNoMove     = 0x0002
+	swpNoActivate = 0x0010
+	gwlExStyle    = -20
+	wsExTopmost   = 0x0008
+)
+
+// lowerFloating takes the window off the top. Off it, the window stays above
+// every other window, the app that came in front's too, so it goes just
+// below the foreground window; below a topmost one it already is.
+func lowerFloating(win *mygo.Window) {
+	win.SetAlwaysOnTop(false)
+	hwnd, front := win.NativeHandle(), windows.GetForegroundWindow()
+	if hwnd == 0 || front == 0 || uintptr(front) == hwnd {
+		return
+	}
+	index := int32(gwlExStyle)
+	style, _, _ := procGetWindowLong.Call(uintptr(front), uintptr(index))
+	if style&wsExTopmost != 0 {
+		return
+	}
+	procSetWindowPos.Call(hwnd, uintptr(front), 0, 0, 0, 0, swpNoMove|swpNoSize|swpNoActivate)
 }
 
 // floatingAppFromFile takes a program the user picked.

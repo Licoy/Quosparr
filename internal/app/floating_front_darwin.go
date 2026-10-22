@@ -7,6 +7,7 @@ import (
 
 	"github.com/ebitengine/purego"
 	"github.com/ebitengine/purego/objc"
+	"github.com/egoist/mygo"
 	"github.com/licoy/quosparr/internal/store"
 )
 
@@ -80,30 +81,71 @@ func macForeground() foreground {
 }
 
 // macHasWindowOnScreen reports whether the process has a window of the
-// normal level on screen. Window owners and levels need no permission,
-// unlike window titles.
+// normal level on screen.
 func macHasWindowOnScreen(pid int32) bool {
+	found := false
+	listed := macNormalWindowsOnScreen(func(owner, _ int32) bool {
+		found = owner == pid
+		return !found
+	})
+	return found || !listed
+}
+
+// macNormalWindowsOnScreen calls fn with the owner and the number of the
+// windows of the normal level on screen, front to back, until it returns
+// false; it reports whether it could list them. Window owners, levels and
+// numbers need no permission, unlike window titles.
+func macNormalWindowsOnScreen(fn func(owner, number int32) bool) bool {
 	if !loadCoreGraphics() {
-		return true
+		return false
 	}
 	list := objc.ID(cgWindowListInfo(cgWindowListOnScreenOnly|cgWindowListExcludeDesktopElements, 0))
 	if list == 0 {
-		return true
+		return false
 	}
 	defer list.Send(objc.RegisterName("release"))
-	ownerKey, layerKey := nsStr("kCGWindowOwnerPID"), nsStr("kCGWindowLayer")
+	ownerKey, layerKey, numberKey := nsStr("kCGWindowOwnerPID"), nsStr("kCGWindowLayer"), nsStr("kCGWindowNumber")
+	intValue := func(n objc.ID) int32 { return objc.Send[int32](n, objc.RegisterName("intValue")) }
 	for i := uint64(0); i < objc.Send[uint64](list, objc.RegisterName("count")); i++ {
 		w := list.Send(objc.RegisterName("objectAtIndex:"), i)
 		owner := w.Send(objc.RegisterName("objectForKey:"), ownerKey)
 		layer := w.Send(objc.RegisterName("objectForKey:"), layerKey)
-		if owner == 0 || layer == 0 {
+		number := w.Send(objc.RegisterName("objectForKey:"), numberKey)
+		if owner == 0 || layer == 0 || number == 0 || intValue(layer) != 0 {
 			continue
 		}
-		if objc.Send[int32](owner, objc.RegisterName("intValue")) == pid && objc.Send[int32](layer, objc.RegisterName("intValue")) == 0 {
-			return true
+		if !fn(intValue(owner), intValue(number)) {
+			break
 		}
 	}
-	return false
+	return true
+}
+
+// nsWindowBelow is NSWindowBelow, an NSWindowOrderingMode.
+const nsWindowBelow = -1
+
+// lowerFloating takes the window off the top. At the normal level it would
+// stay above the app that came in front, so it goes below that app's front
+// window: the front one of another app.
+func lowerFloating(win *mygo.Window) {
+	win.SetAlwaysOnTop(false)
+	w := objc.ID(win.NativeHandle())
+	if w == 0 {
+		return
+	}
+	self, front := int32(os.Getpid()), int32(0)
+	macNormalWindowsOnScreen(func(owner, number int32) bool {
+		if owner == self {
+			return true
+		}
+		front = number
+		return false
+	})
+	if front == 0 {
+		w.Send(objc.RegisterName("orderBack:"), 0)
+		return
+	}
+	w.Send(objc.RegisterName("orderWindow:relativeTo:"), nsWindowBelow, int(front))
 }
 
 // floatingAppKeys: the bundle identifier, or the bundle's path.

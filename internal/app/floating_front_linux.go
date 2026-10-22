@@ -11,6 +11,7 @@ import (
 	"unsafe"
 
 	"github.com/ebitengine/purego"
+	"github.com/egoist/mygo"
 	"github.com/licoy/quosparr/internal/store"
 )
 
@@ -26,16 +27,24 @@ var xlib struct {
 	xdisplay       func(display uintptr) uintptr
 	trapPush       func(display uintptr)
 	trapPop        func(display uintptr)
+	widgetWindow   func(widget uintptr) uintptr
+	xid            func(window uintptr) uintptr
 	defaultRoot    func(dpy uintptr) uintptr
 	internAtom     func(dpy uintptr, name string, onlyIfExists int32) uintptr
 	getProperty    func(dpy, w, prop uintptr, offset, length int64, del int32, reqType uintptr, actualType *uintptr, actualFormat *int32, nitems, after *uint64, data *unsafe.Pointer) int32
 	free           func(p unsafe.Pointer) int32
+	sendEvent      func(dpy, w uintptr, propagate int32, mask int64, event unsafe.Pointer) int32
+	flush          func(dpy uintptr) int32
 }
 
 // loadXlib reports whether GDK runs on an X server. It runs on the main
 // thread.
 func loadXlib() bool {
 	xlib.once.Do(func() {
+		gtk, err := purego.Dlopen("libgtk-3.so.0", purego.RTLD_LAZY|purego.RTLD_GLOBAL)
+		if err != nil {
+			return
+		}
 		gdk, err := purego.Dlopen("libgdk-3.so.0", purego.RTLD_LAZY|purego.RTLD_GLOBAL)
 		if err != nil {
 			return
@@ -49,12 +58,14 @@ func loadXlib() bool {
 			return
 		}
 		for lib, fns := range map[uintptr]map[string]any{
+			gtk: {"gtk_widget_get_window": &xlib.widgetWindow},
 			gdk: {
 				"gdk_display_get_default":                &xlib.gdkDisplay,
 				"gdk_x11_display_get_type":               &xlib.x11DisplayType,
 				"gdk_x11_display_get_xdisplay":           &xlib.xdisplay,
 				"gdk_x11_display_error_trap_push":        &xlib.trapPush,
 				"gdk_x11_display_error_trap_pop_ignored": &xlib.trapPop,
+				"gdk_x11_window_get_xid":                 &xlib.xid,
 			},
 			gobject: {"g_type_check_instance_is_a": &xlib.isA},
 			x11: {
@@ -62,6 +73,8 @@ func loadXlib() bool {
 				"XInternAtom":        &xlib.internAtom,
 				"XGetWindowProperty": &xlib.getProperty,
 				"XFree":              &xlib.free,
+				"XSendEvent":         &xlib.sendEvent,
+				"XFlush":             &xlib.flush,
 			},
 		} {
 			for name, fn := range fns {
@@ -128,6 +141,60 @@ func x11Foreground() foreground {
 	// WM_CLASS is the instance and the class, each ending in a NUL.
 	keys = append(keys, strings.Split(string(x11Bytes(dpy, w, atom("WM_CLASS"))), "\x00")...)
 	return foreground{kind: fgApp, keys: lowerKeys(keys...)}
+}
+
+// xClientMessage is an XClientMessageEvent of 32-bit items, which Xlib
+// hands as longs, padded to an XEvent.
+type xClientMessage struct {
+	typ         int32
+	serial      uint64
+	sendEvent   int32
+	display     uintptr
+	window      uintptr
+	messageType uintptr
+	format      int32
+	data        [5]int64
+	_           [12]int64
+}
+
+const (
+	xClientMessageEvent = 33
+	// SubstructureNotifyMask | SubstructureRedirectMask: to the window
+	// manager.
+	xToWindowManager = 1<<19 | 1<<20
+	// The source of a _NET_RESTACK_WINDOW from a pager, and Below.
+	ewmhSourcePager = 2
+	xStackBelow     = 1
+)
+
+// lowerFloating takes the window off the top. Off it, window managers keep
+// the window above the one that came in front, so it asks them, as a pager
+// does (EWMH), for just below the active window.
+func lowerFloating(win *mygo.Window) {
+	win.SetAlwaysOnTop(false)
+	if !loadXlib() {
+		return
+	}
+	gdkWindow := xlib.widgetWindow(win.NativeHandle())
+	if gdkWindow == 0 {
+		return
+	}
+	display := xlib.gdkDisplay()
+	dpy := xlib.xdisplay(display)
+	xlib.trapPush(display)
+	defer xlib.trapPop(display)
+	root, self := xlib.defaultRoot(dpy), xlib.xid(gdkWindow)
+	active := x11Longs(dpy, root, xlib.internAtom(dpy, "_NET_ACTIVE_WINDOW", 0))
+	if len(active) == 0 || active[0] == 0 || uintptr(active[0]) == self {
+		return
+	}
+	ev := xClientMessage{
+		typ: xClientMessageEvent, sendEvent: 1, display: dpy, window: self,
+		messageType: xlib.internAtom(dpy, "_NET_RESTACK_WINDOW", 0), format: 32,
+		data: [5]int64{ewmhSourcePager, int64(active[0]), xStackBelow},
+	}
+	xlib.sendEvent(dpy, root, 0, xToWindowManager, unsafe.Pointer(&ev))
+	xlib.flush(dpy)
 }
 
 // x11Bytes reads a property of 8-bit items.

@@ -83,6 +83,11 @@ const (
 	xFloatingAppsEmpty            textKey = "floatingWindowAppsEmpty"
 	xFloatingAppsLoadFailed       textKey = "floatingWindowAppsLoadFailed"
 	xFloatingAppsNotApp           textKey = "floatingWindowAppsNotApp"
+	xFloatingOffList              textKey = "floatingWindowOffList"
+	xFloatingOffListLower         textKey = "floatingWindowOffListLower"
+	xFloatingOffListHide          textKey = "floatingWindowOffListHide"
+	xFloatingOffListLowerHint     textKey = "floatingWindowOffListLowerDescription"
+	xFloatingOffListHideHint      textKey = "floatingWindowOffListHideDescription"
 	xDisplayFont                  textKey = "displayFont"
 	xDisplayFontHint              textKey = "displayFontDescription"
 	xDisplayFontDefault           textKey = "displayFontDefault"
@@ -243,13 +248,13 @@ var extraTexts = map[textKey][7]string{
 	xFloatingAppFilterAllow: {"Allow list", "白名单", "白名單", "허용 목록", "許可リスト", "Белый список", "Liste d’autorisation"},
 	xFloatingAppFilterBlock: {"Block list", "黑名单", "黑名單", "차단 목록", "ブロックリスト", "Чёрный список", "Liste de blocage"},
 	xFloatingAppFilterAllowHint: {
-		"Shows only while a listed app is in front, and always on the desktop",
-		"仅名单中的应用位于前台时显示，桌面上始终显示",
-		"僅名單中的 App 位於前景時顯示，桌面上一律顯示",
-		"목록에 있는 앱이 앞에 있을 때만 표시하며, 데스크톱에서는 항상 표시합니다",
-		"リストのアプリが前面にあるときだけ表示し、デスクトップでは常に表示します",
-		"Показывается, только пока активно приложение из списка, и всегда — на рабочем столе",
-		"S’affiche seulement quand une app de la liste est au premier plan, et toujours sur le bureau",
+		"Stays on top only while a listed app is in front, and always on the desktop",
+		"仅名单中的应用位于前台时置顶显示，桌面上始终显示",
+		"僅名單中的 App 位於前景時置頂顯示，桌面上一律顯示",
+		"목록에 있는 앱이 앞에 있을 때만 맨 위에 표시하며, 데스크톱에서는 항상 표시합니다",
+		"リストのアプリが前面にあるときだけ最前面に表示し、デスクトップでは常に表示します",
+		"Остаётся поверх окон, только пока активно приложение из списка, и всегда — на рабочем столе",
+		"Reste au-dessus des fenêtres seulement quand une app de la liste est au premier plan, et toujours sur le bureau",
 	},
 	xFloatingAppFilterBlockHint: {
 		"Hides while a listed app is in front, and always shows on the desktop",
@@ -298,6 +303,32 @@ var extraTexts = map[textKey][7]string{
 		"アプリではないファイルがあったため、スキップしました",
 		"Некоторые файлы не являются приложениями и были пропущены",
 		"Certains fichiers ne sont pas des apps et ont été ignorés",
+	},
+	xFloatingOffList: {
+		"When another app is in front", "名单外应用在前台时", "名單外 App 位於前景時", "목록에 없는 앱이 앞에 있을 때",
+		"リスト外のアプリが前面にあるとき", "Когда активно другое приложение", "Quand une autre app est au premier plan",
+	},
+	xFloatingOffListLower: {
+		"Move behind it", "退到其窗口之下", "退到其視窗之下", "그 앱 뒤로 이동", "そのアプリの背面に移動", "Уйти под его окно", "Passer derrière elle",
+	},
+	xFloatingOffListHide: {"Hide", "隐藏", "隱藏", "숨기기", "隠す", "Скрыть", "Masquer"},
+	xFloatingOffListLowerHint: {
+		"Stays on screen without staying on top, so switching back to a listed app does not make it reappear",
+		"悬浮窗保持显示但不再置顶，切回名单应用时无需重新出现",
+		"浮動視窗保持顯示但不再置頂，切回名單 App 時無須重新出現",
+		"화면에 그대로 두되 맨 위에 고정하지 않아, 목록의 앱으로 돌아올 때 다시 나타나지 않습니다",
+		"画面に表示したまま最前面を解除するため、リストのアプリに戻っても表示し直しません",
+		"Остаётся на экране, но не поверх окон, поэтому при возврате к приложению из списка не появляется заново",
+		"Reste à l’écran sans rester au-dessus des fenêtres : revenir à une app de la liste ne la fait pas réapparaître",
+	},
+	xFloatingOffListHideHint: {
+		"Hides, and shows again when a listed app comes back in front",
+		"隐藏悬浮窗，名单应用回到前台时重新显示",
+		"隱藏浮動視窗，名單 App 回到前景時重新顯示",
+		"플로팅 창을 숨기고, 목록의 앱이 다시 앞에 오면 표시합니다",
+		"フローティングウインドウを隠し、リストのアプリが前面に戻ると再表示します",
+		"Скрывает плавающее окно и показывает его снова, когда приложение из списка снова активно",
+		"Masque la fenêtre flottante et l’affiche de nouveau quand une app de la liste revient au premier plan",
 	},
 	xDisplayFont: {
 		"Display font", "显示字体", "顯示字體", "표시 글꼴", "表示フォント", "Шрифт интерфейса", "Police d’affichage",

@@ -110,7 +110,12 @@ type nativeFloatingHost struct {
 // run keeps creation, resizing and restoration on one event-loop callback so
 // every assertion observes the same native window and its saved state.
 func (h *nativeFloatingHost) run() {
-	defer mygo.App.Quit()
+	quit := true
+	defer func() {
+		if quit {
+			mygo.App.Quit()
+		}
+	}()
 	a := h.app
 	// A saved state wider than the content, on the right half of the
 	// display, as Windows' minimum window size left it before. The states
@@ -165,8 +170,67 @@ func (h *nativeFloatingHost) run() {
 		h.err = err
 		return
 	}
-	a.closeFloating()
-	h.err = nil
+	// The window server lists the window on screen once the event loop ran.
+	quit = false
+	go func() {
+		err := checkNativeFloatingLowered(a)
+		mygo.RunOnMain(func() {
+			a.closeFloating()
+			h.err = err
+			mygo.App.Quit()
+		})
+	}()
+}
+
+// checkNativeFloatingLowered: an app off the allow list takes the window off
+// the top but leaves it on screen, below the window in front, also once
+// shown again after hiding, and a listed app puts it back on top. It runs
+// off the main thread, the event loop running between the steps.
+func checkNativeFloatingLowered(a *App) error {
+	var err error
+	step := func(fn func() error) {
+		if err == nil {
+			time.Sleep(200 * time.Millisecond)
+			waitOnMain(func() { err = fn() })
+		}
+	}
+	var win *mygo.Window
+	waitOnMain(func() { win = a.floating.win })
+	check := func(name string, onTop bool) error {
+		if win.IsAlwaysOnTop() != onTop || !win.IsVisible() {
+			return fmt.Errorf("%s: on top %v, visible %v; want on top %v, visible", name, win.IsAlwaysOnTop(), win.IsVisible(), onTop)
+		}
+		if onTop {
+			return nil
+		}
+		below, known := nativeFloatingBelowFront(win)
+		if known && !below {
+			return fmt.Errorf("%s: the window stays above the window in front", name)
+		}
+		fmt.Printf("native floating %s: below the window in front = %v (known %v)\n", name, below, known)
+		return nil
+	}
+	set := func(lowered, hidden bool) func() error {
+		return func() error {
+			a.floating.appLowered, a.floating.fullScreenHidden = lowered, hidden
+			a.showFloatingIfDue()
+			return nil
+		}
+	}
+	step(set(true, false))
+	step(func() error { return check("lowered", false) })
+	step(set(true, true))
+	step(func() error {
+		if win.IsVisible() {
+			return fmt.Errorf("lowered window still shows while hidden")
+		}
+		return nil
+	})
+	step(set(true, false))
+	step(func() error { return check("shown again lowered", false) })
+	step(set(false, false))
+	step(func() error { return check("raised", true) })
+	return err
 }
 
 func checkNativeFloatingSize(a *App, name string, wantW, wantH int) error {

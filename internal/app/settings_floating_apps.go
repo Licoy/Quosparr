@@ -57,7 +57,29 @@ func (u *settingsUI) floatingAppRows(c *ui.Context, row rowFunc, f store.Floatin
 			u.openFloatingApps(f.Apps)
 		}
 	})
+	if f.AppFilter == store.FloatingAppFilterAllow {
+		row(tx(l, xFloatingOffList), floatingOffListHint(l, f.HideOffList), func() {
+			if v, ok := choose(c, "fw-off-list", tx(l, xFloatingOffList), f.HideOffList, []bool{false, true},
+				func(hide bool) string { return floatingOffListName(l, hide) }, ro); ok {
+				u.s.SetFloatingWindow(func(f *store.FloatingWindow) { f.HideOffList = v })
+			}
+		})
+	}
 	u.floatingAppsEditor(c, f.AppFilter)
+}
+
+func floatingOffListName(l l10n.Localizer, hide bool) string {
+	if hide {
+		return tx(l, xFloatingOffListHide)
+	}
+	return tx(l, xFloatingOffListLower)
+}
+
+func floatingOffListHint(l l10n.Localizer, hide bool) string {
+	if hide {
+		return tx(l, xFloatingOffListHideHint)
+	}
+	return tx(l, xFloatingOffListLowerHint)
 }
 
 func floatingAppFilterName(l l10n.Localizer, v store.FloatingAppFilter) string {

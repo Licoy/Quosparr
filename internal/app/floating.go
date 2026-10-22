@@ -27,15 +27,21 @@ type floatingState struct {
 	stopWatch      func()
 	offDisplays    func()
 	// fullScreenHidden is true while another app is full screen, appHidden
-	// while the app in front hides the window; hidden is whether it is.
+	// while the app in front hides the window and appLowered while it takes
+	// the window off the top; shown is what the window is.
 	fullScreenHidden bool
 	appHidden        bool
-	hidden           bool
+	appLowered       bool
+	shown            floatingShown
 	// followKey is the filter and the apps followed, empty when not.
 	followKey  string
 	stopFollow func()
 	drag       floatingDrag
 }
+
+// floatingShown is whether the window is hidden and, shown, whether it is
+// off the top.
+type floatingShown struct{ hidden, lowered bool }
 
 // floatingDrag moves the window from the cursor's screen position, so a
 // press that does not move stays a click.
@@ -144,7 +150,7 @@ func (a *App) openFloating(prefs store.Preferences, w, h int) {
 	a.floating.offDisplays = mygo.Screen.OnDisplaysChanged(a.keepFloatingOnScreen)
 	if a.floating.followKey != "" {
 		// Hidden until the app in front is known.
-		a.floating.appHidden, a.floating.hidden = true, true
+		a.floating.appHidden, a.floating.shown.hidden = true, true
 		return
 	}
 	win.ShowInactive()
@@ -179,10 +185,20 @@ func floatingFollowKey(f store.FloatingWindow) string {
 	}
 	var b strings.Builder
 	b.WriteString(string(f.AppFilter))
+	if floatingFollowLowers(f) {
+		b.WriteString(" lower")
+	}
 	for _, app := range f.Apps {
 		b.WriteString("\n" + app.ID + "\x00" + app.Path)
 	}
 	return b.String()
+}
+
+// floatingFollowLowers reports whether an app the window does not show for
+// takes it off the top rather than hiding it: the allow list's, unless set
+// to hide.
+func floatingFollowLowers(f store.FloatingWindow) bool {
+	return f.AppFilter == store.FloatingAppFilterAllow && !f.HideOffList
 }
 
 // syncFloatingFollow starts, restarts or stops following the app in front
@@ -198,30 +214,47 @@ func (a *App) syncFloatingFollow(f store.FloatingWindow) {
 	}
 	a.floating.followKey = key
 	if key == "" {
-		a.floating.appHidden = false
+		a.floating.appHidden, a.floating.appLowered = false, false
 		a.showFloatingIfDue()
 		return
 	}
 	f.Apps = slices.Clone(f.Apps)
+	lowers := floatingFollowLowers(f)
 	a.floating.stopFollow = watchForeground(f, func(visible bool) {
-		a.floating.appHidden = !visible
+		a.floating.appHidden = !visible && !lowers
+		a.floating.appLowered = !visible && lowers
 		a.showFloatingIfDue()
 	})
 }
 
 // showFloatingIfDue hides the window while another app is full screen or the
-// app in front hides it, and shows it again after.
+// app in front hides it, and shows it again after; shown, the app in front
+// may take it off the top.
 func (a *App) showFloatingIfDue() {
 	win := a.floating.win
-	hide := a.floating.fullScreenHidden || a.floating.appHidden
-	if win == nil || hide == a.floating.hidden {
+	if win == nil {
 		return
 	}
-	a.floating.hidden = hide
-	if hide {
-		win.Hide()
-	} else {
+	was := a.floating.shown
+	due := floatingShown{hidden: a.floating.fullScreenHidden || a.floating.appHidden, lowered: a.floating.appLowered}
+	if due == was {
+		return
+	}
+	a.floating.shown = due
+	switch {
+	case due.hidden:
+		if !was.hidden {
+			win.Hide()
+		}
+		return
+	case was.hidden:
 		win.ShowInactive()
+	}
+	// Set either way once shown again, which puts the window in front.
+	if due.lowered {
+		lowerFloating(win)
+	} else {
+		win.SetAlwaysOnTop(true)
 	}
 }
 

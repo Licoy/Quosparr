@@ -52,6 +52,9 @@ type FloatingWindow struct {
 	// AppFilter shows or hides the window by the app in front, from Apps.
 	AppFilter FloatingAppFilter `json:"appFilter,omitempty"`
 	Apps      []FloatingApp     `json:"apps,omitempty"`
+	// HideOffList hides the window, with the allow list, while an app off
+	// the list is in front; otherwise it stays on screen, no longer on top.
+	HideOffList bool `json:"hideOffList,omitempty"`
 }
 
 // FloatingAppFilter is how the app in front shows or hides the floating
@@ -61,8 +64,8 @@ type FloatingAppFilter string
 // FloatingAppFilter values.
 const (
 	FloatingAppFilterOff FloatingAppFilter = ""
-	// FloatingAppFilterAllow shows the window only while a listed app is
-	// in front.
+	// FloatingAppFilterAllow keeps the window on top only while a listed
+	// app is in front.
 	FloatingAppFilterAllow FloatingAppFilter = "allow"
 	// FloatingAppFilterBlock hides the window while a listed app is in
 	// front.
