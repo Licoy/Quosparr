@@ -276,6 +276,13 @@ func trayRings(d trayPen, comp runway.StatusBarComponent, x float32, icons bool)
 // ---- Rings with values: the logo, then a ring per window with its value
 // inside, the first window first.
 
+// A ring with its value inside is thinner than a plain ring, to leave the
+// value room.
+const (
+	trayValueRingRadius float32 = 9.2
+	trayValueRingWidth  float32 = 1.7
+)
+
 func trayValueRings(d trayPen, cells []runway.StatusBarCell, x float32, icons bool) float32 {
 	start := x
 	if icons {
@@ -287,8 +294,8 @@ func trayValueRings(d trayPen, cells []runway.StatusBarCell, x float32, icons bo
 			x += 3
 		}
 		cx := x + 10.25
-		d.ring(cx, 11, 9.1, 2, c)
-		d.ringText(c.RingText, cx, 11, 8.1)
+		d.ring(cx, 11, trayValueRingRadius, trayValueRingWidth, c)
+		d.ringText(c.RingText, cx, 11, trayValueRingRadius-trayValueRingWidth/2)
 		x += 20.5
 	}
 	return x - start
@@ -342,14 +349,20 @@ func (d trayPen) text(s string, x, cy, size float32, weight int, alpha, maxW flo
 	return w
 }
 
-// ringText draws s centered inside a ring of that inner radius, smaller
-// where three digits would touch the ring.
+// ringText draws s centered inside a ring of that inner radius.
 func (d trayPen) ringText(s string, cx, cy, radius float32) {
-	size, room := float32(9.5), 2*radius-3
-	if w := d.measure(s, size, 650); w > room {
-		size *= room / w
+	size := ringTextSize(s, radius)
+	d.text(s, cx-d.measure(s, size, 600)/2, cy, size, 600, 1, 0)
+}
+
+// ringTextSize is the size of s inside a ring of that inner radius, small
+// enough to keep clear of the ring and smaller still for three digits.
+func ringTextSize(s string, radius float32) float32 {
+	size, room := float32(8), 2*radius-5
+	for size > 5 && trayTextWidth(s, trayFontWeight(size, 600)) > room {
+		size -= 0.25
 	}
-	d.text(s, cx-d.measure(s, size, 650)/2, cy, size, 650, 1, 0)
+	return size
 }
 
 // rowLead draws what tells two stacked rows apart, the providers' logos or

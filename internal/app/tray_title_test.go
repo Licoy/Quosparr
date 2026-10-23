@@ -3,6 +3,7 @@ package app
 import (
 	"bytes"
 	"image/png"
+	"strconv"
 	"testing"
 	"time"
 
@@ -135,6 +136,24 @@ func TestTrayRingValuesKeepBalancesBesideTheRing(t *testing.T) {
 	r.RingValues = false
 	if withValues != trayContentWidth(r) {
 		t.Errorf("a balance is drawn inside its ring: %v", withValues)
+	}
+}
+
+func TestTrayRingValuesKeepClearOfTheRing(t *testing.T) {
+	radius := trayValueRingRadius - trayValueRingWidth/2
+	two := ringTextSize("88", radius)
+	for v := 0; v <= 100; v++ {
+		s := strconv.Itoa(v)
+		size := ringTextSize(s, radius)
+		if w := trayTextWidth(s, trayFontWeight(size, 600)); w > 2*radius-5+0.01 {
+			t.Errorf("%s is %v wide inside a ring of radius %v", s, w, radius)
+		}
+		if v >= 10 && v < 100 && size != two {
+			t.Errorf("%s is drawn at %v, other two digits at %v", s, size, two)
+		}
+	}
+	if big := ringTextSize("100", radius); big >= two {
+		t.Errorf("three digits are drawn at %v, two at %v", big, two)
 	}
 }
 
