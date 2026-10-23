@@ -135,16 +135,17 @@ func TestPanelReactionClickFloatsBeforeResponse(t *testing.T) {
 		t.Fatal("click did not immediately show the floating +1 and updated count")
 	}
 	start, _ := tt.Find("+1")
-	a.panelState.reaction.deltaAt = time.Now().Add(-800 * time.Millisecond)
+	// Animation frames use the tester's frozen clock, not wall time.
+	a.panelState.reaction.deltaAt = tt.Now().Add(-800 * time.Millisecond)
 	tt.Frame()
-	floating, _ := tt.Find("+1")
-	if floating.Y >= start.Y-8 {
+	floating, ok := tt.Find("+1")
+	if !ok || floating.Y >= start.Y-8 {
 		t.Fatalf("delta did not float up: %v -> %v", start, floating)
 	}
 	if os.Getenv("RUNWAY_UI_QA") != "" {
 		exportReviewPNG(t, tt, filepath.Join("..", "..", ".build", "v1-ui-qa", "polish-reaction.png"))
 	}
-	a.panelState.reaction.deltaAt = time.Now().Add(-3 * time.Second)
+	a.panelState.reaction.deltaAt = tt.Now().Add(-3 * time.Second)
 	tt.Frame()
 	if tt.HasText("+1") {
 		t.Fatal("floating delta did not disappear")
