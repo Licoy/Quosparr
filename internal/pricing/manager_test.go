@@ -3,8 +3,6 @@ package pricing
 import (
 	"context"
 	"errors"
-	"github.com/licoy/quosparr/internal/netx"
-	"github.com/licoy/quosparr/internal/usage/decimal"
 	"os"
 	"path/filepath"
 	"strings"
@@ -12,6 +10,10 @@ import (
 	"sync/atomic"
 	"testing"
 	"time"
+
+	"github.com/licoy/quosparr/internal/netx"
+	"github.com/licoy/quosparr/internal/platform"
+	"github.com/licoy/quosparr/internal/usage/decimal"
 )
 
 const sample = `{"openai":{"name":"OpenAI","models":{"fresh":{"id":"fresh","name":"Fresh","cost":{"input":2,"output":0,"cache_read":null,"tiers":[{"input":4,"output":1,"tier":{"type":"context","size":272000}}],"context_over_200k":{"input":4,"output":1}},"env":["IGNORED_SECRET"],"api":"not executed"}}},"other":{"models":{"fresh":{"cost":{"input":100,"output":200}}}}}`
@@ -67,9 +69,8 @@ func TestManagerCache304SameContentAndFailure(t *testing.T) {
 	if first.LastChanged != now || first.ETag != "one" {
 		t.Fatalf("status %+v", first)
 	}
-	info, err := os.Stat(path)
-	if err != nil || info.Mode().Perm() != 0600 {
-		t.Fatalf("cache mode %v %v", info, err)
+	if err := platform.VerifyOwnerOnly(path, 0o600); err != nil {
+		t.Fatalf("cache permissions: %v", err)
 	}
 	now = now.Add(time.Hour)
 	response = Response{304, nil, ""}
