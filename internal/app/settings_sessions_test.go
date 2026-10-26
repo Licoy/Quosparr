@@ -6,6 +6,8 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -102,26 +104,57 @@ func TestCancelSessionTasksStopsScanAndDropsCallback(t *testing.T) {
 }
 
 func TestSessionDetailFailureWaitsForExplicitRetry(t *testing.T) {
-	calls := 0
+	var calls atomic.Int32
+	retryGate := make(chan struct{})
+	var release sync.Once
+	releaseRetry := func() { release.Do(func() { close(retryGate) }) }
+	defer releaseRetry()
 	actions := SessionActions{Detail: func(context.Context, sessions.ManagedSession) (sessions.ManagedDetail, error) {
-		calls++
+		if calls.Load() == 1 {
+			<-retryGate
+		}
+		calls.Add(1)
 		return sessions.ManagedDetail{}, errors.New("preview unavailable")
 	}}
 	u, tt, queue := settingsSessionsView(t, actions)
 	u.sessions.open = sessionKey(u.sessions.items[0])
 	tt.Frame()
-	finishDetail(t, queue)
-	tt.Frame()
-	tt.Frame()
-	if calls != 1 {
-		t.Fatalf("detail retried automatically %d times", calls)
+	for u.sessions.detail.task.Running {
+		finishDetail(t, queue)
 	}
+	tt.Frame()
+	tt.Frame()
+	if calls.Load() != 1 {
+		t.Fatalf("detail retried automatically %d times", calls.Load())
+	}
+	// A proxy toast's timer can post unrelated work to this same main queue.
+	oldDelay := proxyMsgTime
+	proxyMsgTime = 0
+	u.flashProxyMsg("unrelated toast")
+	proxyMsgTime = oldDelay
+	var unrelated func()
+	select {
+	case unrelated = <-queue:
+	case <-time.After(3 * time.Second):
+		t.Fatal("toast callback did not arrive")
+	}
+	queue <- func() { unrelated(); releaseRetry() }
 	if err := tt.Click(tx(u.L(), xSessionsRetry)); err != nil {
 		t.Fatal(err)
 	}
-	finishDetail(t, queue)
-	if calls != 2 {
-		t.Fatalf("retry calls = %d, want 2", calls)
+	for u.sessions.detail.task.Running {
+		finishDetail(t, queue)
+	}
+	if calls.Load() != 2 {
+		t.Fatalf("retry calls = %d, want 2", calls.Load())
+	}
+	if u.sessions.detail.task.Running || u.sessions.detail.task.Err == nil {
+		t.Fatal("retry failure completion was not applied")
+	}
+	tt.Frame()
+	tt.Frame()
+	if calls.Load() != 2 {
+		t.Fatalf("detail retried after the explicit retry %d times", calls.Load())
 	}
 }
 
