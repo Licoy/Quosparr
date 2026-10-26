@@ -52,8 +52,8 @@ func renderClaudeAccounts(c *ui.Context, u *settingsUI, f *accountForm, rt *live
 	rows := view.Sidebar
 	folder := accountFolder{l.Text(l10n.KeyProviderClaude), rt.claudeFolder()}
 	accountToolbar(c, u, f, accountCountTitle(l, len(rows)), folder, func(m *ui.Menu) {
-		if m.Item(l.Text(l10n.KeyClaudeLoginCLI)).Chosen() {
-			u.accountNotice(f, rt.claudeLoginHint(l))
+		if m.Item(l.Text(l10n.KeyAccountsAddOAuth)).Chosen() {
+			u.startClaudeLogin(f, rt)
 		}
 		if m.Item(l.Text(l10n.KeyClaudePasteHint)).Chosen() {
 			f.mode = "paste"
@@ -74,6 +74,7 @@ func renderClaudeAccounts(c *ui.Context, u *settingsUI, f *accountForm, rt *live
 		return rt.refreshClaudeAll(context.Background())
 	})
 	accountEditor(c, u, f)
+	renderClaudeLogin(c, u, f)
 	if len(rows) == 0 {
 		ui.Text(c, l.Text(l10n.KeyClaudeAccountsEmpty)).FontSize(12).TextColor(c.Theme().TextMuted)
 	}
@@ -185,6 +186,7 @@ type accountForm struct {
 	editorError        string
 	busy               bool
 	cancel             context.CancelFunc
+	claudeLogin        *claudeLoginAttempt
 	selection          *accountSelection
 	restartAfterSwitch bool
 	switchName         string

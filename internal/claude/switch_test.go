@@ -171,7 +171,4 @@ func TestRunningProcessBlocksSwitch(t *testing.T) {
 	if _, err := mod.Apply(context.Background(), Command{Kind: CommandSwitch, ID: id}); err == nil {
 		t.Fatal("expected running process error")
 	}
-	if _, err := mod.Apply(context.Background(), Command{Kind: CommandLogin}); err == nil {
-		t.Fatal("expected login refusal")
-	}
 }

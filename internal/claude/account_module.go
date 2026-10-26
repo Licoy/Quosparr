@@ -13,10 +13,8 @@ import (
 type CommandKind int
 
 const (
-	// CommandLogin refuses in-app OAuth. See ErrLoginUseCLI.
-	CommandLogin CommandKind = iota
 	// CommandImportOfficial copies the official login into the library.
-	CommandImportOfficial
+	CommandImportOfficial CommandKind = iota
 	// CommandSwitch installs an account as the official login.
 	CommandSwitch
 	// CommandRemove deletes a non-current account.
@@ -132,8 +130,6 @@ func (m *Module) Apply(ctx context.Context, cmd Command) (AccountState, error) {
 	}
 	var err error
 	switch cmd.Kind {
-	case CommandLogin:
-		err = Login(ctx)
 	case CommandImportOfficial:
 		err = m.importOfficial(ctx)
 	case CommandSwitch:

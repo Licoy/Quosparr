@@ -129,7 +129,7 @@ Quosparr v1 面向 macOS、Windows、Linux，主程序使用 Go + mygo/ui 原生
 - Grok 官方凭据为 `$GROK_HOME/auth.json`，托管副本为 `~/.quosparr/accounts/grok-<stable-id>/auth.json`，无 token 的索引为 `~/.quosparr/accounts/grok-index.json`
 - Grok 切号只替换 OAuth / 兼容 legacy scope，保留 API Key 与未知 scope，仅保证新会话使用新账号；不强制终止外部 Grok 进程，切换前提示旧进程可能写回旧账号
 - Claude 使用 `CLAUDE_CONFIG_DIR`，默认 `~/.claude`。macOS 官方凭据在钥匙串条目 `Claude Code-credentials`（设置了 `CLAUDE_CONFIG_DIR` 时 service 名带目录哈希后缀），通过 `/usr/bin/security` 读写；Windows / Linux 为 `<config>/.credentials.json`。托管副本为 `~/.quosparr/accounts/claude-<stable-id>/auth.json`，索引为 `claude-index.json`
-- Claude 切号只替换凭据里的 `claudeAiOauth`，保留 `mcpOAuth`，并只替换 `.claude.json` 的 `oauthAccount`。当前账号不刷新，过期时提示运行一次 `claude`。非当前账号由 Quosparr 刷新，结果只写账号库副本。应用内登录不自建 OAuth，提示在终端执行 `claude auth login`；刷新时自动导入并跟随官方当前登录（`oauthAccount` 缺失时按 token 调用一次 profile 识别身份，无法识别时不入库），外部登出后清除当前标记，只写账号库副本。不强制终止外部 Claude Code 进程
+- Claude 切号只替换凭据里的 `claudeAiOauth`，保留 `mcpOAuth`，并只替换 `.claude.json` 的 `oauthAccount`。当前账号不刷新，过期时提示运行一次 `claude`。非当前账号由 Quosparr 刷新，结果只写账号库副本。应用内浏览器登录无需先运行或安装 CLI，支持取消和粘贴回调；可信身份与两种 token 仅事务写入账号库，不自动切号，不改官方凭据、`.claude.json` 或 `settings.json`，与实际官方订阅相同且已有托管记录的登录只报告已存在，不替换托管副本；账号库缺失该账号时，仅事务镜像已复核的官方凭据及身份，保持官方真实到期状态，不采用新 OAuth 凭据覆盖官方权威，仍返回已存在；该分支按已复核的实际 `settings.json` 反映当前账号，未启用 API 时同步官方订阅为当前，实际选用 API 时保留对应 API 当前标记，避免把官方 token 当作非当前刷新；重复的非当前账号保留别名、排序、创建时间与历史缓存，更新 token 与到期时间；浏览器等待和网络交换不占账号模块锁，提交前复核官方登录、身份来源和取消状态，失败恢复原凭据与索引并明确报告回滚失败；刷新时自动导入并跟随官方当前登录（`oauthAccount` 缺失时按 token 调用一次 profile 识别身份，无法识别时不入库），外部登出后清除当前标记，只写账号库副本。不强制终止外部 Claude Code 进程
 - macOS 钥匙串写入经 `security -i` 标准输入，单行上限 4095 字节，超限时拒绝而不改用 argv；写入后读回逐字节比对，不一致时回滚到原条目；该条目不存在时写钥匙串，不新建明文 `.credentials.json`
 
 ### 开发运行与 Widget

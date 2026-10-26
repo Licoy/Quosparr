@@ -271,9 +271,6 @@ func TestKeychainServiceAndPaths(t *testing.T) {
 	if ResolveConfigDir("~/work", home) != filepath.Join(home, "work") {
 		t.Fatal("tilde")
 	}
-	if err := Login(context.Background()); !errors.Is(err, ErrLoginUseCLI) {
-		t.Fatal(err)
-	}
 }
 
 func sha256Hex(s string) string {

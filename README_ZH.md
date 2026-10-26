@@ -30,7 +30,7 @@ Quosparr 是面向 macOS、Windows、Linux 的原生菜单栏 / 系统托盘应�
 
 - 查看 Claude Code 订阅用量的 5 小时窗口、7 天窗口、按模型的周额度和额外用量。这个读数不是公开的计费接口
 - 从 Claude Code 本机会话日志统计 Token 用量、API 等价成本（`anthropic-builtin-2026-10-14`）、最近会话和输出速率。同一条回复只计一次。未知模型不给精确费用。日志没有首 token 时间，该列显示“—”，速率按端到端耗时计算
-- 订阅账号可导入当前登录、粘贴凭据或从文件导入，然后切号。应用内登录会提示先在终端执行 `claude auth login`，再导入。Quosparr 不刷新当前账号；登录过期时运行一次 `claude`。其他托管账号只把刷新结果写入账号库副本
+- 订阅账号可直接通过浏览器登录，无需先运行 CLI，也可导入当前登录、粘贴凭据或从文件导入；浏览器登录支持取消和粘贴回调，仅加入账号库，需显式切换才在 Claude Code 中使用；Quosparr 不刷新当前账号，登录过期时运行一次 `claude`；其他托管账号只把刷新结果写入账号库副本
 - macOS 上官方凭据留在钥匙串，经 `/usr/bin/security` 读写。Windows 与 Linux 使用 `<config>/.credentials.json`。切号只替换 `claudeAiOauth`，保留 MCP 令牌，并只更新 `.claude.json` 里的 `oauthAccount`。正在运行的 Claude Code 不会被结束，可能写回旧登录，切换前会提示
 - API 账号：Base URL + API Key，可从站点获取模型列表并分别映射 Opus / Sonnet / Haiku / Fable 模型。切换时只把 `ANTHROPIC_BASE_URL`、`ANTHROPIC_AUTH_TOKEN` 与模型映射写入 `settings.json`（写入前备份），订阅登录保持不变；切回订阅账号时移除这些键。中转站余额显示在所有展示 Claude 额度的位置。已写在 `settings.json` 中的中转配置会自动导入。编辑当前账号时可替换 Key（留空保留），并选择是否立即改写 `settings.json`，改写后需重启 Claude Code
 
@@ -121,7 +121,7 @@ Linux 需要 GTK3、AppIndicator、支持托盘的桌面，以及可用的 Secre
 
 - 建议本机已安装并使用 Codex。Codex 数据来自 `CODEX_HOME`，默认 `~/.codex`，Windows 默认 `%USERPROFILE%\.codex`
 - 仅支持 `file` 凭据存储（Codex `config.toml` 中未设置 `cli_auth_credentials_store` 时即为该方式）；`keyring`、`auto`、`ephemeral` 会提示不支持，并阻止导入与切号
-- Claude 面板使用官方 Claude Code CLI。设置了 `CLAUDE_CONFIG_DIR` 时使用该目录，否则使用 `~/.claude`。订阅用量需要 Claude.ai 登录。API Key 或网关不提供这份用量。执行 `claude auth login` 后当前登录会自动加入，之后用其他账号登录也会自动加入；也可以粘贴凭据 JSON 或从文件导入
+- Claude 面板从 `CLAUDE_CONFIG_DIR`（未设置时为 `~/.claude`）读取 Claude Code 配置，订阅用量需要 Claude.ai 登录，API Key 或网关不提供这份用量；浏览器登录无需安装或先运行 CLI，在你显式切换前只写账号库；已有 CLI 登录会自动加入，也可粘贴凭据 JSON 或从文件导入；真实浏览器授权和切号仍需隔离账号验收
 - 使用 Grok 面板前需要安装 [官方 Grok CLI](https://docs.x.ai/build/overview)：
 
   ```bash

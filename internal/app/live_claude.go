@@ -570,14 +570,6 @@ func (rt *liveApp) importClaudeFile(ctx context.Context, l l10n.Localizer, path 
 	return rt.claudePasteText(ctx, l, string(data))
 }
 
-func (rt *liveApp) claudeLoginHint(l l10n.Localizer) string {
-	if rt.claudeMod == nil {
-		return l.Text(l10n.KeyClaudeLoginCLI)
-	}
-	_, _ = rt.claudeMod.Apply(context.Background(), claude.Command{Kind: claude.CommandLogin})
-	return l.Text(l10n.KeyClaudeLoginCLI)
-}
-
 func (rt *liveApp) switchClaude(l l10n.Localizer, id string) string {
 	if rt.claudeMod == nil {
 		return l.Text(l10n.KeyClaudeNotLoggedIn)
@@ -648,8 +640,6 @@ func claudePublicError(l l10n.Localizer, err error) string {
 	switch {
 	case errors.As(err, &current):
 		return l.Text(l10n.KeyClaudeCurrentAccountCannotDelete)
-	case errors.Is(err, claude.ErrLoginUseCLI):
-		return l.Text(l10n.KeyClaudeLoginCLI)
 	case errors.Is(err, claude.ErrNotLoggedIn):
 		return l.Text(l10n.KeyClaudeNotLoggedIn)
 	case errors.Is(err, claude.ErrTokenExpired):

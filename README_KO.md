@@ -30,7 +30,7 @@ Quosparr는 macOS, Windows, Linux용 네이티브 메뉴 막대 / 시스템 트�
 
 - Claude Code 구독 사용량의 5시간 창, 7일 창, 모델별 주간 한도, 추가 사용량을 봅니다. 이 값은 공개된 결제 API가 아닙니다.
 - Claude Code 로컬 세션 로그로 토큰 사용량, API 환산 비용(`anthropic-builtin-2026-10-14`), 최근 세션, 출력 속도를 계산합니다. 같은 답변은 한 번만 셉니다. 알 수 없는 모델은 정확한 비용을 주지 않습니다. 로그에 첫 토큰 시간이 없어 그 칸은 “—”이고, 속도는 처음부터 끝까지의 시간으로 계산합니다.
-- 구독 계정은 현재 로그인 가져오기, 자격 증명 붙여넣기, 파일 가져오기 후 전환합니다. 앱 안 로그인은 터미널에서 `claude auth login`을 실행한 뒤 가져오라고 안내합니다. Quosparr는 현재 계정을 새로고침하지 않습니다. 로그인이 만료되면 `claude`를 한 번 실행하세요. 다른 관리 계정은 계정 라이브러리 사본만 새로고칩니다.
+- 구독 계정은 CLI를 먼저 실행하지 않고 브라우저로 로그인하거나 현재 로그인 가져오기, 자격 증명 붙여넣기, 파일 가져오기를 사용할 수 있습니다. 브라우저 로그인은 취소와 콜백 붙여넣기를 지원하며 계정 라이브러리에만 추가합니다. Claude Code에서 사용하려면 명시적으로 전환해야 합니다. Quosparr는 현재 계정을 새로고침하지 않습니다. 로그인이 만료되면 `claude`를 한 번 실행하세요. 다른 관리 계정은 계정 라이브러리 사본만 새로고칩니다.
 - macOS에서 공식 자격 증명은 키체인에 있고 `/usr/bin/security`로 읽고 씁니다. Windows와 Linux는 `<config>/.credentials.json`입니다. 전환은 `claudeAiOauth`만 바꾸고 MCP 토큰은 유지하며, `.claude.json`의 `oauthAccount`만 갱신합니다. 실행 중인 Claude Code는 종료하지 않으며 이전 로그인을 다시 쓸 수 있어 전환 전에 경고합니다.
 - API 계정: Base URL + API 키이며, 사이트에서 모델 목록을 가져와 Opus / Sonnet / Haiku / Fable 모델을 각각 매핑할 수 있습니다. 전환 시 `ANTHROPIC_BASE_URL`, `ANTHROPIC_AUTH_TOKEN`과 매핑만 `settings.json`에 기록하고(먼저 백업) 구독 로그인은 그대로 둡니다. 구독 계정으로 돌아가면 이 키들을 제거합니다. 중계 사이트 잔액은 Claude 사용량이 표시되는 모든 곳에 나타납니다. `settings.json`에 이미 설정된 중계 구성은 자동으로 가져옵니다. 사용 중인 계정을 편집할 때 키를 교체할 수 있고(비우면 유지) `settings.json`을 바로 다시 쓸지 묻습니다. 다시 쓴 뒤에는 Claude Code를 재시작해야 합니다.
 
@@ -121,7 +121,7 @@ Linux에는 GTK3, AppIndicator, 트레이를 지원하는 데스크톱, 프록�
 
 - 이 컴퓨터에 Codex가 설치되어 사용 중인 것을 권장합니다. Codex 데이터는 `CODEX_HOME`(기본값 `~/.codex`, Windows는 `%USERPROFILE%\.codex`)에서 가져옵니다.
 - `file` 자격 증명 저장소만 지원합니다(Codex `config.toml`에 `cli_auth_credentials_store`가 없을 때의 기본값). `keyring`, `auto`, `ephemeral`은 지원되지 않는다고 표시되며 계정 가져오기와 전환이 차단됩니다.
-- Claude 패널은 공식 Claude Code CLI를 사용합니다. `CLAUDE_CONFIG_DIR`이 설정되어 있으면 그 값을 쓰고, 아니면 `~/.claude`를 씁니다. 구독 사용량에는 Claude.ai 로그인이 필요합니다. API 키나 게이트웨이로는 이 사용량을 볼 수 없습니다. `claude auth login` 후 현재 로그인이 자동으로 추가되고, 나중에 다른 계정으로 로그인해도 자동으로 추가됩니다. 자격 증명 JSON을 붙여넣거나 파일에서 가져올 수도 있습니다.
+- Claude 패널은 `CLAUDE_CONFIG_DIR`이 설정되어 있으면 해당 디렉터리, 아니면 `~/.claude`의 Claude Code 설정을 읽습니다. 구독 사용량에는 Claude.ai 로그인이 필요하며 API 키나 게이트웨이는 제공하지 않습니다. 브라우저 로그인은 CLI 설치나 사전 실행 없이 가능하며 명시적으로 전환하기 전에는 계정 라이브러리에만 저장합니다. 기존 CLI 로그인은 자동으로 추가되며 자격 증명 JSON 붙여넣기나 파일 가져오기도 가능합니다. 실제 브라우저 인증과 전환은 격리 계정에서 인수 검증해야 합니다.
 - Grok 패널에는 [공식 Grok CLI](https://docs.x.ai/build/overview)가 필요합니다.
 
   ```bash
