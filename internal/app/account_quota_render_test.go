@@ -42,11 +42,11 @@ func quotaAccountRowTester(t *testing.T, lang store.Language, provider store.Pro
 				f := &accountForm{}
 				switch provider {
 				case store.ProviderCodex:
-					renderCodexSettingsRow(c, u, f, nil, acc, "one", false)
+					renderCodexSettingsRow(c, u, f, nil, acc, rowPlace{}, "one", false)
 				case store.ProviderClaude:
-					renderClaudeAccountRow(c, u, f, rt, acc, "one", false)
+					renderClaudeAccountRow(c, u, f, rt, acc, rowPlace{}, "one", false)
 				case store.ProviderGrok:
-					renderGrokAccountRow(c, u, f, rt, acc, "one", false)
+					renderGrokAccountRow(c, u, f, rt, acc, rowPlace{}, "one", false)
 				}
 				return
 			}
@@ -79,9 +79,9 @@ func TestSettingsAccountUpdateControlsStayCentered(t *testing.T) {
 					if !ok {
 						t.Fatal("missing refresh button")
 					}
-					actions, ok := tt.Find(l.Text(l10n.KeyAccountsActions))
+					actions, ok := tt.Find(accountRemoveLabel(l, provider))
 					if !ok {
-						t.Fatal("missing actions")
+						t.Fatalf("missing remove button: %q", tt.Texts())
 					}
 					if updated.X+updated.W > refresh.X || refresh.X+refresh.W > actions.X {
 						t.Fatalf("update/refresh/actions order: %v %v %v", updated, refresh, actions)
@@ -119,6 +119,14 @@ func TestSettingsAccountUpdateControlsStayCentered(t *testing.T) {
 			}
 		}
 	}
+}
+
+// accountRemoveLabel is the last icon button of a settings account row.
+func accountRemoveLabel(l l10n.Localizer, provider store.Provider) string {
+	if provider == store.ProviderGrok {
+		return l.Text(l10n.KeyGrokAccountsRemove)
+	}
+	return l.Text(l10n.KeyAccountsDelete)
 }
 
 func TestExportAccountQuotaReview(t *testing.T) {

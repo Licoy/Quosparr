@@ -82,7 +82,7 @@ func renderClaudeAccounts(c *ui.Context, u *settingsUI, f *accountForm, rt *live
 	}
 	priv := u.s.Prefs().AccountPrivacyModeEnabled
 	accountRows(c, len(rows), func(i int) {
-		renderClaudeAccountRow(c, u, f, rt, rows[i], view.ActiveID, priv)
+		renderClaudeAccountRow(c, u, f, rt, rows[i], placeAt(i, len(rows)), view.ActiveID, priv)
 	})
 }
 
@@ -93,7 +93,7 @@ func (rt *liveApp) claudeFolder() string {
 	return rt.claudeMod.Store.ConfigDir()
 }
 
-func renderClaudeAccountRow(c *ui.Context, u *settingsUI, f *accountForm, rt *liveApp, acc codex.ManagedAccount, current string, priv bool) {
+func renderClaudeAccountRow(c *ui.Context, u *settingsUI, f *accountForm, rt *liveApp, acc codex.ManagedAccount, place rowPlace, current string, priv bool) {
 	l := u.L()
 	name := maskAccount(priv, acc.ResolvedDisplayName())
 	var quota *runway.ClaudeAccountQuota
@@ -106,31 +106,7 @@ func renderClaudeAccountRow(c *ui.Context, u *settingsUI, f *accountForm, rt *li
 		if IconButton(c, icRefresh, l.Text(l10n.KeyRefresh), f.busy || rt == nil).Clicked() {
 			u.accountAct(f, "", func() string { return rt.refreshClaude(context.Background(), l, acc.ID) })
 		}
-		ui.MenuButton(c, l.Text(l10n.KeyAccountsActions), func(m *ui.Menu) {
-			if m.Item(l.Text(l10n.KeyAccountsMakeCurrent)).Disabled(acc.ID == current).Chosen() {
-				f.mode, f.editID, f.switchName, f.switchRelay = "claude-switch", acc.ID, name, acc.AuthMode == codex.AuthModeAPIKey
-				f.desktopSwitch = false
-			}
-			if acc.AuthMode != codex.AuthModeAPIKey && m.Item(tx(l, xDesktopBind)).Chosen() {
-				f.desktop = newDesktopDialog(rt, acc.ID, priv)
-			}
-			if acc.AuthMode != codex.AuthModeAPIKey && m.Item(tx(l, xDesktopOpen)).Disabled(!desktopBound(rt, acc.ID)).Chosen() {
-				f.desktop = newDesktopDialog(rt, acc.ID, priv)
-				f.desktop.openOnly = true
-			}
-			if acc.IsRelay() && m.Item(tx(l, xAPIEditMenu)).Chosen() {
-				f.openClaudeAPIEditor(rt, acc.ID)
-			}
-			if m.Item(l.Text(l10n.KeyAccountsMoveUp)).Chosen() {
-				u.accountAct(f, "", func() string { return rt.moveClaude(acc.ID, -1) })
-			}
-			if m.Item(l.Text(l10n.KeyAccountsMoveDown)).Chosen() {
-				u.accountAct(f, "", func() string { return rt.moveClaude(acc.ID, 1) })
-			}
-			if m.Item(l.Text(l10n.KeyAccountsDelete)).Disabled(acc.ID == current).Chosen() {
-				u.accountAct(f, "", func() string { return rt.deleteClaude(l, acc.ID) })
-			}
-		}).Disabled(f.busy || rt == nil)
+		accountRowActions(c, f.busy || rt == nil, claudeRowActions(u, f, rt, acc, place, name, acc.ID == current, priv))
 	})
 }
 
@@ -284,8 +260,7 @@ func renderCodexAccounts(c *ui.Context, u *settingsUI, f *accountForm, rt *liveA
 	}
 	priv := u.s.Prefs().AccountPrivacyModeEnabled
 	accountRows(c, len(rows), func(i int) {
-		acc := rows[i]
-		renderCodexSettingsRow(c, u, f, rt, acc, view.ActiveID, priv)
+		renderCodexSettingsRow(c, u, f, rt, rows[i], placeAt(i, len(rows)), view.ActiveID, priv)
 	})
 }
 
@@ -324,8 +299,7 @@ func renderGrokAccounts(c *ui.Context, u *settingsUI, f *accountForm, rt *liveAp
 	}
 	priv := u.s.Prefs().AccountPrivacyModeEnabled
 	accountRows(c, len(rows), func(i int) {
-		acc := rows[i]
-		renderGrokAccountRow(c, u, f, rt, acc, view.ActiveID, priv)
+		renderGrokAccountRow(c, u, f, rt, rows[i], placeAt(i, len(rows)), view.ActiveID, priv)
 	})
 }
 
@@ -365,6 +339,10 @@ func accountToolbar(c *ui.Context, u *settingsUI, f *accountForm, title string, 
 		if IconButton(c, icRefresh, l.Text(l10n.KeyAccountsRefreshAll), f.busy).Clicked() {
 			u.accountAct(f, "", refresh)
 		}
+		priv := u.s.Prefs().AccountPrivacyModeEnabled
+		if privacyButton(c, l, priv, 26, 26, 5).Clicked() {
+			u.s.SetAccountPrivacyMode(!priv)
+		}
 		if IconButton(c, icExport, l.Text(l10n.KeyAccountsExport), f.busy).Clicked() {
 			u.accountNotice(f, export())
 		}
@@ -399,10 +377,10 @@ func renderCodexRow(c *ui.Context, u *settingsUI, f *accountForm, rt *liveApp, a
 	if rt != nil {
 		activeID = rt.svc.Snapshot().Accounts.ActiveID
 	}
-	renderCodexSettingsRow(c, u, f, rt, acc, activeID, priv)
+	renderCodexSettingsRow(c, u, f, rt, acc, rowPlace{first: true, last: true}, activeID, priv)
 }
 
-func renderCodexSettingsRow(c *ui.Context, u *settingsUI, f *accountForm, rt *liveApp, acc codex.ManagedAccount, activeID string, priv bool) {
+func renderCodexSettingsRow(c *ui.Context, u *settingsUI, f *accountForm, rt *liveApp, acc codex.ManagedAccount, place rowPlace, activeID string, priv bool) {
 	l := u.L()
 	name := maskAccount(priv, acc.ResolvedDisplayName())
 	current := acc.ID == activeID
@@ -411,34 +389,11 @@ func renderCodexSettingsRow(c *ui.Context, u *settingsUI, f *accountForm, rt *li
 			id := acc.ID
 			u.accountAct(f, "", func() string { <-rt.svc.RefreshAccountQuota(id); return "" })
 		}
-		ui.MenuButton(c, l.Text(l10n.KeyAccountsActions), func(m *ui.Menu) {
-			if m.Item(l.Text(l10n.KeyAccountsMakeCurrent)).Disabled(current).Chosen() {
-				f.mode, f.editID, f.switchName, f.switchRelay = "switch", acc.ID, name, acc.IsRelay()
-				f.restartAfterSwitch = codexRestartSupported
-			}
-			if acc.AuthMode == codex.AuthModeAPIKey && m.Item(tx(l, xAPIEditMenu)).Chosen() {
-				f.openCodexAPIEditor(rt, acc)
-			}
-			if m.Item(l.Text(l10n.KeyAlias)).Chosen() {
-				f.mode, f.editID, f.alias = "alias", acc.ID, acc.Alias
-			}
-			if m.Item(l.Text(l10n.KeyAccountsNote)).Chosen() {
-				f.mode, f.editID, f.note = "note", acc.ID, acc.Note
-			}
-			if m.Item(l.Text(l10n.KeyAccountsMoveUp)).Chosen() {
-				u.accountAct(f, "", func() string { return rt.moveCodex(acc.ID, -1) })
-			}
-			if m.Item(l.Text(l10n.KeyAccountsMoveDown)).Chosen() {
-				u.accountAct(f, "", func() string { return rt.moveCodex(acc.ID, 1) })
-			}
-			if m.Item(l.Text(l10n.KeyAccountsDelete)).Chosen() {
-				u.accountAct(f, "", func() string { return rt.deleteCodex(l, acc.ID) })
-			}
-		}).Disabled(f.busy || rt == nil)
+		accountRowActions(c, f.busy || rt == nil, codexRowActions(u, f, rt, acc, place, name, current))
 	})
 }
 
-func renderGrokAccountRow(c *ui.Context, u *settingsUI, f *accountForm, rt *liveApp, acc codex.ManagedAccount, current string, priv bool) {
+func renderGrokAccountRow(c *ui.Context, u *settingsUI, f *accountForm, rt *liveApp, acc codex.ManagedAccount, place rowPlace, current string, priv bool) {
 	l := u.L()
 	name := maskAccount(priv, acc.ResolvedDisplayName())
 	var quota *runway.GrokAccountQuota
@@ -451,23 +406,7 @@ func renderGrokAccountRow(c *ui.Context, u *settingsUI, f *accountForm, rt *live
 		if IconButton(c, icRefresh, l.Text(l10n.KeyRefresh), f.busy || rt == nil).Clicked() {
 			u.accountAct(f, "", func() string { return rt.refreshGrok(acc.ID) })
 		}
-		ui.MenuButton(c, l.Text(l10n.KeyAccountsActions), func(m *ui.Menu) {
-			if m.Item(l.Text(l10n.KeyGrokAccountsMakeCurrent)).Disabled(acc.ID == current).Chosen() {
-				u.accountAct(f, "", func() string { return rt.switchGrok(l, acc.ID, name) })
-			}
-			if m.Item(l.Text(l10n.KeyAlias)).Chosen() {
-				f.mode, f.editID, f.alias = "alias", acc.ID, acc.Alias
-			}
-			if m.Item(l.Text(l10n.KeyAccountsMoveUp)).Chosen() {
-				u.accountAct(f, "", func() string { return rt.moveGrok(acc.ID, -1) })
-			}
-			if m.Item(l.Text(l10n.KeyAccountsMoveDown)).Chosen() {
-				u.accountAct(f, "", func() string { return rt.moveGrok(acc.ID, 1) })
-			}
-			if m.Item(l.Text(l10n.KeyGrokAccountsRemove)).Disabled(acc.ID == current).Chosen() {
-				u.accountAct(f, "", func() string { return rt.deleteGrok(l, acc.ID) })
-			}
-		}).Disabled(f.busy || rt == nil)
+		accountRowActions(c, f.busy || rt == nil, grokRowActions(u, f, rt, acc, place, name, acc.ID == current))
 	})
 }
 

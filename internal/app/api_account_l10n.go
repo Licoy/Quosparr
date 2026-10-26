@@ -3,7 +3,6 @@ package app
 const (
 	xAPIAdd              textKey = "apiAccountAdd"
 	xAPIEdit             textKey = "apiAccountEdit"
-	xAPIEditMenu         textKey = "apiAccountEditMenu"
 	xAPIBaseURL          textKey = "apiAccountBaseURL"
 	xAPIBaseURLOptional  textKey = "apiAccountBaseURLOptional"
 	xAPIKey              textKey = "apiAccountKey"
@@ -47,7 +46,6 @@ func init() {
 	for key, texts := range map[textKey][7]string{
 		xAPIAdd:              {"Add API account", "添加 API 账号", "新增 API 帳號", "API 계정 추가", "APIアカウントを追加", "Добавить API-аккаунт", "Ajouter un compte API"},
 		xAPIEdit:             {"Edit API account", "编辑 API 账号", "編輯 API 帳號", "API 계정 편집", "APIアカウントを編集", "Изменить API-аккаунт", "Modifier le compte API"},
-		xAPIEditMenu:         {"Edit", "编辑", "編輯", "편집", "編集", "Изменить", "Modifier"},
 		xAPIBaseURL:          {"Base URL", "Base URL", "Base URL", "Base URL", "Base URL", "Base URL", "URL de base"},
 		xAPIBaseURLOptional:  {"Base URL (empty uses the official OpenAI API)", "Base URL（留空使用 OpenAI 官方 API）", "Base URL（留空使用 OpenAI 官方 API）", "Base URL (비우면 OpenAI 공식 API 사용)", "Base URL（空欄でOpenAI公式APIを使用）", "Base URL (пусто — официальный API OpenAI)", "URL de base (vide : API OpenAI officielle)"},
 		xAPIKey:              {"API key", "API Key", "API Key", "API 키", "APIキー", "API-ключ", "Clé API"},

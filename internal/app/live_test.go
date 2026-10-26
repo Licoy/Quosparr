@@ -164,8 +164,9 @@ func TestAccountsPageMasksAndDropsThePlaceholder(t *testing.T) {
 	if tt.HasText(tx(l, xAccountsComingSoon)) {
 		t.Fatal("coming soon placeholder is still shown")
 	}
-	if tt.HasText(l.Text(l10n.KeyAccountPrivacyMode)) || tt.HasText(tx(l, xPrivacyDisplaySection)) {
-		t.Fatal("privacy control still present on accounts page")
+	// The toolbar keeps a privacy toggle; the display section stays in Display.
+	if _, ok := tt.Find(l.Text(l10n.KeyAccountPrivacyMode)); !ok || tt.HasText(tx(l, xPrivacyDisplaySection)) {
+		t.Fatal("accounts page lacks the toolbar privacy toggle or shows the display section")
 	}
 	if !tt.HasText("p***@***.com") || tt.HasText("person@example.com") {
 		t.Fatalf("privacy mask missing; texts %q", tt.Texts())

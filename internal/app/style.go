@@ -333,6 +333,9 @@ func PillTabs(c *ui.Context, selected *int, disabled bool, labels ...string) boo
 func IconButton(c *ui.Context, icon *ui.SVG, label string, disabled bool) ui.Element {
 	t := c.Theme()
 	b := ui.ButtonBase(c).Label(label).Tooltip(label).Disabled(disabled).Size(26, 26).Radius(5).AlignItems(ui.Center).Justify(ui.Center)
+	if !disabled {
+		b.Cursor(ui.CursorPointer)
+	}
 	if b.Pressed() {
 		b.Background(t.Text.Alpha(0.12))
 	} else if b.Hovered() {

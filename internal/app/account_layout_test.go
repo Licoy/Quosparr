@@ -77,9 +77,9 @@ func accountLayoutFixture(t *testing.T, language store.Language, kind, width int
 				accountSelectionEditor(c, u, f, nil)
 				for _, account := range rows {
 					if f.kind == accountKindCodex {
-						renderCodexSettingsRow(c, u, f, nil, account, "current", e.s.Prefs().AccountPrivacyModeEnabled)
+						renderCodexSettingsRow(c, u, f, nil, account, rowPlace{}, "current", e.s.Prefs().AccountPrivacyModeEnabled)
 					} else {
-						renderGrokAccountRow(c, u, f, nil, account, "current", e.s.Prefs().AccountPrivacyModeEnabled)
+						renderGrokAccountRow(c, u, f, nil, account, rowPlace{}, "current", e.s.Prefs().AccountPrivacyModeEnabled)
 					}
 				}
 			})
@@ -105,7 +105,11 @@ func TestAccountRowsKeepCurrentTagByNameAndMaskIdentity(t *testing.T) {
 					var actionX, refreshX float32
 					for i, account := range accountLayoutRows() {
 						u, tt := accountLayoutFixture(t, language, kind, width, false, []codex.ManagedAccount{account})
-						actions, _ := tt.Find(u.L().Text(l10n.KeyAccountsActions))
+						provider := store.ProviderCodex
+						if kind == accountKindGrok {
+							provider = store.ProviderGrok
+						}
+						actions, _ := tt.Find(accountRemoveLabel(u.L(), provider))
 						refresh, _ := tt.Find(u.L().Text(l10n.KeyRefresh))
 						if i == 0 {
 							actionX, refreshX = actions.X, refresh.X

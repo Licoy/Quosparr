@@ -101,8 +101,18 @@ func accountSettingsStatus(c *ui.Context, l l10n.Localizer, v accountIdentityVie
 	}
 }
 
+// accountRowFade is how a settings account row lights up under the pointer.
+var accountRowFade = ui.Animation{Duration: 180 * time.Millisecond, Ease: ui.EaseInOut}
+
+// accountSettingsRow is one account; its wash reaches past the content into
+// the box's padding and fades in and out under the pointer.
 func accountSettingsRow(c *ui.Context, l l10n.Localizer, v accountIdentityView, controls func()) {
-	ui.Column(c).Gap(4).Padding(10, 0).Children(func() {
+	row := ui.Column(c.Key("account-row-"+string(v.provider)+"-"+v.account.ID)).Gap(4).Padding(10, 8).Margin(0, -8).Radius(8)
+	wash := ui.Transparent
+	if row.Hovered() {
+		wash = pal(c.Theme()).Hover
+	}
+	row.Background(row.AnimateColor("hover", wash, accountRowFade)).Children(func() {
 		ui.Row(c).Gap(10).AlignItems(ui.Center).Children(func() {
 			ProviderIcon(c, v.provider, 20)
 			accountSettingsIdentityInfo(c, l, v)

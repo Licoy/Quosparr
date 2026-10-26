@@ -121,7 +121,7 @@ func TestPanelPrivacyChangeUpdatesIdentity(t *testing.T) {
 	}
 }
 
-func TestAccountMenuOpensEditorAndCancelClearsSensitiveDraft(t *testing.T) {
+func TestAccountAliasButtonOpensEditorAndCancelClearsSensitiveDraft(t *testing.T) {
 	s := NewSettings(store.New(store.NewMemoryDomain(), nil), System{}, nil)
 	s.prefs = store.DefaultPreferences()
 	s.prefs.Language = store.LanguageEnglish
@@ -138,10 +138,7 @@ func TestAccountMenuOpensEditorAndCancelClearsSensitiveDraft(t *testing.T) {
 	if tt.HasText("Private account") || tt.HasText("private@example.com") {
 		t.Fatal("account identity was not masked")
 	}
-	if err := tt.Click(u.L().Text(l10n.KeyAccountsActions)); err != nil {
-		t.Fatal(err)
-	}
-	if err := tt.ChooseMenuItem(u.L().Text(l10n.KeyAlias)); err != nil {
+	if err := tt.Click(u.L().Text(l10n.KeyAlias)); err != nil {
 		t.Fatal(err)
 	}
 	tt.Frame()

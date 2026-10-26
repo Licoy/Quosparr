@@ -34,21 +34,14 @@ func TestDesktopSubscriptionEntriesAndAPIExclusion(t *testing.T) {
 			account.APIBaseURL = "https://relay.invalid"
 		}
 		tt := ui.NewTester(func(c *ui.Context) {
-			ui.Column(c).Fill().Children(func() { renderClaudeAccountRow(c, u, f, rt, account, id, false) })
+			ui.Column(c).Fill().Children(func() { renderClaudeAccountRow(c, u, f, rt, account, rowPlace{}, id, false) })
 		}, 760, 160)
-		if err := tt.Click(l.Text(l10n.KeyAccountsActions)); err != nil {
-			t.Fatal(err)
+		if _, found := tt.Find(tx(l, xDesktopBind)); found == api {
+			t.Fatalf("Desktop settings eligibility: api=%v texts=%v", api, tt.Texts())
 		}
-		found := false
-		for _, label := range tt.Menu() {
-			if label == tx(l, xDesktopBind) {
-				found = true
-			}
+		if _, found := tt.Find(tx(l, xAPIEdit)); found != api {
+			t.Fatalf("API edit eligibility: api=%v texts=%v", api, tt.Texts())
 		}
-		if found == api {
-			t.Fatalf("Desktop settings eligibility: api=%v menu=%v", api, tt.Menu())
-		}
-		tt.CloseMenu()
 		app := &App{}
 		panel := ui.NewTester(func(c *ui.Context) {
 			ui.Column(c).Fill().Children(func() { app.claudeManagement(c, l, account, true, false, runway.AccountsView{}, AccountActions{}) })
