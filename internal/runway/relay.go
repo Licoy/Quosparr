@@ -40,17 +40,6 @@ func (s *Service) currentRowLocked() (codex.ManagedAccount, bool) {
 	return codex.ManagedAccount{}, false
 }
 
-// currentRelayID is the id of the shown credential's row when that is a relay
-// account, else "".
-func (s *Service) currentRelayID() string {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	if row, ok := s.currentRowLocked(); ok && row.IsRelay() {
-		return row.ID
-	}
-	return ""
-}
-
 // relayProbing reports whether relay balances can be probed at all.
 func (s *Service) relayProbing() bool { return s.src.FetchAPIQuota != nil }
 

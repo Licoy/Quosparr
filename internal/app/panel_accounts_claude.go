@@ -10,7 +10,7 @@ import (
 )
 
 // claudeAccountsPage lists the managed Claude accounts with their cached
-// 5-hour usage. Adding opens the Claude accounts tab of the settings.
+// usage windows. Adding opens the Claude accounts tab of the settings.
 func (a *App) claudeAccountsPage(c *ui.Context, l l10n.Localizer, prefs store.Preferences, snap runway.Snapshot, acts PanelActions) {
 	view, ac := snap.Claude.Accounts, acts.Accounts
 	st := &a.panelState.accounts
@@ -43,7 +43,7 @@ func (a *App) claudeAccountCard(c *ui.Context, l l10n.Localizer, prefs store.Pre
 	view := snap.Claude.Accounts
 	current := acc.ID == view.ActiveID
 	priv := prefs.AccountPrivacyModeEnabled
-	quota, hasQuota := snap.Claude.AccountQuotas[acc.ID]
+	quota := snap.Claude.AccountQuotas[acc.ID]
 	accountCard(c, current, func() {
 		a.claudeCardHeader(c, l, acc, quota, current, priv, view, ac)
 		switch {
@@ -54,24 +54,11 @@ func (a *App) claudeAccountCard(c *ui.Context, l l10n.Localizer, prefs store.Pre
 		}
 		if acc.IsRelay() {
 			apiBalanceBlock(c, l, acc.APIQuota, current)
-		} else if hasQuota && quota.Title != "" {
-			accountMeter(c, l, claudeAccountMeter(quota, current))
 		} else {
-			calloutDim(c, l.Text(l10n.KeyClaudeNoQuotaData)).FontSize(fsCaption)
-		}
-		if quota.ExtraUsage != "" {
-			dimText(c, quota.ExtraUsage).FontSize(fsCaption)
+			claudeQuotaBlock(c, l, &quota, accountQuotaOptions{current: current, showUpdated: true})
 		}
 		a.claudeManagement(c, l, acc, current, priv, view, ac)
 	})
-}
-
-func claudeAccountMeter(q runway.ClaudeAccountQuota, current bool) meterSpec {
-	m := meterSpec{title: q.Title, remaining: max(0, 100-q.UsedPercent), used: q.UsedPercent, current: current}
-	if !q.ResetsAt.IsZero() {
-		m.resetsAt, m.hasReset = q.ResetsAt, true
-	}
-	return m
 }
 
 func (a *App) claudeCardHeader(c *ui.Context, l l10n.Localizer, acc codex.ManagedAccount, q runway.ClaudeAccountQuota, current, priv bool, view runway.AccountsView, ac AccountActions) {
@@ -151,12 +138,12 @@ func (a *App) claudeManagement(c *ui.Context, l l10n.Localizer, acc codex.Manage
 	st := &a.panelState.accounts
 	refreshing := accountRefreshing(view.RefreshingIDs, acc.ID) || st.refreshing == acc.ID || st.refreshing == allRefreshing
 	name := accountPrivate(priv, acc.ResolvedDisplayName())
-	ui.Row(c).Gap(2).AlignItems(ui.Center).Children(func() {
+	ui.Row(c).Gap(6).AlignItems(ui.Center).Wrap().Children(func() {
 		if acc.AuthMode != codex.AuthModeAPIKey {
-			if PillButton(c, nil, tx(l, xDesktopBind), st.busy).Clicked() {
+			if SmallPillButton(c, nil, tx(l, xDesktopBind), st.busy).Clicked() {
 				st.desktop = newDesktopDialog(currentRuntime(), acc.ID, priv)
 			}
-			if PillButton(c, nil, tx(l, xDesktopOpen), st.busy || !desktopBound(currentRuntime(), acc.ID)).Clicked() {
+			if SmallPillButton(c, nil, tx(l, xDesktopOpen), st.busy || !desktopBound(currentRuntime(), acc.ID)).Clicked() {
 				st.desktop = newDesktopDialog(currentRuntime(), acc.ID, priv)
 				st.desktop.openOnly = true
 			}

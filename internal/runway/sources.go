@@ -100,7 +100,7 @@ type Sources struct {
 	// RefreshAccounts / RefreshAccount poll the quota of managed accounts.
 	// Results carry the account id and generation; Generations (shared with
 	// the refresher) lets the Service drop stale ones.
-	RefreshAccounts func(ctx context.Context) []codexapi.QuotaRefreshResult
+	RefreshAccounts func(ctx context.Context, skipResetCreditsID string) []codexapi.QuotaRefreshResult
 	RefreshAccount  func(ctx context.Context, id string) codexapi.QuotaRefreshResult
 	Generations     *codexapi.Generations
 }

@@ -1,7 +1,6 @@
 package app
 
 import (
-	"fmt"
 	"time"
 
 	"github.com/egoist/mygo/ui"
@@ -22,6 +21,13 @@ type accountIdentityView struct {
 }
 
 func accountSettingsIdentity(c *ui.Context, l l10n.Localizer, v accountIdentityView) {
+	ui.Column(c).Grow(1).Basis(0).MinWidth(0).Gap(4).Children(func() {
+		accountSettingsIdentityInfo(c, l, v)
+		accountSettingsStatus(c, l, v)
+	})
+}
+
+func accountSettingsIdentityInfo(c *ui.Context, l l10n.Localizer, v accountIdentityView) {
 	acc := v.account
 	name := acc.ResolvedDisplayName()
 	ui.Column(c).Grow(1).Basis(0).MinWidth(0).Gap(4).Children(func() {
@@ -50,66 +56,70 @@ func accountSettingsIdentity(c *ui.Context, l l10n.Localizer, v accountIdentityV
 		if acc.Note != "" {
 			dimText(c, accountDiagnosticText(acc.Note, v.privacy)).MaxLines(2)
 		}
-		accountSettingsStatus(c, l, v)
 	})
 }
 
-// Match the Swift settings rows: identity, warnings, then cached quota and
-// its reset countdown. Errors take precedence over stale quota readings.
+// Settings and panel cards share the same cached quota rendering.
 func accountSettingsStatus(c *ui.Context, l l10n.Localizer, v accountIdentityView) {
 	acc := v.account
-	switch {
-	case acc.RequiresReauth:
+	if acc.RequiresReauth {
 		key := l10n.KeyAccountsNeedsReauth
 		if v.provider == store.ProviderGrok {
 			key = l10n.KeyGrokReauthenticationRequired
 		}
+		if v.provider == store.ProviderClaude {
+			key = l10n.KeyClaudeReauthRequired
+		}
 		ui.Text(c, l.Text(key)).FontSize(11).TextColor(c.Theme().Danger)
-	case acc.LastError != "":
+		return
+	} else if acc.LastError != "" {
 		diag := privateSiteText(v.privacy, acc.LastError, acc.APIBaseURL)
 		ui.Text(c, diag).FontSize(11).TextColor(sys(c.Theme(), sysOrange)).MaxLines(2).Tooltip(diag)
-	case acc.IsRelay():
-		if text := apiBalanceSummary(l, acc.APIQuota); text != "" {
-			dimText(c, text).MaxLines(2)
-		}
-	case v.provider == store.ProviderClaude && v.claudeQuota != nil:
-		q := v.claudeQuota
-		if q.Title == "" {
-			dimText(c, l.Text(l10n.KeyClaudeNoQuotaData))
-			if q.ExtraUsage != "" {
-				dimText(c, q.ExtraUsage)
-			}
-			return
-		}
-		percent := fmt.Sprintf("%d%% %s", max(0, min(100, 100-q.UsedPercent)), l.Text(l10n.KeyLeft))
-		text := accountUpdatedSummary(l, percent, q.UpdatedAt)
-		if q.ExtraUsage != "" {
-			text = q.ExtraUsage + " · " + percent
-		}
-		ui.Row(c).Gap(10).AlignItems(ui.Center).Wrap().Children(func() {
-			dimText(c, text).NoWrap().Shrink(0)
-			accountSettingsReset(c, l, q.ResetsAt)
-		})
-	case v.provider == store.ProviderGrok && v.grokQuota != nil:
-		q := v.grokQuota
-		percent := fmt.Sprintf("%d%% %s", max(0, min(100, 100-q.UsedPercent)), l.Text(l10n.KeyLeft))
-		text := accountUpdatedSummary(l, percent, q.UpdatedAt)
-		if q.IncludedUSD != "" {
-			text = q.IncludedUSD + " · " + percent
-		}
-		ui.Row(c).Gap(10).AlignItems(ui.Center).Wrap().Children(func() {
-			dimText(c, text).NoWrap().Shrink(0)
-			accountSettingsReset(c, l, q.ResetsAt)
-		})
-	case v.provider == store.ProviderCodex && acc.CachedQuota != nil:
-		q := acc.CachedQuota
-		ui.Row(c).Gap(10).AlignItems(ui.Center).Wrap().Children(func() {
-			dimText(c, accountUpdatedSummary(l, fmt.Sprintf("%d%%", max(0, min(100, 100-q.PrimaryUsedPercent))), q.UpdatedAt)).NoWrap().Shrink(0)
-			if q.PrimaryResetsAt != nil {
-				accountSettingsReset(c, l, *q.PrimaryResetsAt)
-			}
-		})
+		return
 	}
+	switch {
+	case acc.IsRelay():
+		apiBalanceBlock(c, l, acc.APIQuota, v.current)
+	case v.provider == store.ProviderClaude:
+		claudeQuotaBlock(c, l, v.claudeQuota, accountQuotaOptions{current: v.current})
+	case v.provider == store.ProviderGrok:
+		grokQuotaBlock(c, l, v.grokQuota, accountQuotaOptions{current: v.current})
+	default:
+		codexQuotaBlock(c, l, acc, accountQuotaOptions{current: v.current})
+	}
+}
+
+func accountSettingsRow(c *ui.Context, l l10n.Localizer, v accountIdentityView, controls func()) {
+	ui.Column(c).Gap(4).Padding(10, 0).Children(func() {
+		ui.Row(c).Gap(10).AlignItems(ui.Center).Children(func() {
+			ProviderIcon(c, v.provider, 20)
+			accountSettingsIdentityInfo(c, l, v)
+			ui.Row(c).Gap(8).AlignItems(ui.Center).Children(func() {
+				accountQuotaUpdated(c, l, accountSettingsUpdatedAt(v))
+				controls()
+			})
+		})
+		ui.Column(c).Gap(8).Padding(0, 0, 0, 30).Children(func() { accountSettingsStatus(c, l, v) })
+	})
+}
+
+func accountSettingsUpdatedAt(v accountIdentityView) time.Time {
+	if v.provider == store.ProviderClaude && v.claudeQuota != nil {
+		return v.claudeQuota.UpdatedAt
+	}
+	if v.provider == store.ProviderGrok && v.grokQuota != nil {
+		return v.grokQuota.UpdatedAt
+	}
+	if v.account.CachedQuota != nil {
+		return v.account.CachedQuota.UpdatedAt
+	}
+	if v.account.APIQuota != nil {
+		return v.account.APIQuota.FetchedAt
+	}
+	if v.account.LastQuotaAt != nil {
+		return *v.account.LastQuotaAt
+	}
+	return time.Time{}
 }
 
 func accountUpdatedSummary(l l10n.Localizer, text string, at time.Time) string {
@@ -117,14 +127,6 @@ func accountUpdatedSummary(l l10n.Localizer, text string, at time.Time) string {
 		return text
 	}
 	return text + " · " + l.Text(l10n.KeyLastUpdated) + " " + at.In(time.Local).Format("15:04")
-}
-
-func accountSettingsReset(c *ui.Context, l l10n.Localizer, at time.Time) {
-	if at.IsZero() {
-		return
-	}
-	dimText(c, resetCountdown(l, at, time.Now())).FontFeatures("tnum").NoWrap().Shrink(0)
-	c.After(time.Second)
 }
 
 func accountDiagnosticText(text string, privacy bool) string {

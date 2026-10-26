@@ -146,8 +146,8 @@ func accountMeter(c *ui.Context, l l10n.Localizer, m meterSpec) {
 	health := runway.HealthForUsedPercent(m.used)
 	left := l10n.Format("%d%% %s", m.remaining, l.Text(l10n.KeyLeft))
 	ui.Column(c).Gap(3).Children(func() {
-		ui.Row(c).Gap(8).AlignItems(ui.Center).Children(func() {
-			ui.Text(c, m.title).FontSize(fsCaption).FontWeight(500).TextColor(inkSecondary(t)).SingleLine().Ellipsis("…").Grow(1).Basis(0)
+		ui.Row(c).Gap(8).AlignItems(ui.Start).Wrap().Children(func() {
+			ui.Text(c, m.title).FontSize(fsCaption).FontWeight(500).TextColor(inkSecondary(t)).MaxLines(2).Tooltip(m.title).Grow(1).Basis(140).MinWidth(0)
 			value, ink := left, healthInk(t, health)
 			if m.trailing != "" {
 				value, ink = m.trailing, inkSecondary(t)
@@ -159,7 +159,8 @@ func accountMeter(c *ui.Context, l l10n.Localizer, m meterSpec) {
 			dimText(c, left)
 		}
 		if m.hasReset {
-			dimText(c, resetCountdown(l, m.resetsAt, time.Now()))
+			dimText(c, resetCountdown(l, m.resetsAt, c.Now())).MaxLines(2).Tooltip(m.resetsAt.In(time.Local).Format("2006-01-02 15:04:05 MST"))
+			c.After(time.Second)
 		}
 	})
 }

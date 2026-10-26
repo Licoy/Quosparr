@@ -610,10 +610,17 @@ func (s *Service) refreshNow(ctx context.Context, policy usage.RefreshPolicy, lo
 	auth, gen, err := s.loadValidAuth(ctx, false)
 	// Account polling starts once the current credential is recorded, and
 	// also when loading it failed.
-	// The current relay account is probed by this refresh itself.
+	// The current account's reset credits or relay balance are fetched below.
 	skip := ""
-	if err == nil && auth.IsAPIKey() {
-		skip = s.currentRelayID()
+	if err == nil {
+		s.mu.Lock()
+		for _, acc := range s.index.Accounts {
+			if codex.AccountMatches(acc, auth) {
+				skip = acc.ID
+				break
+			}
+		}
+		s.mu.Unlock()
 	}
 	s.spawn(func() { s.refreshAccountsInline(s.root, skip) })
 
@@ -836,16 +843,23 @@ func (s *Service) fetchCreditsStep(ctx context.Context, auth codex.Auth, gen uin
 		if stopped(ctx, err) {
 			return nil
 		}
+		s.apply(auth, gen, func() {
+			if cacheErr := s.cacheCurrentResetCreditsLocked(auth, nil); cacheErr != nil {
+				s.lastErr = cacheErr.Error()
+			}
+		})
 		s.fail(&auth, gen, err, func() { s.creditsErr = s.errTextLocked(err) })
 		return err
 	}
 	var enabled bool
+	var cacheErr error
 	s.apply(auth, gen, func() {
 		s.credits, s.creditsErr = &c, ""
+		cacheErr = s.cacheCurrentResetCreditsLocked(auth, &c)
 		enabled = s.prefs.ResetCreditAlertsEnabled
 	})
 	s.deliver(alerts.ResetCreditAlerts(creditAlertInput(c)), enabled)
-	return nil
+	return cacheErr
 }
 
 // loadEstimate fetches the analytics rows and computes the quota estimate.
@@ -1028,6 +1042,11 @@ func (s *Service) refreshCreditsNow(ctx context.Context) {
 	c, err := s.src.FetchResetCredits(ctx, apiAuth(auth))
 	if err != nil {
 		if !stopped(ctx, err) {
+			s.apply(auth, gen, func() {
+				if cacheErr := s.cacheCurrentResetCreditsLocked(auth, nil); cacheErr != nil {
+					s.lastErr = cacheErr.Error()
+				}
+			})
 			s.fail(&auth, gen, err, func() {
 				s.creditsErr = s.errTextLocked(err)
 				s.lastErr = s.creditsErr
@@ -1038,6 +1057,9 @@ func (s *Service) refreshCreditsNow(ctx context.Context) {
 	var enabled bool
 	if s.apply(auth, gen, func() {
 		s.credits, s.creditsErr, s.lastErr = &c, "", ""
+		if cacheErr := s.cacheCurrentResetCreditsLocked(auth, &c); cacheErr != nil {
+			s.lastErr = cacheErr.Error()
+		}
 		enabled = s.prefs.ResetCreditAlertsEnabled
 		s.exportStatusLocked()
 	}) {

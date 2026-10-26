@@ -33,9 +33,11 @@ type QuotaRefreshResult struct {
 	Generation uint64
 	APIKey     bool
 	// Auth is the credential used for the requests (after any token refresh).
-	Auth          Auth
-	Quota         *QuotaSnapshot
-	WorkspaceName string
+	Auth            Auth
+	Quota           *QuotaSnapshot
+	ResetCredits    *ResetCreditsSnapshot
+	ResetCreditsErr error
+	WorkspaceName   string
 	// Warning is set when the quota is valid but metadata failed.
 	Warning string
 	Err     error
@@ -72,8 +74,9 @@ var ErrAccountNotFound = errors.New("account not found")
 
 // RefreshAll refreshes every account and returns the results in list order.
 // Cancelling ctx stops the remaining work; accounts that never ran carry the
-// context error.
-func (r AccountQuotaRefresher) RefreshAll(ctx context.Context) []QuotaRefreshResult {
+// context error. skipResetCreditsID skips only the credit request already
+// performed by a current-account refresh; an empty id refreshes every account.
+func (r AccountQuotaRefresher) RefreshAll(ctx context.Context, skipResetCreditsID string) []QuotaRefreshResult {
 	targets, err := r.Accounts(ctx)
 	if err != nil {
 		return nil
@@ -98,7 +101,7 @@ func (r AccountQuotaRefresher) RefreshAll(ctx context.Context) []QuotaRefreshRes
 				results[i] = QuotaRefreshResult{AccountID: target.ID, Generation: gen, Err: ctx.Err()}
 				return
 			}
-			results[i] = r.refreshOne(ctx, target, gen)
+			results[i] = r.refreshOne(ctx, target, gen, target.ID == skipResetCreditsID)
 		}()
 	}
 	wg.Wait()
@@ -113,7 +116,7 @@ func (r AccountQuotaRefresher) Refresh(ctx context.Context, accountID string) Qu
 	}
 	for _, target := range targets {
 		if target.ID == accountID {
-			return r.refreshOne(ctx, target, r.begin(accountID))
+			return r.refreshOne(ctx, target, r.begin(accountID), false)
 		}
 	}
 	return QuotaRefreshResult{AccountID: accountID, Err: ErrAccountNotFound}
@@ -126,7 +129,7 @@ func (r AccountQuotaRefresher) begin(accountID string) uint64 {
 	return r.Generations.Begin(accountID)
 }
 
-func (r AccountQuotaRefresher) refreshOne(ctx context.Context, target AccountTarget, gen uint64) QuotaRefreshResult {
+func (r AccountQuotaRefresher) refreshOne(ctx context.Context, target AccountTarget, gen uint64, skipResetCredits bool) QuotaRefreshResult {
 	result := QuotaRefreshResult{AccountID: target.ID, Generation: gen}
 	if target.APIKey {
 		// The ChatGPT quota endpoints do not apply to pure API-key accounts.
@@ -143,6 +146,13 @@ func (r AccountQuotaRefresher) refreshOne(ctx context.Context, target AccountTar
 		return failed(result, err)
 	}
 	result.Quota = &quota
+	if !skipResetCredits {
+		credits, creditsErr := r.Client.FetchResetCredits(ctx, auth)
+		result.ResetCreditsErr = creditsErr
+		if creditsErr == nil {
+			result.ResetCredits = &credits
+		}
+	}
 	if shouldFetchWorkspaceName(target) {
 		// Best effort: a failure must not discard the quota.
 		if name, err := r.Client.FetchWorkspaceName(ctx, auth); err != nil {

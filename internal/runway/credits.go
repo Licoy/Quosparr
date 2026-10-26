@@ -5,6 +5,7 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/licoy/quosparr/internal/codex"
 	"github.com/licoy/quosparr/internal/codexapi"
 	"github.com/licoy/quosparr/internal/l10n"
 )
@@ -184,4 +185,25 @@ func ExpiryHelp(lc l10n.Localizer, expiry, updatedAt time.Time, loc *time.Locati
 	}
 	updated := CreditUpdatedText(updatedAt, lang, loc)
 	return exp + "\n" + lc.Text(l10n.KeyLastUpdated) + ": " + updated + "\n" + lc.Text(l10n.KeyResetExpirySummaryHelp)
+}
+
+// cacheAccountResetCredits retains only derived expiry times of available cards,
+// never their ids; a count without details must leave expiry unknown.
+func cacheAccountResetCredits(account codex.ManagedAccount, credits codexapi.ResetCreditsSnapshot, now time.Time) codex.ManagedAccount {
+	if account.ResetCredits != nil && account.ResetCredits.CheckedAt.After(credits.UpdatedAt) {
+		return account
+	}
+	updated := account.ApplyResetCredits(&credits.AvailableCount, &credits.UpdatedAt, "")
+	if credits.AvailableCount <= 0 {
+		return updated
+	}
+	for _, card := range credits.Credits {
+		if card.Status == "available" && card.ExpiresAt.After(now) && card.ExpiresAt.After(credits.UpdatedAt) {
+			updated.ResetCredits.AvailableExpiries = append(updated.ResetCredits.AvailableExpiries, card.ExpiresAt)
+		}
+	}
+	sort.Slice(updated.ResetCredits.AvailableExpiries, func(i, j int) bool {
+		return updated.ResetCredits.AvailableExpiries[i].Before(updated.ResetCredits.AvailableExpiries[j])
+	})
+	return updated
 }

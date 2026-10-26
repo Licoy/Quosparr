@@ -55,7 +55,7 @@ func (af *accountFixture) apply(f *fake) func(*Options) {
 		o.Sources.LoadIndex = af.st.LoadIndex
 		o.Sources.SaveAccount = af.st.UpdateMetadata
 		o.Sources.Generations = af.gens
-		o.Sources.RefreshAccounts = func(context.Context) []codexapi.QuotaRefreshResult {
+		o.Sources.RefreshAccounts = func(context.Context, string) []codexapi.QuotaRefreshResult {
 			af.mu.Lock()
 			af.recordedAtPoll = f.recordedIDs()
 			polls := af.polls

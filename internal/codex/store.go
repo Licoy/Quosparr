@@ -464,8 +464,13 @@ func (s *Store) updateMetadata(acc ManagedAccount) error {
 	if err != nil {
 		return err
 	}
-	if _, ok := idx.Account(acc.ID); !ok {
+	existing, ok := idx.Account(acc.ID)
+	if !ok {
 		return &AccountNotFoundError{ID: acc.ID}
+	}
+	// Older whole-row metadata writes must not erase a newer credit refresh.
+	if existing.ResetCredits != nil && (acc.ResetCredits == nil || existing.ResetCredits.CheckedAt.After(acc.ResetCredits.CheckedAt)) {
+		acc.ResetCredits = existing.ResetCredits
 	}
 	idx.Upsert(acc)
 	return s.saveIndex(idx)

@@ -137,7 +137,7 @@ func (a *App) grokAccountCard(c *ui.Context, l l10n.Localizer, prefs store.Prefe
 	view := snap.Grok.Accounts
 	current := acc.ID == view.ActiveID
 	priv := prefs.AccountPrivacyModeEnabled
-	quota, hasQuota := snap.Grok.AccountQuotas[acc.ID]
+	quota := snap.Grok.AccountQuotas[acc.ID]
 	accountCard(c, current, func() {
 		a.grokCardHeader(c, l, acc, quota, current, priv, view, ac)
 		a.grokAliasEditor(c, l, acc.ID, ac)
@@ -147,21 +147,9 @@ func (a *App) grokAccountCard(c *ui.Context, l l10n.Localizer, prefs store.Prefe
 		case acc.LastError != "":
 			accountStatusLine(c, acc.LastError, sys(c.Theme(), sysOrange))
 		}
-		if hasQuota {
-			accountMeter(c, l, grokMeter(quota, current))
-		} else {
-			calloutDim(c, l.Text(l10n.KeyGrokNoQuotaData)).FontSize(fsCaption)
-		}
+		grokQuotaBlock(c, l, &quota, accountQuotaOptions{current: current, showUpdated: true})
 		a.grokManagement(c, l, acc, caps, priv, view, ac)
 	})
-}
-
-func grokMeter(q runway.GrokAccountQuota, current bool) meterSpec {
-	m := meterSpec{title: q.Title, remaining: max(0, 100-q.UsedPercent), used: q.UsedPercent, trailing: q.IncludedUSD, current: current}
-	if !q.ResetsAt.IsZero() {
-		m.resetsAt, m.hasReset = q.ResetsAt, true
-	}
-	return m
 }
 
 func (a *App) grokCardHeader(c *ui.Context, l l10n.Localizer, acc codex.ManagedAccount, q runway.GrokAccountQuota, current, priv bool, view runway.AccountsView, ac AccountActions) {

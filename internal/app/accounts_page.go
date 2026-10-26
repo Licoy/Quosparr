@@ -102,9 +102,10 @@ func renderClaudeAccountRow(c *ui.Context, u *settingsUI, f *accountForm, rt *li
 			quota = &q
 		}
 	}
-	ui.Row(c).Gap(10).Padding(10, 0).AlignItems(ui.Center).Children(func() {
-		ProviderIcon(c, store.ProviderClaude, 20)
-		accountSettingsIdentity(c, l, accountIdentityView{account: acc, current: acc.ID == current, privacy: priv, provider: store.ProviderClaude, claudeQuota: quota})
+	accountSettingsRow(c, l, accountIdentityView{account: acc, current: acc.ID == current, privacy: priv, provider: store.ProviderClaude, claudeQuota: quota}, func() {
+		if IconButton(c, icRefresh, l.Text(l10n.KeyRefresh), f.busy || rt == nil).Clicked() {
+			u.accountAct(f, "", func() string { return rt.refreshClaude(context.Background(), l, acc.ID) })
+		}
 		ui.MenuButton(c, l.Text(l10n.KeyAccountsActions), func(m *ui.Menu) {
 			if m.Item(l.Text(l10n.KeyAccountsMakeCurrent)).Disabled(acc.ID == current).Chosen() {
 				f.mode, f.editID, f.switchName, f.switchRelay = "claude-switch", acc.ID, name, acc.AuthMode == codex.AuthModeAPIKey
@@ -406,9 +407,7 @@ func renderCodexSettingsRow(c *ui.Context, u *settingsUI, f *accountForm, rt *li
 	l := u.L()
 	name := maskAccount(priv, acc.ResolvedDisplayName())
 	current := acc.ID == activeID
-	ui.Row(c).Gap(10).Padding(10, 0).AlignItems(ui.Center).Children(func() {
-		ProviderIcon(c, store.ProviderCodex, 20)
-		accountSettingsIdentity(c, l, accountIdentityView{account: acc, current: current, privacy: priv, provider: store.ProviderCodex})
+	accountSettingsRow(c, l, accountIdentityView{account: acc, current: current, privacy: priv, provider: store.ProviderCodex}, func() {
 		if IconButton(c, icRefresh, l.Text(l10n.KeyRefresh), f.busy || rt == nil).Clicked() {
 			id := acc.ID
 			u.accountAct(f, "", func() string { <-rt.svc.RefreshAccountQuota(id); return "" })
@@ -443,15 +442,13 @@ func renderCodexSettingsRow(c *ui.Context, u *settingsUI, f *accountForm, rt *li
 func renderGrokAccountRow(c *ui.Context, u *settingsUI, f *accountForm, rt *liveApp, acc codex.ManagedAccount, current string, priv bool) {
 	l := u.L()
 	name := maskAccount(priv, acc.ResolvedDisplayName())
-	ui.Row(c).Gap(10).Padding(10, 0).AlignItems(ui.Center).Children(func() {
-		ProviderIcon(c, store.ProviderGrok, 20)
-		var quota *runway.GrokAccountQuota
-		if rt != nil {
-			if q, ok := rt.svc.Snapshot().Grok.AccountQuotas[acc.ID]; ok {
-				quota = &q
-			}
+	var quota *runway.GrokAccountQuota
+	if rt != nil {
+		if q, ok := rt.svc.Snapshot().Grok.AccountQuotas[acc.ID]; ok {
+			quota = &q
 		}
-		accountSettingsIdentity(c, l, accountIdentityView{account: acc, current: acc.ID == current, privacy: priv, provider: store.ProviderGrok, grokQuota: quota})
+	}
+	accountSettingsRow(c, l, accountIdentityView{account: acc, current: acc.ID == current, privacy: priv, provider: store.ProviderGrok, grokQuota: quota}, func() {
 		if IconButton(c, icRefresh, l.Text(l10n.KeyRefresh), f.busy || rt == nil).Clicked() {
 			u.accountAct(f, "", func() string { return rt.refreshGrok(acc.ID) })
 		}

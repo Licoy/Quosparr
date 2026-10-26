@@ -219,6 +219,9 @@ func DecodeResetCredits(data []byte, now time.Time) (ResetCreditsSnapshot, error
 	if availableCount != nil {
 		count = *availableCount
 	}
+	if count < 0 {
+		return ResetCreditsSnapshot{}, decodeErrorf("reset credits: negative available_count")
+	}
 	return ResetCreditsSnapshot{AvailableCount: count, Credits: credits, UpdatedAt: now}, nil
 }
 

@@ -117,7 +117,7 @@ func TestAccountRowsKeepCurrentTagByNameAndMaskIdentity(t *testing.T) {
 								t.Fatalf("current tag must immediately follow account name: name=%+v current=%+v", name, current)
 							}
 							if kind == accountKindCodex {
-								quota, found := tt.Find("68%")
+								quota, found := tt.Find(u.L().Text(l10n.KeyWeeklyUsage))
 								if !found || quota.Y <= name.Y+name.H || quota.X != name.X {
 									t.Fatalf("quota must be below identity: %v", quota)
 								}

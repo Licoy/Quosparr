@@ -64,16 +64,27 @@ type GrokState struct {
 	ResetCreditSummary *ResetCreditSummary
 }
 
-// GrokAccountQuota is the cached quota of one managed Grok account: the
-// included-quota meter and the plan. Title is the localized period name,
-// IncludedUSD the "$used / $limit" allowance or "".
+// AccountResetGrant is a count whose availability has explicit time bounds.
+// Only eligible, unpaused grants are projected; zero bounds are unrestricted.
+type AccountResetGrant struct {
+	Count            int
+	StartsAt, EndsAt time.Time
+}
+
+// GrokAccountQuota contains the included quota, product contributions and reset cards.
+// IncludedUSD is the "$used / $limit" allowance, or "" when unknown.
 type GrokAccountQuota struct {
-	Plan        string
-	Title       string
-	UsedPercent int
-	ResetsAt    time.Time
-	IncludedUSD string
-	UpdatedAt   time.Time
+	Meters                []Meter
+	Details               []DetailLine
+	ResetGrants           []AccountResetGrant
+	ResetCreditsKnown     bool
+	ResetCreditsUpdatedAt time.Time
+	Plan                  string
+	Title                 string
+	UsedPercent           int
+	ResetsAt              time.Time
+	IncludedUSD           string
+	UpdatedAt             time.Time
 }
 
 // GrokProvider is the seam the Grok package plugs into. The Service never
@@ -161,12 +172,15 @@ type ClaudeAPIView struct {
 // ClaudeAccountQuota is the cached usage line of one managed account.
 // ExtraUsage keeps the raw used / monthly limit text and currency.
 type ClaudeAccountQuota struct {
-	Plan        string
-	Title       string
-	UsedPercent int
-	ResetsAt    time.Time
-	ExtraUsage  string
-	UpdatedAt   time.Time
+	Meters                []Meter
+	ResetGrants           []AccountResetGrant
+	ResetCreditsUpdatedAt time.Time
+	Plan                  string
+	Title                 string
+	UsedPercent           int
+	ResetsAt              time.Time
+	ExtraUsage            string
+	UpdatedAt             time.Time
 	// Balance is "remaining / total" (or the single known amount) of an API
 	// relay account, "" for a subscription account or without a reading.
 	Balance string

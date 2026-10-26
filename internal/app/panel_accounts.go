@@ -2,6 +2,7 @@ package app
 
 import (
 	"strings"
+	"time"
 
 	"github.com/egoist/mygo/ui"
 	"github.com/licoy/quosparr/internal/codex"
@@ -86,7 +87,7 @@ func (a *App) codexAccountCard(c *ui.Context, l l10n.Localizer, prefs store.Pref
 		case acc.LastError != "":
 			accountStatusLine(c, accountPrivate(priv, acc.LastError), sys(c.Theme(), sysOrange))
 		}
-		codexQuotaBlock(c, l, acc, current)
+		codexQuotaBlock(c, l, acc, accountQuotaOptions{current: current, showUpdated: true})
 	})
 }
 
@@ -230,17 +231,21 @@ func (a *App) codexDeleteConfirm(c *ui.Context, l l10n.Localizer, anchor ui.Elem
 }
 
 // codexQuotaBlock is the meters of a card, or what stands in for them.
-func codexQuotaBlock(c *ui.Context, l l10n.Localizer, acc codex.ManagedAccount, current bool) {
+func codexQuotaBlock(c *ui.Context, l l10n.Localizer, acc codex.ManagedAccount, view accountQuotaOptions) {
 	if acc.IsRelay() {
-		apiBalanceBlock(c, l, acc.APIQuota, current)
+		apiBalanceBlock(c, l, acc.APIQuota, view.current)
 		return
 	}
 	if q := acc.CachedQuota; q != nil {
 		ui.Column(c).Gap(8).Children(func() {
 			for _, row := range q.MeterRows() {
-				accountMeter(c, l, cachedMeter(l, row, current))
+				accountMeter(c, l, cachedMeter(l, row, view.current))
+			}
+			if view.showUpdated {
+				accountQuotaUpdated(c, l, q.UpdatedAt)
 			}
 		})
+		codexAccountResetCredits(c, l, acc)
 		return
 	}
 	if acc.AuthMode == codex.AuthModeAPIKey {
@@ -248,6 +253,7 @@ func codexQuotaBlock(c *ui.Context, l l10n.Localizer, acc codex.ManagedAccount, 
 		return
 	}
 	calloutDim(c, l.Text(l10n.KeyNotLoaded)).FontSize(fsCaption)
+	codexAccountResetCredits(c, l, acc)
 }
 
 func cachedMeter(l l10n.Localizer, row codex.CachedQuotaMeterRow, current bool) meterSpec {
@@ -261,13 +267,37 @@ func cachedMeter(l l10n.Localizer, row codex.CachedQuotaMeterRow, current bool) 
 // cachedRowTitle follows the main panel: a window's own name first, then
 // its length.
 func cachedRowTitle(l l10n.Localizer, row codex.CachedQuotaMeterRow) string {
+	if row.WindowMinutes != nil {
+		period := accountWindowTitle(l, *row.WindowMinutes)
+		if row.Name != "" {
+			return row.Name + " · " + period
+		}
+		return period
+	}
 	if row.Name != "" {
 		return row.Name
 	}
-	if row.WindowMinutes != nil {
-		return runway.WindowTitle(l, *row.WindowMinutes)
-	}
 	return l.Text(l10n.KeyQuota)
+}
+
+func codexAccountResetCredits(c *ui.Context, l l10n.Localizer, acc codex.ManagedAccount) {
+	var count *int
+	var updated, expiry time.Time
+	if q := acc.ResetCredits; q != nil {
+		count = q.AvailableCount
+		expiry = q.NextAvailableExpiry(c.Now())
+		if q.UpdatedAt != nil {
+			updated = *q.UpdatedAt
+		}
+		if q.LastError != "" {
+			failure := q.LastError
+			if failure == "reset_credits_unavailable" {
+				failure = l.Text(l10n.KeyStatusError)
+			}
+			accountStatusLine(c, l.Text(l10n.KeyResetCredits)+": "+failure, sys(c.Theme(), sysOrange))
+		}
+	}
+	accountResetCredits(c, l, count, updated, expiry)
 }
 
 func accountTierKey(tier codex.Tier) l10n.Key {

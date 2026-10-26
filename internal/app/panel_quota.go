@@ -40,11 +40,11 @@ func healthInk(t *ui.Theme, h runway.Health) ui.Color {
 // meterTitle names a standard Codex window in the user's language; the
 // service's own title is kept for model-specific windows and other providers.
 func meterTitle(l l10n.Localizer, m runway.Meter, codex bool) string {
-	if codex && m.Source == runway.SourceStandard {
-		switch m.WindowMinutes {
-		case runway.FiveHourMinutes, runway.WeeklyMinutes:
-			return runway.WindowTitle(l, m.WindowMinutes)
+	if codex && m.WindowMinutes > 0 {
+		if m.Source == runway.SourceStandard {
+			return accountWindowTitle(l, m.WindowMinutes)
 		}
+		return m.Title + " · " + accountWindowTitle(l, m.WindowMinutes)
 	}
 	return m.Title
 }

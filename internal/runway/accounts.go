@@ -102,9 +102,9 @@ func (s *Service) RefreshAccountQuota(id string) <-chan struct{} {
 	})
 }
 
-// refreshAccountsInline polls every account; skipRelay is a relay account the
-// caller probes itself.
-func (s *Service) refreshAccountsInline(ctx context.Context, skipRelay string) {
+// refreshAccountsInline polls every account; skipCurrentID is the account
+// whose reset credits or relay balance the caller fetches itself.
+func (s *Service) refreshAccountsInline(ctx context.Context, skipCurrentID string) {
 	if s.src.RefreshAccounts == nil && !s.relayProbing() {
 		return
 	}
@@ -120,7 +120,7 @@ func (s *Service) refreshAccountsInline(ctx context.Context, skipRelay string) {
 		ids = append(ids, a.ID)
 		s.refreshingIDs[a.ID] = true
 	}
-	relays := slices.DeleteFunc(s.relayAccountsLocked(), func(a codex.ManagedAccount) bool { return a.ID == skipRelay })
+	relays := slices.DeleteFunc(s.relayAccountsLocked(), func(a codex.ManagedAccount) bool { return a.ID == skipCurrentID })
 	s.publishLocked()
 	s.mu.Unlock()
 
@@ -132,7 +132,7 @@ func (s *Service) refreshAccountsInline(ctx context.Context, skipRelay string) {
 		go func() { defer probed.Done(); s.probeRelayAccounts(ctx, relays) }()
 	}
 	if s.src.RefreshAccounts != nil {
-		s.applyAccountResults(s.src.RefreshAccounts(ctx), epoch)
+		s.applyAccountResults(s.src.RefreshAccounts(ctx, skipCurrentID), epoch)
 	}
 	probed.Wait()
 
@@ -150,7 +150,12 @@ func (s *Service) refreshAccountsInline(ctx context.Context, skipRelay string) {
 // of the active account touches the shown state; other accounts' failures
 // stay on their own rows.
 func (s *Service) applyAccountResults(results []codexapi.QuotaRefreshResult, epoch uint64) {
-	idx := s.indexForUpdate()
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.src.LoadIndex != nil {
+		s.reloadIndexLocked()
+	}
+	idx := s.index
 	reauth := map[string]bool{}
 	for _, r := range results {
 		if s.src.Generations != nil && !s.src.Generations.Valid(r.AccountID, r.Generation) {
@@ -171,16 +176,22 @@ func (s *Service) applyAccountResults(results []codexapi.QuotaRefreshResult, epo
 		default:
 			continue
 		}
+		checkedAt := s.now()
+		if r.ResetCredits != nil {
+			acc = cacheAccountResetCredits(acc, *r.ResetCredits, checkedAt)
+		} else if r.ResetCreditsErr != nil {
+			acc = acc.ApplyResetCredits(nil, &checkedAt, "reset_credits_unavailable")
+		}
 		if r.WorkspaceName != "" {
 			acc.WorkspaceName = r.WorkspaceName
 		}
 		idx.Upsert(acc)
 		if s.src.SaveAccount != nil {
-			_ = s.src.SaveAccount(acc)
+			if err := s.src.SaveAccount(acc); err != nil {
+				s.lastErr = err.Error()
+			}
 		}
 	}
-	s.mu.Lock()
-	defer s.mu.Unlock()
 	if s.src.LoadIndex != nil {
 		s.reloadIndexLocked()
 	} else {
@@ -268,4 +279,38 @@ func (s *Service) switchFailureTextLocked(err error) string {
 		return lc.Text(l10n.KeyAccountsSwitchInvalidCredential)
 	}
 	return lc.Text(l10n.KeyAccountsSwitchFailed) + ": " + err.Error()
+}
+
+// cacheCurrentResetCreditsLocked reuses an already fetched response, matching
+// the credential explicitly so an active-row fallback cannot cross accounts.
+// The caller holds s.mu and has validated the account epoch.
+func (s *Service) cacheCurrentResetCreditsLocked(auth codex.Auth, credits *codexapi.ResetCreditsSnapshot) error {
+	idx := s.index
+	if s.src.LoadIndex != nil {
+		loaded, err := s.src.LoadIndex()
+		if err != nil {
+			return err
+		}
+		idx = loaded
+	}
+	for _, acc := range idx.Accounts {
+		if acc.AuthMode == codex.AuthModeAPIKey || !codex.AccountMatches(acc, auth) {
+			continue
+		}
+		checkedAt := s.now()
+		if credits == nil {
+			acc = acc.ApplyResetCredits(nil, &checkedAt, "reset_credits_unavailable")
+		} else {
+			acc = cacheAccountResetCredits(acc, *credits, checkedAt)
+		}
+		if s.src.SaveAccount != nil {
+			if err := s.src.SaveAccount(acc); err != nil {
+				return err
+			}
+		}
+		idx.Upsert(acc)
+		s.index = idx
+		return nil
+	}
+	return nil
 }

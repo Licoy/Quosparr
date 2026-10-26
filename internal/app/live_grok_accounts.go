@@ -67,6 +67,23 @@ func grokAccountQuota(lc l10n.Localizer, account grok.ManagedAccount) (runway.Gr
 			q.ResetsAt = *snap.Period.ResetsAt
 		}
 	}
+	q.Meters = grokMeters(lc, snap, q.UpdatedAt)
+	if snap.PrepaidBalanceCents != nil {
+		q.Details = append(q.Details, runway.DetailLine{Title: lc.Text(l10n.KeyGrokPrepaidBalance), Value: grokMoney(*snap.PrepaidBalanceCents)})
+	}
+	if text := grokOnDemandText(&snap); text != "" {
+		q.Details = append(q.Details, runway.DetailLine{Title: lc.Text(l10n.KeyGrokOnDemandUsage), Value: text})
+	}
+	if snap.ResetCredits != nil {
+		q.ResetCreditsKnown = true
+		q.ResetCreditsUpdatedAt = snap.ResetCredits.UpdatedAt
+		for _, token := range snap.ResetCredits.Tokens {
+			if token.TokenID != "" && token.ValidityEnd != nil {
+				q.ResetGrants = append(q.ResetGrants, runway.AccountResetGrant{Count: 1, EndsAt: *token.ValidityEnd})
+			}
+		}
+	}
+
 	return q, true
 }
 

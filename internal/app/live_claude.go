@@ -310,7 +310,7 @@ func claudeMeters(lc l10n.Localizer, snap claude.UsageSnapshot, now time.Time) [
 		case claude.WindowSevenDay:
 			title, minutes = lc.Text(l10n.KeyWeeklyUsage), runway.WeeklyMinutes
 		case claude.WindowSevenDayModel:
-			title, minutes, source = claude.ModelTitle(w.Model), runway.WeeklyMinutes, runway.SourceModelSpecific
+			title, minutes, source = claude.ModelTitle(w.Model)+" · "+lc.Text(l10n.KeyWeeklyUsage), runway.WeeklyMinutes, runway.SourceModelSpecific
 		default:
 			// Windows of other products have no stable title to show.
 			continue
@@ -407,14 +407,19 @@ func claudeAccountQuotas(lc l10n.Localizer, accounts []claude.ManagedAccount) ma
 		if !snap.FetchedAt.IsZero() {
 			q.UpdatedAt = snap.FetchedAt
 		}
-		for _, w := range snap.Windows {
-			if w.Kind == claude.WindowFiveHour && w.UsedPercent != nil && !w.Null {
-				q.Title = lc.Text(l10n.KeyFiveHourUsage)
-				q.UsedPercent = clampPercent(int(math.Round(*w.UsedPercent)))
-				if w.ResetsAt != nil {
-					q.ResetsAt = *w.ResetsAt
+		q.Meters = claudeMeters(lc, snap, q.UpdatedAt)
+		if len(q.Meters) > 0 {
+			m := q.Meters[0]
+			q.Title, q.UsedPercent, q.ResetsAt = m.Title, m.UsedPercent, m.ResetsAt
+		}
+		q.ResetCreditsUpdatedAt = q.UpdatedAt
+		if snap.ResetGrants != nil && snap.ResetGrants.Eligible {
+			for _, g := range snap.ResetGrants.Grants {
+				if !g.Paused {
+					one := claude.ResetGrantStatus{Eligible: true, Grants: []claude.ResetGrant{g}}
+					count := one.CodexSnapshot(g.StartsAt, q.UpdatedAt).AvailableCount
+					q.ResetGrants = append(q.ResetGrants, runway.AccountResetGrant{Count: count, StartsAt: g.StartsAt, EndsAt: g.EndsAt})
 				}
-				break
 			}
 		}
 		out[account.ID] = q

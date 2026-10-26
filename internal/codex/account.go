@@ -214,6 +214,31 @@ func (c *CachedAccountQuota) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
+// CachedAccountResetCredits stores the reset-credit count, expiry times and fetch status.
+// A nil count is unknown, while a pointer to zero is a successful zero reading.
+type CachedAccountResetCredits struct {
+	AvailableCount    *int        `json:"availableCount,omitempty"`
+	CheckedAt         time.Time   `json:"checkedAt,omitempty"`
+	UpdatedAt         *time.Time  `json:"updatedAt,omitempty"`
+	LastError         string      `json:"lastError,omitempty"`
+	AvailableExpiries []time.Time `json:"availableExpiries,omitempty"`
+}
+
+// NextAvailableExpiry returns the earliest still-future expiry for a known
+// positive count; zero means no valid expiry details are available.
+func (c CachedAccountResetCredits) NextAvailableExpiry(now time.Time) time.Time {
+	if c.AvailableCount == nil || *c.AvailableCount <= 0 {
+		return time.Time{}
+	}
+	var next time.Time
+	for _, expiry := range c.AvailableExpiries {
+		if expiry.After(now) && (next.IsZero() || expiry.Before(next)) {
+			next = expiry
+		}
+	}
+	return next
+}
+
 // ManagedAccount is the non-secret metadata of a managed Codex account, one
 // row of index.json. Empty strings and nil pointers stand for absent values
 // and are left out of the file.
@@ -238,6 +263,7 @@ type ManagedAccount struct {
 	RequiresReauth        bool
 	LastError             string
 	CachedQuota           *CachedAccountQuota
+	ResetCredits          *CachedAccountResetCredits
 	// APIBaseURL, APIModel and APIQuota describe an API relay account (an API
 	// key used against a third-party site): the normalized OpenAI-compatible
 	// base URL (ending /v1), the model written to config.toml, and the cached
@@ -435,6 +461,31 @@ func (a ManagedAccount) ApplyQuota(q QuotaSummary) ManagedAccount {
 	return c
 }
 
+// ApplyResetCredits caches a count or a safe error code, retaining the last
+// successful count when a request fails.
+func (a ManagedAccount) ApplyResetCredits(count *int, updatedAt *time.Time, message string) ManagedAccount {
+	if a.ResetCredits != nil && updatedAt != nil && a.ResetCredits.CheckedAt.After(*updatedAt) {
+		return a
+	}
+	c := a
+	cache := CachedAccountResetCredits{}
+	if a.ResetCredits != nil {
+		cache = *a.ResetCredits
+	}
+	if count != nil {
+		value := *count
+		cache.AvailableCount = &value
+		cache.UpdatedAt = updatedAt
+		cache.AvailableExpiries = nil
+	}
+	if updatedAt != nil {
+		cache.CheckedAt = *updatedAt
+	}
+	cache.LastError = message
+	c.ResetCredits = &cache
+	return c
+}
+
 // ApplyError records a failure; a re-authorization demand drops the quota.
 func (a ManagedAccount) ApplyError(message string, requiresReauth bool) ManagedAccount {
 	c := a
@@ -471,6 +522,9 @@ func (a ManagedAccount) MarshalJSON() ([]byte, error) {
 	b.str("lastError", a.LastError)
 	if a.CachedQuota != nil {
 		b.set("cachedQuota", a.CachedQuota)
+	}
+	if a.ResetCredits != nil {
+		b.set("resetCredits", a.ResetCredits)
 	}
 	b.str("apiBaseURL", a.APIBaseURL)
 	b.str("apiModel", a.APIModel)
@@ -517,6 +571,16 @@ func (a *ManagedAccount) UnmarshalJSON(data []byte) error {
 		if err := json.Unmarshal(raw, &q); err == nil && q.Status != "" {
 			acc.APIQuota = &q
 		}
+	}
+	if raw, ok := r.raw("resetCredits"); ok {
+		var c CachedAccountResetCredits
+		if err := json.Unmarshal(raw, &c); err != nil {
+			r.fail("resetCredits", "invalid")
+		}
+		if c.AvailableCount != nil && *c.AvailableCount < 0 {
+			r.fail("resetCredits", "negative availableCount")
+		}
+		acc.ResetCredits = &c
 	}
 	if raw, ok := r.raw("cachedQuota"); ok {
 		var q CachedAccountQuota

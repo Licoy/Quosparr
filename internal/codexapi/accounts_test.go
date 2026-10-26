@@ -62,7 +62,7 @@ func TestRefreshAllSuccessKeepsOrderAndIdentity(t *testing.T) {
 		{ID: "named", Tier: TierTeam, HasWorkspaceName: true},
 	}
 	r := refresherFor(srv, targets, tokenCred)
-	results := r.RefreshAll(context.Background())
+	results := r.RefreshAll(context.Background(), "")
 	if len(results) != 4 {
 		t.Fatalf("%d results", len(results))
 	}
@@ -157,7 +157,7 @@ func TestRefreshAllBoundsConcurrency(t *testing.T) {
 	}
 	r := refresherFor(srv, targets, tokenCred)
 	r.MaxConcurrent = 2
-	for _, res := range r.RefreshAll(context.Background()) {
+	for _, res := range r.RefreshAll(context.Background(), "") {
 		if res.Err != nil || res.Quota == nil {
 			t.Fatalf("%+v", res)
 		}
@@ -173,7 +173,7 @@ func TestRefreshAllCancelled(t *testing.T) {
 	cancel()
 	r := refresherFor(srv, []AccountTarget{{ID: "a"}, {ID: "b"}}, tokenCred)
 	r.MaxConcurrent = 1
-	for _, res := range r.RefreshAll(ctx) {
+	for _, res := range r.RefreshAll(ctx, "") {
 		if res.Quota != nil && res.Err == nil && len(srv.all()) == 0 {
 			t.Fatalf("%+v", res)
 		}
@@ -182,7 +182,67 @@ func TestRefreshAllCancelled(t *testing.T) {
 
 func TestRefreshAllAccountListError(t *testing.T) {
 	r := AccountQuotaRefresher{Accounts: func(context.Context) ([]AccountTarget, error) { return nil, errors.New("boom") }}
-	if got := r.RefreshAll(context.Background()); got != nil {
+	if got := r.RefreshAll(context.Background(), ""); got != nil {
 		t.Fatalf("%+v", got)
+	}
+}
+
+func TestAccountResetCreditsIdentityAndFailureKeepsQuota(t *testing.T) {
+	srv := newRecorder(t, func(r recorded) (int, string) {
+		if r.Path == "/wham/rate-limit-reset-credits" {
+			switch r.Header.Get("ChatGPT-Account-Id") {
+			case "a":
+				return 200, `{"available_count":0,"credits":[]}`
+			case "b":
+				return 503, `{}`
+			default:
+				t.Error("unexpected credit identity")
+				return 500, `{}`
+			}
+		}
+		return 200, usageFixture
+	})
+	r := refresherFor(srv, []AccountTarget{{ID: "a"}, {ID: "b"}, {ID: "key", APIKey: true}}, tokenCred)
+	results := r.RefreshAll(context.Background(), "")
+	if c := results[0].ResetCredits; c == nil || c.AvailableCount != 0 || results[0].ResetCreditsErr != nil {
+		t.Fatalf("zero credits: %+v", results[0])
+	}
+	if results[1].Quota == nil || results[1].Err != nil || results[1].ResetCredits != nil || results[1].ResetCreditsErr == nil {
+		t.Fatalf("quota discarded on credit failure: %+v", results[1])
+	}
+	if results[2].ResetCredits != nil || results[2].ResetCreditsErr != nil {
+		t.Fatalf("key: %+v", results[2])
+	}
+	for _, req := range srv.all() {
+		id := req.Header.Get("ChatGPT-Account-Id")
+		if id == "key" || req.Header.Get("Authorization") != "Bearer tok-"+id {
+			t.Errorf("credential crossed accounts: %s", id)
+		}
+	}
+}
+
+func TestRefreshAllSkipsOnlyExplicitCurrentCredits(t *testing.T) {
+	srv := newRecorder(t, func(r recorded) (int, string) {
+		if r.Path == "/wham/rate-limit-reset-credits" {
+			return 200, `{"available_count":3,"credits":[]}`
+		}
+		return 200, usageFixture
+	})
+	r := refresherFor(srv, []AccountTarget{{ID: "a"}, {ID: "b"}}, tokenCred)
+	got := r.RefreshAll(context.Background(), "a")
+	if got[0].Quota == nil || got[0].ResetCredits != nil || got[1].ResetCredits == nil {
+		t.Fatalf("skip targeted wrong account: %+v", got)
+	}
+	if single := r.Refresh(context.Background(), "a"); single.ResetCredits == nil {
+		t.Fatal("single refresh must fetch current credits")
+	}
+	if all := r.RefreshAll(context.Background(), ""); all[0].ResetCredits == nil {
+		t.Fatal("manual all refresh must fetch current credits")
+	}
+}
+
+func TestRejectNegativeResetCreditResponse(t *testing.T) {
+	if _, err := DecodeResetCredits([]byte(`{"available_count":-1,"credits":[]}`), time.Now()); err == nil {
+		t.Fatal("negative reset credits accepted")
 	}
 }
