@@ -9,6 +9,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strconv"
 	"strings"
 )
@@ -103,7 +104,9 @@ func (h *NativeHost) inspectApplication(ctx context.Context, path string) (Appli
 	if err != nil {
 		return Application{}, err
 	}
-	if !info.Mode().IsRegular() || (h.platform != "windows" && info.Mode().Perm()&0111 == 0) {
+	// FileMode permissions follow the running OS, even when inspecting another
+	// platform's application layout.
+	if !info.Mode().IsRegular() || (runtime.GOOS != "windows" && info.Mode().Perm()&0111 == 0) {
 		return Application{}, errors.New("Claude Desktop executable is invalid")
 	}
 	if err := verifyDesktopArchive(archive); err != nil {

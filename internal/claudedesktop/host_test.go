@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -115,6 +116,31 @@ func TestHostResolveAndNormalLaunchAllPlatforms(t *testing.T) {
 			}
 			if err = h.Start(context.Background(), LaunchRequest{Application: app}); err != nil || !launched {
 				t.Fatalf("launch %v %v", launched, err)
+			}
+		})
+	}
+}
+
+func TestHostResolveUsesFilesystemPermissions(t *testing.T) {
+	for _, platform := range []string{"darwin", "windows", "linux"} {
+		t.Run(platform, func(t *testing.T) {
+			h := fixtureHost(t, platform)
+			app, err := h.Resolve(context.Background(), "")
+			if err != nil {
+				t.Fatal(err)
+			}
+			for _, mode := range []os.FileMode{0600, 0700} {
+				if err := os.Chmod(app.Executable, mode); err != nil {
+					t.Fatal(err)
+				}
+				_, err := h.Resolve(context.Background(), app.Path)
+				wantValid := runtime.GOOS == "windows" || mode&0111 != 0
+				if wantValid && err != nil {
+					t.Fatalf("mode %o on %s: %v", mode, runtime.GOOS, err)
+				}
+				if !wantValid && (err == nil || !strings.Contains(err.Error(), "executable is invalid")) {
+					t.Fatalf("mode %o on %s must reject a non-executable file, got %v", mode, runtime.GOOS, err)
+				}
 			}
 		})
 	}
