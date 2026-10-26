@@ -26,6 +26,13 @@ var (
 	ErrRollbackFailed = errors.New("codex: restoring the previous state failed")
 )
 
+// InvalidIndexError identifies an unreadable account-index format while
+// preserving the parser cause without exposing its text.
+type InvalidIndexError struct{ Cause error }
+
+func (e *InvalidIndexError) Error() string { return "codex: account index is invalid or corrupted" }
+func (e *InvalidIndexError) Unwrap() error { return e.Cause }
+
 // AccountNotFoundError reports an id that is not in the account index.
 type AccountNotFoundError struct{ ID string }
 

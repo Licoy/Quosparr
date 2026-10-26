@@ -154,7 +154,7 @@ func TestClaudeBrowserLoginFailureMessagesAreLocalizedAndRedacted(t *testing.T) 
 		l := l10n.New(language)
 		for _, tc := range cases {
 			message := claudeLoginFailure(l, fmt.Errorf("private-cause: %w", tc.err))
-			if message != tx(l, tc.key) || message == string(tc.key) || strings.Contains(message, "private-cause") {
+			if (message != tx(l, tc.key) && !strings.HasPrefix(message, tx(l, tc.key)+"\n")) || message == string(tc.key) || strings.Contains(message, "private-cause") {
 				t.Fatal("unsafe or missing Claude login translation")
 			}
 		}
@@ -226,7 +226,7 @@ func TestClaudeBrowserOAuthImportsAndReportsQuotaSeparately(t *testing.T) {
 			if quotaFails {
 				want = xClaudeOAuthQuotaFailed
 			}
-			if err != nil || outcome != want {
+			if (err != nil) != quotaFails || outcome != want {
 				t.Fatalf("flow outcome=%s error=%v", outcome, err)
 			}
 			if len(stages) != 3 || stages[0] != xClaudeOAuthVerify || stages[1] != xClaudeOAuthSaving || stages[2] != xClaudeOAuthQuotaLoading {

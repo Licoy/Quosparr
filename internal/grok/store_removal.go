@@ -66,7 +66,7 @@ func (s *Store) Remove(id string) error {
 	if rbErr := s.rollbackRemoval(id, original, dir, tombstone, moved, snapshot, hadCredential); rbErr != nil {
 		return &PartialWriteError{Message: "The Grok account removal could not be rolled back safely."}
 	}
-	return &AccountIOError{Message: "Unable to remove the Grok account."}
+	return &AccountIOError{Message: "Unable to remove the Grok account.", Cause: err}
 }
 
 func (s *Store) credentialSnapshot(id string) (data []byte, present bool, err error) {

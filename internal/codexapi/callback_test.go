@@ -80,6 +80,11 @@ func TestCallbackServerPortInUse(t *testing.T) {
 	s := NewCallbackServer(uint16(l.Addr().(*net.TCPAddr).Port))
 	if err := s.Start(); !errors.Is(err, ErrPortInUse) {
 		t.Fatalf("Start: %v", err)
+	} else {
+		var bind *net.OpError
+		if !errors.As(err, &bind) {
+			t.Fatal("Start discarded the underlying listener failure")
+		}
 	}
 	if _, err := NewCallbackServer(uint16(l.Addr().(*net.TCPAddr).Port)).WaitForCallback(context.Background(), time.Second); !errors.Is(err, ErrPortInUse) {
 		t.Fatalf("Wait: %v", err)

@@ -166,7 +166,7 @@ func (l OAuthLogin) ExchangeCode(ctx context.Context, code string, session Login
 		return OAuthTokens{}, err
 	}
 	if status < 200 || status > 299 {
-		return OAuthTokens{}, ErrAuthenticationRequired
+		return OAuthTokens{}, errors.Join(ErrAuthenticationRequired, &HTTPError{StatusCode: status})
 	}
 	tokens, err := decodeTokenResponse(body)
 	if err != nil {

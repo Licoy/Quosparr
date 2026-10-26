@@ -72,7 +72,7 @@ func (u *settingsUI) reopenClaudeLogin(f *accountForm, a *claudeLoginAttempt) {
 			}
 			a.opening = false
 			if err != nil {
-				a.problem = tx(u.L(), xOAuthBrowser)
+				a.problem = accountFailure(u.L(), tx(u.L(), xOAuthBrowser), err)
 			}
 		})
 	}()

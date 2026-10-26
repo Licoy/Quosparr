@@ -554,7 +554,7 @@ func (rt *liveApp) claudePasteText(ctx context.Context, l l10n.Localizer, text s
 	}
 	data, err := claude.ParsePasted(text)
 	if err != nil {
-		return l.Text(l10n.KeyClaudePasteHint), false
+		return accountFailure(l, l.Text(l10n.KeyAccountsImportFailed), err), false
 	}
 	id, err := claudePasteIdentity(ctx, rt.claudeMod, data)
 	if err != nil {
@@ -570,7 +570,7 @@ func (rt *liveApp) claudePasteText(ctx context.Context, l l10n.Localizer, text s
 func (rt *liveApp) importClaudeFile(ctx context.Context, l l10n.Localizer, path string) (string, bool) {
 	data, err := claude.ReadCredentialFile(path)
 	if err != nil {
-		return l.Text(l10n.KeyClaudePasteHint), false
+		return accountFailure(l, l.Text(l10n.KeyAccountsImportFailed), err), false
 	}
 	return rt.claudePasteText(ctx, l, string(data))
 }
@@ -601,7 +601,7 @@ func (rt *liveApp) reorderClaude(ids []string) string {
 		return ""
 	}
 	if _, err := rt.claudeMod.Apply(context.Background(), claude.Command{Kind: claude.CommandReorder, IDs: ids}); err != nil {
-		return err.Error()
+		return accountError(rt, err)
 	}
 	rt.claudeB.reload(true)
 	return ""
@@ -627,20 +627,27 @@ func (rt *liveApp) refreshClaudeAll(ctx context.Context) string {
 	}
 	idx, err := rt.claudeMod.Store.LoadIndex()
 	if err != nil {
-		return err.Error()
+		return accountError(rt, err)
 	}
+	var failures []error
 	for _, account := range idx.OrderedAccounts() {
-		_ = rt.claudeMod.Refresh(ctx, account.ID, true)
+		if err := rt.claudeMod.Refresh(ctx, account.ID, true); err != nil {
+			failures = append(failures, err)
+		}
 	}
-	_ = rt.claudeB.scanLocal(ctx)
+	l := l10n.New(rt.svc.Snapshot().Language)
+	message := accountBatchFailure(l, len(idx.Accounts)-len(failures), len(failures), failures)
+	if err := rt.claudeB.scanLocal(ctx); err != nil {
+		if message != "" {
+			message += "; "
+		}
+		message += accountFailure(l, l.Text(l10n.KeyStatusError), err)
+	}
 	rt.claudeB.reload(true)
-	return ""
+	return message
 }
 
 func claudePublicError(l l10n.Localizer, err error) string {
-	if text := apiErrorText(l, err); text != "" {
-		return text
-	}
 	var current *claude.CurrentAccountCannotBeRemovedError
 	switch {
 	case errors.As(err, &current):
@@ -652,6 +659,6 @@ func claudePublicError(l l10n.Localizer, err error) string {
 	case errors.Is(err, claude.ErrInvalidGrant), errors.Is(err, claude.ErrIdentityRequired):
 		return l.Text(l10n.KeyClaudeReauthRequired)
 	default:
-		return l.Text(l10n.KeyStatusError)
+		return apiErrorText(l, err)
 	}
 }

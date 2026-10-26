@@ -20,7 +20,8 @@ type accountSelection struct {
 	rows   []accountChoice
 	codex  []codex.ImportCandidate
 	grok   []grok.ImportCandidate
-	failed bool
+	failed int
+	causes []error
 }
 
 func (s *accountSelection) selectedIDs() []string {
@@ -43,7 +44,7 @@ func exportAccountSelection(accounts []codex.ManagedAccount) *accountSelection {
 
 func codexImportSelection(store *codex.Store, paths []string) *accountSelection {
 	preview := (&codex.Importer{Store: store}).PreviewFiles(paths)
-	s := &accountSelection{codex: preview.Items, failed: len(preview.Failures) > 0}
+	s := &accountSelection{codex: preview.Items, failed: len(preview.Failures), causes: preview.FailureErrors}
 	for _, candidate := range preview.Items {
 		row := candidate.Preview
 		s.rows = append(s.rows, accountChoice{id: row.ID, name: row.DisplayName, detail: row.Detail, selected: true, update: row.Conflict.WillUpdate})
@@ -66,26 +67,45 @@ func (u *settingsUI) previewAccountFiles(f *accountForm, rt *liveApp) {
 			} else {
 				preview, previewErr := rt.grokMod.PreviewImportFiles(context.Background(), paths)
 				err = previewErr
-				selection = &accountSelection{grok: preview.Items, failed: len(preview.Failures) > 0}
-				for _, candidate := range preview.Items {
-					row := candidate.Preview
-					selection.rows = append(selection.rows, accountChoice{id: candidate.ID(), name: row.DisplayName, detail: row.Detail, selected: true, update: row.Conflict.WillUpdate})
-				}
+				selection = grokImportSelection(preview)
 			}
 		}
-		u.post(func() {
-			f.busy = false
-			if err != nil {
-				u.accountNotice(f, l.Text(l10n.KeyAccountsImportFailed))
-				return
-			}
-			if selection != nil && len(selection.rows) == 0 {
-				u.accountNotice(f, l.Text(l10n.KeyAccountsImportNoCredentials))
-				return
-			}
-			f.selection = selection
-		})
+		u.post(func() { u.completeAccountPreview(f, selection, err) })
 	}()
+}
+
+func grokImportSelection(preview grok.ImportPreview) *accountSelection {
+	s := &accountSelection{grok: preview.Items, failed: len(preview.Failures), causes: preview.FailureErrors}
+	for _, candidate := range preview.Items {
+		row := candidate.Preview
+		s.rows = append(s.rows, accountChoice{id: candidate.ID(), name: row.DisplayName, detail: row.Detail, selected: true, update: row.Conflict.WillUpdate})
+	}
+	return s
+}
+
+func (u *settingsUI) completeAccountPreview(f *accountForm, selection *accountSelection, err error) {
+	f.busy = false
+	l := u.L()
+	if err != nil {
+		u.accountNotice(f, accountFailure(l, l.Text(l10n.KeyAccountsImportFailed), err))
+		return
+	}
+	if selection != nil && len(selection.rows) == 0 {
+		message := selection.previewFailure(l)
+		if message == "" {
+			message = l.Text(l10n.KeyAccountsImportNoCredentials)
+		}
+		u.accountNotice(f, message)
+		return
+	}
+	f.selection = selection
+}
+
+func (s *accountSelection) previewFailure(l l10n.Localizer) string {
+	if s.failed == 0 {
+		return ""
+	}
+	return tx(l, xAccountPreviewFailures, s.failed) + ": " + accountFailureReasons(l, s.causes)
 }
 
 func accountSelectionEditor(c *ui.Context, u *settingsUI, f *accountForm, rt *liveApp) {
@@ -113,8 +133,8 @@ func accountSelectionBody(c *ui.Context, u *settingsUI, f *accountForm, rt *live
 	if f.editorError != "" {
 		ui.Text(c, f.editorError).FontSize(12).TextColor(c.Theme().Danger)
 	}
-	if s.failed {
-		ui.Text(c, l.Text(l10n.KeyAccountsImportFailed)).FontSize(11).TextColor(c.Theme().Danger)
+	if message := s.previewFailure(l); message != "" {
+		ui.Text(c, message).FontSize(11).TextColor(c.Theme().Danger)
 	}
 	privacy := u.s.Prefs().AccountPrivacyModeEnabled
 	ui.Scroll(c.Key("account-selection-rows")).MaxHeight(320).Gap(8).Children(func() {
@@ -160,18 +180,25 @@ func (rt *liveApp) commitAccountSelection(l l10n.Localizer, s *accountSelection,
 		}
 		return rt.exportCodex(l, ids)
 	}
-	count, failed := 0, false
+	count, failed := 0, s.failed
+	causes := append([]error(nil), s.causes...)
 	if kind == accountKindCodex {
 		batch := (&codex.Importer{Store: rt.codex}).ImportPreviewSelection(context.Background(), s.codex, ids, false)
-		count, failed = len(batch.Succeeded), len(batch.Failures) > 0
+		count, failed = len(batch.Succeeded), failed+len(batch.Failures)
+		causes = append(causes, batch.FailureErrors...)
 		rt.svc.ReloadAccounts()
 	} else {
 		batch, _, err := rt.grokMod.ImportPreviewSelection(context.Background(), s.grok, ids)
-		count, failed = batch.SuccessCount(), err != nil || len(batch.Failures) > 0
+		count, failed = batch.SuccessCount(), failed+batch.FailureCount()
+		causes = append(causes, batch.FailureErrors...)
+		if err != nil {
+			failed++
+			causes = append(causes, err)
+		}
 		rt.grok.reload(true)
 	}
-	if failed {
-		return l.Textf(l10n.KeyAccountsImportSucceeded, count) + " · " + l.Text(l10n.KeyAccountsImportFailed), false
+	if message := accountBatchFailure(l, count, failed, causes); message != "" {
+		return message, false
 	}
 	return l.Textf(l10n.KeyAccountsImportSucceeded, count), count > 0
 }

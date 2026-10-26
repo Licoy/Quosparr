@@ -3,7 +3,6 @@ package grok
 import (
 	"bytes"
 	"errors"
-	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -160,7 +159,7 @@ func (s *Store) loadIndex() (AccountIndex, error) {
 	}
 	idx, err := ParseAccountIndex(data)
 	if err != nil {
-		return AccountIndex{}, fmt.Errorf("grok: grok-index.json is unreadable: %w", err)
+		return AccountIndex{}, &InvalidIndexError{Cause: err}
 	}
 	if idx.Version != IndexVersion {
 		return AccountIndex{}, &UnsupportedIndexVersionError{Version: idx.Version}

@@ -123,15 +123,18 @@ func (e Exporter) Export(ids []string, now time.Time) (codex.ExportResult, error
 	}
 	var entries []codex.TransferEntry
 	var failures []string
+	var failureErrors []error
 	for _, id := range ids {
 		meta, ok := idx.Account(id)
 		if !ok {
 			failures = append(failures, id+": account not found")
+			failureErrors = append(failureErrors, &AccountNotFoundError{ID: id})
 			continue
 		}
 		credential, err := e.Store.LoadCredentialData(id)
 		if err != nil {
 			failures = append(failures, meta.ResolvedDisplayName()+": credential missing")
+			failureErrors = append(failureErrors, err)
 			continue
 		}
 		entries = append(entries, codex.TransferEntry{
@@ -140,20 +143,20 @@ func (e Exporter) Export(ids []string, now time.Time) (codex.ExportResult, error
 		})
 	}
 	if len(entries) == 0 {
-		return codex.ExportResult{}, codex.ErrNoAccountsExported
+		return codex.ExportResult{Failures: failures, FailureErrors: failureErrors}, codex.ErrNoAccountsExported
 	}
 	pack := codex.NewTransferPack(codex.ProviderGrok, now, e.AppVersion, entries)
-	return codex.ExportResult{Pack: pack, ExportedCount: len(entries), Failures: failures}, nil
+	return codex.ExportResult{Pack: pack, ExportedCount: len(entries), Failures: failures, FailureErrors: failureErrors}, nil
 }
 
 // Write exports ids and writes the pack to path.
 func (e Exporter) Write(ids []string, path string, now time.Time) (codex.ExportResult, error) {
 	result, err := e.Export(ids, now)
 	if err != nil {
-		return codex.ExportResult{}, err
+		return result, err
 	}
 	if err := WritePack(path, result.Pack); err != nil {
-		return codex.ExportResult{}, err
+		return result, err
 	}
 	return result, nil
 }
@@ -171,8 +174,9 @@ func (c ImportCandidate) ID() string { return c.Preview.ID }
 
 // ImportPreview is what a set of files or a pack would import.
 type ImportPreview struct {
-	Items    []ImportCandidate
-	Failures []string
+	Items         []ImportCandidate
+	Failures      []string
+	FailureErrors []error `json:"-"`
 	// SourceIsPack is true when a transfer pack was among the inputs.
 	SourceIsPack bool
 	// RoutedProvider is not ProviderGrok when a pack for another provider was
@@ -212,6 +216,7 @@ func (im TransferImporter) PreviewFiles(paths []string) ImportPreview {
 	}
 	if len(preview.Items) == 0 && len(preview.Failures) == 0 {
 		preview.Failures = append(preview.Failures, FailureNoCredentials)
+		preview.FailureErrors = append(preview.FailureErrors, ErrInvalidCredential)
 	}
 	preview.Items = deduplicateCandidates(preview.Items)
 	return preview
@@ -222,6 +227,7 @@ func (im TransferImporter) previewFile(path string, preview *ImportPreview) {
 	data, err := os.ReadFile(path)
 	if err != nil {
 		preview.Failures = append(preview.Failures, name+": unable to read the file")
+		preview.FailureErrors = append(preview.FailureErrors, err)
 		return
 	}
 	if pack, ok := decodePack(data); ok {
@@ -229,11 +235,13 @@ func (im TransferImporter) previewFile(path string, preview *ImportPreview) {
 		if pack.Provider != codex.ProviderGrok {
 			preview.RoutedProvider = pack.Provider
 			preview.Failures = append(preview.Failures, fmt.Sprintf("%s: provider is %s", name, pack.Provider))
+			preview.FailureErrors = append(preview.FailureErrors, &codex.ProviderMismatchError{Expected: codex.ProviderGrok, Actual: pack.Provider})
 			return
 		}
-		items, failures := im.previewPackEntries(pack.Accounts, name)
+		items, failures, failureErrors := im.previewPackEntries(pack.Accounts, name)
 		preview.Items = append(preview.Items, items...)
 		preview.Failures = append(preview.Failures, failures...)
+		preview.FailureErrors = append(preview.FailureErrors, failureErrors...)
 		return
 	}
 	text := ""
@@ -243,6 +251,7 @@ func (im TransferImporter) previewFile(path string, preview *ImportPreview) {
 	payloads := ParsePayloads(text)
 	if len(payloads) == 0 {
 		preview.Failures = append(preview.Failures, name+": no credentials found")
+		preview.FailureErrors = append(preview.FailureErrors, ErrInvalidCredential)
 		return
 	}
 	for offset, payload := range payloads {
@@ -259,26 +268,28 @@ func (im TransferImporter) PreviewPack(pack codex.TransferPack) (ImportPreview, 
 	if pack.Provider != codex.ProviderGrok {
 		return ImportPreview{}, &codex.ProviderMismatchError{Expected: codex.ProviderGrok, Actual: pack.Provider}
 	}
-	items, failures := im.previewPackEntries(pack.Accounts, "pack")
+	items, failures, failureErrors := im.previewPackEntries(pack.Accounts, "pack")
 	return ImportPreview{
-		Items: deduplicateCandidates(items), Failures: failures,
+		Items: deduplicateCandidates(items), Failures: failures, FailureErrors: failureErrors,
 		SourceIsPack: true, RoutedProvider: codex.ProviderGrok,
 	}, nil
 }
 
-func (im TransferImporter) previewPackEntries(entries []codex.TransferEntry, prefix string) ([]ImportCandidate, []string) {
+func (im TransferImporter) previewPackEntries(entries []codex.TransferEntry, prefix string) ([]ImportCandidate, []string, []error) {
 	var items []ImportCandidate
 	var failures []string
+	var failureErrors []error
 	for offset, entry := range entries {
 		label := fmt.Sprintf("%s[%d]", prefix, offset)
 		doc, err := ParseAuthDocument(entry.Credential)
 		if err != nil {
 			failures = append(failures, label+": invalid credential")
+			failureErrors = append(failureErrors, err)
 			continue
 		}
 		items = append(items, im.makeCandidate(doc, entry.Credential, entry.Alias, entry.DisplayName, entry.Email, label))
 	}
-	return items, failures
+	return items, failures, failureErrors
 }
 
 func (im TransferImporter) makeCandidate(
@@ -358,7 +369,7 @@ func (im TransferImporter) ImportPreviewSelection(
 		}
 	}
 	if len(chosen) == 0 {
-		return ImportBatchResult{Failures: []string{FailureNothingSelected}}, nil
+		return ImportBatchResult{Failures: []string{FailureNothingSelected}, FailureErrors: []error{codex.ErrEmptySelection}}, nil
 	}
 	before, err := im.Store.LoadIndex()
 	if err != nil {
@@ -373,12 +384,14 @@ func (im TransferImporter) ImportPreviewSelection(
 		account, err := im.Store.UpsertCredentialData(c.CredentialData, UpsertOptions{MakeCurrent: isFirst && canBootstrap, Now: im.now()})
 		if err != nil {
 			result.Failures = append(result.Failures, c.Preview.DisplayName+": import failed")
+			result.FailureErrors = append(result.FailureErrors, err)
 			continue
 		}
 		if alias := strings.TrimFunc(c.Alias, unicode.IsSpace); alias != "" {
 			account.Alias = alias
 			if err := im.Store.UpdateMetadata(account); err != nil {
 				result.Failures = append(result.Failures, c.Preview.DisplayName+": import failed")
+				result.FailureErrors = append(result.FailureErrors, err)
 				continue
 			}
 		}

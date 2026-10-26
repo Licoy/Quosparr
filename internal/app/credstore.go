@@ -79,20 +79,20 @@ func (n netxCredentials) Save(c netx.Credentials, id string) error {
 func (n netxCredentials) Delete(id string) error { return n.p.Delete(id) }
 
 // credStoreErr maps netx failures onto the sentinels the settings UI already
-// shows. The cause is dropped so a platform message cannot carry a secret.
+// shows, retaining the cause behind a fixed, secret-free message.
 func credStoreErr(err error) error {
 	switch {
 	case err == nil:
 		return nil
 	case errors.Is(err, netx.ErrCredentialsUnavailable):
-		return store.ErrProxyCredentialsUnavailable
+		return &netx.Error{Kind: store.ErrProxyCredentialsUnavailable, Cause: err}
 	case errors.Is(err, netx.ErrInvalidCredentials):
-		return ErrProxyInvalidCredentials
+		return &netx.Error{Kind: ErrProxyInvalidCredentials, Cause: err}
 	case errors.Is(err, store.ErrProxyInvalidConfiguration),
 		errors.Is(err, store.ErrProxyInvalidHost),
 		errors.Is(err, store.ErrProxyInvalidPort):
 		return err
 	default:
-		return ErrCredentialStoreFailed
+		return &netx.Error{Kind: ErrCredentialStoreFailed, Cause: err}
 	}
 }

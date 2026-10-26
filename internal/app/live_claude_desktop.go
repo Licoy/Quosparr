@@ -110,5 +110,5 @@ func desktopFailureText(l l10n.Localizer, err error) string {
 	case errors.Is(err, claudedesktop.ErrPersistence):
 		key = xDesktopPersistence
 	}
-	return tx(l, key)
+	return accountFailure(l, tx(l, key), err)
 }

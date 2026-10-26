@@ -28,7 +28,7 @@ func (m *Module) ImportBrowserLogin(ctx context.Context, result LoginResult) (Ma
 		return ManagedAccount{}, err
 	}
 	if strings.TrimSpace(result.Identity.AccountUUID) == "" || strings.TrimSpace(result.Identity.OrganizationUUID) == "" {
-		return ManagedAccount{}, ErrIdentityRequired
+		return ManagedAccount{}, classifiedError(StageReadIdentity, KindInvalidData, ErrIdentityRequired)
 	}
 	if doc.OAuth().AccessToken == "" || doc.OAuth().RefreshToken == "" || !doc.OAuth().HasExpiry || doc.AccessExpired(m.now()) {
 		return ManagedAccount{}, ErrIncompleteRefresh
@@ -53,7 +53,7 @@ func (m *Module) ImportBrowserLogin(ctx context.Context, result LoginResult) (Ma
 func (m *Module) importBrowserLocked(ctx context.Context, result LoginResult, proof browserOfficialProof) (ManagedAccount, error) {
 	idx, err := m.Store.loadIndex()
 	if err != nil {
-		return ManagedAccount{}, errors.New("claude: cannot read browser account library")
+		return ManagedAccount{}, operationError(StageReadIndex, err)
 	}
 	if proof.identity.AccountUUID != "" && proof.identity.StableID() == result.Identity.StableID() {
 		return m.importBrowserOfficial(ctx, idx, proof)
@@ -87,7 +87,7 @@ func (m *Module) importBrowserOfficial(ctx context.Context, idx AccountIndex, pr
 		}
 		if changed {
 			if err := m.Store.saveIndex(idx); err != nil {
-				return ManagedAccount{}, errors.New("claude: cannot synchronize official account selection")
+				return ManagedAccount{}, operationError(StageWriteIndex, err)
 			}
 		}
 		return acc, ErrLoginAlreadyOfficial
@@ -129,7 +129,7 @@ func (m *Module) browserOfficialProof(ctx context.Context) (browserOfficialProof
 		return proof, nil
 	}
 	if err != nil {
-		return proof, errors.New("claude: cannot read official login for browser import")
+		return proof, operationError(StageReadOfficial, err)
 	}
 	proof.data, proof.present = data, true
 	api, source, err := readBrowserAPISettings(m.Store.SettingsPath())
@@ -141,13 +141,13 @@ func (m *Module) browserOfficialProof(ctx context.Context) (browserOfficialProof
 	for _, path := range GlobalConfigCandidates(m.Store.ConfigDir(), m.Store.HomeDir()) {
 		raw, _, present, err := readOptional(path)
 		if err != nil {
-			return proof, ErrIdentityRequired
+			return proof, operationError(StageReadIdentity, err)
 		}
 		proof.sources = append(proof.sources, browserIdentitySource{path, raw, present})
 		if proof.identity.AccountUUID == "" {
 			identity, err := IdentityFromOAuthAccount(raw)
 			if err != nil {
-				return proof, ErrIdentityRequired
+				return proof, classifiedError(StageReadIdentity, KindInvalidData, errors.Join(ErrIdentityRequired, err))
 			}
 			if identity.AccountUUID != "" {
 				proof.identity = identity
@@ -157,18 +157,18 @@ func (m *Module) browserOfficialProof(ctx context.Context) (browserOfficialProof
 	if proof.identity.AccountUUID == "" || proof.identity.OrganizationUUID == "" {
 		token, err := AccessTokenOf(data)
 		if err != nil || token == "" || m.Usage == nil {
-			return proof, ErrIdentityRequired
+			return proof, classifiedError(StageReadIdentity, KindInvalidData, errors.Join(ErrIdentityRequired, err))
 		}
 		raw, _, err := m.Usage.FetchProfile(ctx, token)
 		if err != nil {
 			if ctx.Err() != nil {
 				return proof, ctx.Err()
 			}
-			return proof, ErrIdentityRequired
+			return proof, operationError(StageReadIdentity, err)
 		}
 		proof.identity, err = IdentityFromProfile(raw)
 		if err != nil || proof.identity.AccountUUID == "" || proof.identity.OrganizationUUID == "" {
-			return proof, ErrIdentityRequired
+			return proof, classifiedError(StageReadIdentity, KindInvalidData, errors.Join(ErrIdentityRequired, err))
 		}
 	}
 	return proof, nil
@@ -179,12 +179,18 @@ func (proof browserOfficialProof) recheck(ctx context.Context, store *Store) err
 	if errors.Is(err, ErrNotLoggedIn) && !proof.present {
 		return nil
 	}
-	if err != nil || !proof.present || !bytes.Equal(data, proof.data) {
+	if err != nil {
+		return operationError(StageReadOfficial, err)
+	}
+	if !proof.present || !bytes.Equal(data, proof.data) {
 		return ErrCredentialChanged
 	}
 	for _, source := range proof.sources {
 		raw, _, present, err := readOptional(source.path)
-		if err != nil || present != source.present || !bytes.Equal(raw, source.data) {
+		if err != nil {
+			return operationError(StageReadIdentity, err)
+		}
+		if present != source.present || !bytes.Equal(raw, source.data) {
 			return ErrCredentialChanged
 		}
 	}
@@ -195,18 +201,18 @@ func readBrowserAPISettings(path string) (*APIEnv, browserIdentitySource, error)
 	settings, _, present, err := readOptional(path)
 	source := browserIdentitySource{path, settings, present}
 	if err != nil {
-		return nil, source, errors.New("claude: cannot verify active API settings")
+		return nil, source, operationError(StageReadSettings, err)
 	}
 	env, err := ReadAPISettingsEnv(settings)
 	if err != nil {
-		return nil, source, err
+		return nil, source, classifiedError(StageReadSettings, KindInvalidData, err)
 	}
 	if env.BaseURL == "" || env.AuthToken == "" {
 		return nil, source, nil
 	}
 	env.BaseURL, err = NormalizeAPIBaseURL(env.BaseURL)
 	if err != nil {
-		return nil, source, errors.New("claude: cannot verify active API settings")
+		return nil, source, classifiedError(StageReadSettings, KindInvalidData, err)
 	}
 	return &env, source, nil
 }

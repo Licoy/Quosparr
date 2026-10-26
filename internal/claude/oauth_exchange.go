@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"io"
 	"net/http"
 	"strings"
@@ -49,7 +50,7 @@ func (c OAuthClient) Exchange(ctx context.Context, code string, session LoginSes
 	defer cancel()
 	client, err := c.loginClient(ctx)
 	if err != nil {
-		return LoginResult{}, loginNetworkError(ctx, ErrLoginExchange)
+		return LoginResult{}, loginOperationError(ctx, StageOAuthExchange, err, ErrLoginExchange)
 	}
 	endpoint := c.TokenURL
 	if endpoint == "" {
@@ -66,11 +67,11 @@ func (c OAuthClient) Exchange(ctx context.Context, code string, session LoginSes
 	body, _ := json.Marshal(grant)
 	payload, err := loginRequest(ctx, client, http.MethodPost, endpoint, body, "")
 	if err != nil {
-		return LoginResult{}, loginNetworkError(ctx, ErrLoginExchange)
+		return LoginResult{}, loginOperationError(ctx, StageOAuthExchange, err, ErrLoginExchange)
 	}
 	var token loginToken
 	if json.Unmarshal(payload, &token) != nil || strings.TrimSpace(token.AccessToken) == "" || strings.TrimSpace(token.RefreshToken) == "" || token.ExpiresIn <= 0 || token.ExpiresIn > int64((1<<63-1)/int64(time.Second)) {
-		return LoginResult{}, ErrLoginExchange
+		return LoginResult{}, classifiedError(StageOAuthExchange, KindInvalidData, ErrLoginExchange)
 	}
 	return c.loginIdentity(ctx, client, token, now)
 }
@@ -82,14 +83,14 @@ func (c OAuthClient) loginIdentity(ctx context.Context, client *http.Client, tok
 	}
 	raw, err := loginRequest(ctx, client, http.MethodGet, endpoint, nil, token.AccessToken)
 	if err != nil {
-		return LoginResult{}, loginNetworkError(ctx, ErrLoginIdentity)
+		return LoginResult{}, loginOperationError(ctx, StageOAuthIdentity, err, ErrLoginIdentity)
 	}
 	identity, err := IdentityFromProfile(raw)
 	if err != nil || identity.AccountUUID == "" || identity.OrganizationUUID == "" {
-		return LoginResult{}, ErrLoginIdentity
+		return LoginResult{}, classifiedError(StageOAuthIdentity, KindInvalidData, ErrLoginIdentity)
 	}
 	if (token.Account.UUID != "" && token.Account.UUID != identity.AccountUUID) || (token.Organization.UUID != "" && token.Organization.UUID != identity.OrganizationUUID) {
-		return LoginResult{}, ErrLoginIdentity
+		return LoginResult{}, classifiedError(StageOAuthIdentity, KindInvalidData, ErrLoginIdentity)
 	}
 	scopes := strings.Fields(token.Scope)
 	if len(scopes) == 0 {
@@ -123,7 +124,7 @@ func (c OAuthClient) loginClient(ctx context.Context) (*http.Client, error) {
 func loginRequest(ctx context.Context, client *http.Client, method, endpoint string, body []byte, access string) ([]byte, error) {
 	req, err := http.NewRequestWithContext(ctx, method, endpoint, bytes.NewReader(body))
 	if err != nil {
-		return nil, ErrLoginExchange
+		return nil, operationError(StageOAuthExchange, errors.Join(ErrLoginExchange, err))
 	}
 	req.Header.Set("Accept", "application/json")
 	if access != "" {
@@ -134,22 +135,39 @@ func loginRequest(ctx context.Context, client *http.Client, method, endpoint str
 	}
 	resp, err := client.Do(req)
 	if err != nil {
-		return nil, ErrLoginExchange
+		return nil, operationError(StageOAuthExchange, errors.Join(ErrLoginExchange, err))
 	}
 	defer resp.Body.Close()
 	raw, err := io.ReadAll(io.LimitReader(resp.Body, usageMaxBody+1))
-	if err != nil || len(raw) > usageMaxBody || resp.StatusCode < 200 || resp.StatusCode > 299 {
-		return nil, ErrLoginExchange
+	if resp.StatusCode < 200 || resp.StatusCode > 299 {
+		return nil, &OperationError{Stage: StageOAuthExchange, Kind: KindHTTP, HTTPStatus: resp.StatusCode, cause: ErrLoginExchange}
+	}
+	if err != nil {
+		return nil, operationError(StageOAuthExchange, errors.Join(ErrLoginExchange, err))
+	}
+	if len(raw) > usageMaxBody {
+		return nil, classifiedError(StageOAuthExchange, KindInvalidData, ErrLoginExchange)
 	}
 	return raw, nil
 }
 
-func loginNetworkError(ctx context.Context, fallback error) error {
-	if err := ctx.Err(); err != nil {
-		if err == context.DeadlineExceeded {
-			return ErrLoginTimedOut
-		}
-		return err
+func loginOperationError(ctx context.Context, stage ErrorStage, err, sentinel error) error {
+	if ctx.Err() != nil {
+		err = ctx.Err()
 	}
-	return fallback
+	var detail *OperationError
+	if errors.As(err, &detail) {
+		copy := *detail
+		copy.Stage = stage
+		if copy.Kind == KindTimeout {
+			sentinel = errors.Join(sentinel, ErrLoginTimedOut)
+		}
+		copy.cause = errors.Join(sentinel, err)
+		return &copy
+	}
+	kind := errorKind(err)
+	if kind == KindTimeout {
+		sentinel = errors.Join(sentinel, ErrLoginTimedOut)
+	}
+	return classifiedError(stage, kind, errors.Join(sentinel, err))
 }

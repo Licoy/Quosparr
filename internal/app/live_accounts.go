@@ -44,7 +44,7 @@ func installClaudeAccountActions(rt *liveApp, loc func() l10n.Localizer, a *Acco
 
 func (rt *liveApp) removeCodexAccount(l l10n.Localizer, id string) string {
 	if err := rt.codex.DeleteAccount(id); err != nil {
-		return l.Text(l10n.KeyStatusError)
+		return accountFailure(l, l.Text(l10n.KeyStatusError), err)
 	}
 	rt.svc.ReloadAccounts()
 	return ""
@@ -70,12 +70,7 @@ func installGrokAccountActions(rt *liveApp, loc func() l10n.Localizer, a *Accoun
 func (rt *liveApp) grokRefresh(l l10n.Localizer, target grok.RefreshTarget) string {
 	report := rt.grokMod.Refresh(context.Background(), target)
 	rt.grok.reload(true)
-	for _, outcome := range report.Outcomes {
-		if outcome.Err != nil {
-			return l.Text(l10n.KeyStatusError)
-		}
-	}
-	return ""
+	return grokRefreshMessage(l, report)
 }
 
 // grokMakeCurrent switches the Grok login. Running Grok processes block it
@@ -88,7 +83,7 @@ func (rt *liveApp) grokMakeCurrent(l l10n.Localizer, id string, force bool) (run
 	case errors.As(err, &blocked):
 		return true, ""
 	case err != nil:
-		return false, l.Text(l10n.KeyGrokSwitchFailed)
+		return false, accountFailure(l, l.Text(l10n.KeyGrokSwitchFailed), err)
 	}
 	return false, ""
 }
@@ -101,7 +96,7 @@ func (rt *liveApp) grokRemove(l l10n.Localizer, id string) string {
 		return l.Text(l10n.KeyGrokCurrentAccountCannotDelete)
 	}
 	if err != nil {
-		return l.Text(l10n.KeyStatusError)
+		return accountFailure(l, l.Text(l10n.KeyStatusError), err)
 	}
 	return ""
 }
@@ -111,7 +106,13 @@ func (rt *liveApp) grokRemove(l l10n.Localizer, id string) string {
 func (rt *liveApp) grokPasteText(l l10n.Localizer, text string) (string, bool) {
 	batch, _, err := rt.grokMod.ImportPastedText(context.Background(), text)
 	rt.grok.reload(true)
-	if err != nil || batch.SuccessCount() == 0 {
+	if err != nil {
+		return accountBatchFailure(l, batch.SuccessCount(), batch.FailureCount()+1, append(batch.FailureErrors, err)), false
+	}
+	if message := accountBatchFailure(l, batch.SuccessCount(), batch.FailureCount(), batch.FailureErrors); message != "" {
+		return message, false
+	}
+	if batch.SuccessCount() == 0 {
 		return l.Text(l10n.KeyGrokAccountsImportNoCredentials), false
 	}
 	return l.Textf(l10n.KeyAccountsImportSucceeded, batch.SuccessCount()), true

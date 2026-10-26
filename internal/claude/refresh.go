@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"io"
 	"net/http"
 	"strings"
@@ -78,43 +79,47 @@ func (c RefreshClient) post(ctx context.Context, rawURL, refreshToken string) (s
 		"client_id":     OAuthClientID,
 	})
 	if err != nil {
-		return "", "", 0, 0, ErrRefreshFailed
+		return "", "", 0, 0, classifiedError(StageRefresh, KindInvalidData, errors.Join(ErrRefreshFailed, err))
 	}
 	client, err := c.client(ctx)
 	if err != nil {
-		return "", "", 0, 0, err
+		return "", "", 0, 0, operationError(StageRefresh, err)
 	}
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, rawURL, bytes.NewReader(body))
 	if err != nil {
-		return "", "", 0, 0, ErrRefreshFailed
+		return "", "", 0, 0, classifiedError(StageRefresh, KindInvalidData, errors.Join(ErrRefreshFailed, err))
 	}
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Accept", "application/json")
 	resp, err := client.Do(req)
 	if err != nil {
-		return "", "", 0, 0, err
+		return "", "", 0, 0, operationError(StageRefresh, err)
 	}
 	defer resp.Body.Close()
 	payload, err := io.ReadAll(io.LimitReader(resp.Body, usageMaxBody+1))
 	if err != nil {
-		return "", "", 0, 0, ErrRefreshFailed
+		return "", "", 0, 0, operationError(StageRefresh, errors.Join(ErrRefreshFailed, err))
 	}
 	var parsed refreshResponse
 	if len(bytes.TrimSpace(payload)) > 0 && json.Unmarshal(payload, &parsed) != nil {
 		if resp.StatusCode == http.StatusNotFound || resp.StatusCode == http.StatusMethodNotAllowed {
 			return "", "", 0, resp.StatusCode, nil
 		}
-		return "", "", 0, resp.StatusCode, ErrRefreshFailed
+		kind := KindInvalidData
+		if resp.StatusCode < 200 || resp.StatusCode > 299 {
+			kind = KindHTTP
+		}
+		return "", "", 0, resp.StatusCode, &OperationError{Stage: StageRefresh, Kind: kind, HTTPStatus: resp.StatusCode, cause: ErrRefreshFailed}
 	}
 	if parsed.Error == "invalid_grant" {
-		return "", "", 0, resp.StatusCode, ErrInvalidGrant
+		return "", "", 0, resp.StatusCode, &OperationError{Stage: StageRefresh, Kind: KindHTTP, HTTPStatus: resp.StatusCode, cause: ErrInvalidGrant}
 	}
 	return parsed.AccessToken, parsed.RefreshToken, parsed.ExpiresIn, resp.StatusCode, nil
 }
 
 func finishRefresh(access, refresh string, expiresIn, status int) (string, string, int, error) {
 	if status < 200 || status > 299 {
-		return "", "", 0, ErrRefreshFailed
+		return "", "", 0, &OperationError{Stage: StageRefresh, Kind: KindHTTP, HTTPStatus: status, cause: ErrRefreshFailed}
 	}
 	if access == "" || refresh == "" {
 		return "", "", 0, ErrIncompleteRefresh

@@ -22,7 +22,8 @@ const (
 type ImportBatchResult struct {
 	Succeeded []ManagedAccount
 	// Failures are display lines of the form "<label>: <reason>".
-	Failures []string
+	Failures      []string
+	FailureErrors []error `json:"-"`
 }
 
 // ImportConflict says what committing a previewed item would do.
@@ -56,8 +57,9 @@ func (c ImportCandidate) ID() string { return c.Preview.ID }
 
 // ImportPreview is what a set of files or a pack would import.
 type ImportPreview struct {
-	Items    []ImportCandidate
-	Failures []string
+	Items         []ImportCandidate
+	Failures      []string
+	FailureErrors []error `json:"-"`
 	// SourceIsPack is true when a transfer pack was among the inputs.
 	SourceIsPack bool
 	// RoutedProvider is not ProviderCodex when a pack for another provider
@@ -103,7 +105,7 @@ func (im *Importer) ImportAPIKey(apiKey string, makeActive bool) (ManagedAccount
 func (im *Importer) ImportPastedText(ctx context.Context, text string, makeActiveFirst bool) ImportBatchResult {
 	candidates := parseCandidates(text)
 	if len(candidates) == 0 {
-		return ImportBatchResult{Failures: []string{FailureNoCredentials}}
+		return ImportBatchResult{Failures: []string{FailureNoCredentials}, FailureErrors: []error{ErrInvalidCredential}}
 	}
 	return im.importCandidates(ctx, candidates, makeActiveFirst)
 }
@@ -112,25 +114,30 @@ func (im *Importer) ImportPastedText(ctx context.Context, text string, makeActiv
 func (im *Importer) ImportFiles(ctx context.Context, paths []string, makeActiveFirst bool) ImportBatchResult {
 	var candidates []importCandidate
 	var failures []string
+	var failureErrors []error
 	for _, path := range paths {
 		name := filepath.Base(path)
 		text, err := readTextFile(path)
 		if err != nil {
 			failures = append(failures, name+": "+err.Error())
+			failureErrors = append(failureErrors, err)
 			continue
 		}
 		parsed := parseCandidates(text)
 		if len(parsed) == 0 {
 			failures = append(failures, name+": no credentials found")
+			failureErrors = append(failureErrors, ErrInvalidCredential)
 			continue
 		}
 		candidates = append(candidates, parsed...)
 	}
 	if len(candidates) == 0 && len(failures) == 0 {
 		failures = append(failures, FailureNoCredentials)
+		failureErrors = append(failureErrors, ErrInvalidCredential)
 	}
 	batch := im.importCandidates(ctx, candidates, makeActiveFirst)
 	batch.Failures = append(failures, batch.Failures...)
+	batch.FailureErrors = append(failureErrors, batch.FailureErrors...)
 	return batch
 }
 
@@ -158,6 +165,7 @@ func (im *Importer) importCandidates(ctx context.Context, candidates []importCan
 			}
 		}
 		result.Failures = append(result.Failures, c.label+": "+err.Error())
+		result.FailureErrors = append(result.FailureErrors, err)
 	}
 	return result
 }
@@ -228,6 +236,7 @@ func (im *Importer) PreviewFiles(paths []string) ImportPreview {
 	}
 	if len(preview.Items) == 0 && len(preview.Failures) == 0 {
 		preview.Failures = append(preview.Failures, FailureNoCredentials)
+		preview.FailureErrors = append(preview.FailureErrors, ErrInvalidCredential)
 	}
 	preview.Items = dedupeCandidates(preview.Items)
 	return preview
@@ -238,6 +247,7 @@ func (im *Importer) previewFile(path string, preview *ImportPreview) {
 	data, err := os.ReadFile(path)
 	if err != nil {
 		preview.Failures = append(preview.Failures, name+": "+err.Error())
+		preview.FailureErrors = append(preview.FailureErrors, err)
 		return
 	}
 	if pack, ok := DecodeTransferPackIfPack(data); ok {
@@ -245,11 +255,13 @@ func (im *Importer) previewFile(path string, preview *ImportPreview) {
 		if pack.Provider != ProviderCodex {
 			preview.RoutedProvider = pack.Provider
 			preview.Failures = append(preview.Failures, fmt.Sprintf("%s: provider is %s", name, pack.Provider))
+			preview.FailureErrors = append(preview.FailureErrors, &ProviderMismatchError{Expected: ProviderCodex, Actual: pack.Provider})
 			return
 		}
-		items, failures := im.previewPackEntries(pack.Accounts, name)
+		items, failures, failureErrors := im.previewPackEntries(pack.Accounts, name)
 		preview.Items = append(preview.Items, items...)
 		preview.Failures = append(preview.Failures, failures...)
+		preview.FailureErrors = append(preview.FailureErrors, failureErrors...)
 		return
 	}
 	text := ""
@@ -259,6 +271,7 @@ func (im *Importer) previewFile(path string, preview *ImportPreview) {
 	candidates := parseCandidates(text)
 	if len(candidates) == 0 {
 		preview.Failures = append(preview.Failures, name+": no credentials found")
+		preview.FailureErrors = append(preview.FailureErrors, ErrInvalidCredential)
 		return
 	}
 	preview.Items = append(preview.Items, im.previewRaw(candidates, name)...)
@@ -269,9 +282,9 @@ func (im *Importer) PreviewPack(pack TransferPack) (ImportPreview, error) {
 	if pack.Provider != ProviderCodex {
 		return ImportPreview{}, &ProviderMismatchError{Expected: ProviderCodex, Actual: pack.Provider}
 	}
-	items, failures := im.previewPackEntries(pack.Accounts, "pack")
+	items, failures, failureErrors := im.previewPackEntries(pack.Accounts, "pack")
 	return ImportPreview{
-		Items: dedupeCandidates(items), Failures: failures,
+		Items: dedupeCandidates(items), Failures: failures, FailureErrors: failureErrors,
 		SourceIsPack: true, RoutedProvider: ProviderCodex,
 	}, nil
 }
@@ -297,15 +310,17 @@ func previewID(label, matchKey string) string {
 	return "codex-" + StableHash(label+"|"+matchKey)
 }
 
-func (im *Importer) previewPackEntries(entries []TransferEntry, prefix string) ([]ImportCandidate, []string) {
+func (im *Importer) previewPackEntries(entries []TransferEntry, prefix string) ([]ImportCandidate, []string, []error) {
 	idx := im.currentIndex()
 	var items []ImportCandidate
 	var failures []string
+	var failureErrors []error
 	for offset, entry := range entries {
 		label := fmt.Sprintf("%s[%d]", prefix, offset)
 		auth, err := DecodeAuth(entry.Credential)
 		if err != nil {
 			failures = append(failures, label+": invalid credential")
+			failureErrors = append(failureErrors, err)
 			continue
 		}
 		display := NewManagedAccount("", auth, 0, entry.Alias, "", "", im.now())
@@ -325,7 +340,7 @@ func (im *Importer) previewPackEntries(entries []TransferEntry, prefix string) (
 			EmailHint: firstNonEmpty(entry.Email, display.Email),
 		})
 	}
-	return items, failures
+	return items, failures, failureErrors
 }
 
 func (im *Importer) previewRaw(candidates []importCandidate, prefix string) []ImportCandidate {
@@ -412,10 +427,11 @@ func (im *Importer) ImportPreviewSelection(
 		any = true
 		if err := im.commitPreview(ctx, c, makeActiveFirst && len(result.Succeeded) == 0, &result); err != nil {
 			result.Failures = append(result.Failures, c.Preview.DisplayName+": "+err.Error())
+			result.FailureErrors = append(result.FailureErrors, err)
 		}
 	}
 	if !any {
-		return ImportBatchResult{Failures: []string{FailureNothingSelected}}
+		return ImportBatchResult{Failures: []string{FailureNothingSelected}, FailureErrors: []error{ErrEmptySelection}}
 	}
 	return result
 }

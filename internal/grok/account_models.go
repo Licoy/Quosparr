@@ -370,8 +370,9 @@ type RefreshReport struct {
 
 // ImportBatchResult counts the accounts an import added or updated.
 type ImportBatchResult struct {
-	Succeeded []ManagedAccount
-	Failures  []string
+	Succeeded     []ManagedAccount
+	Failures      []string
+	FailureErrors []error `json:"-"`
 }
 
 // SuccessCount is the number of imported accounts.

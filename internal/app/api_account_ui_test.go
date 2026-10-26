@@ -54,7 +54,7 @@ func TestAPIErrorTextMapsBothProviders(t *testing.T) {
 			t.Errorf("%v: %q", err, got)
 		}
 	}
-	if got := apiModelsErrorText(l, apiquota.ErrModelsNotFound); got != tx(l, xAPIModelsFailed) {
+	if got := apiModelsErrorText(l, apiquota.ErrModelsNotFound); got != accountFailure(l, tx(l, xAPIModelsFailed), apiquota.ErrModelsNotFound) {
 		t.Errorf("models fallback = %q", got)
 	}
 	if got := claudePublicError(l, claude.ErrAPIUnauthorized); got != tx(l, xAPIKeyRejected) {

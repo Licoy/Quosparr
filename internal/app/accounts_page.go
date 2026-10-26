@@ -140,7 +140,7 @@ func (rt *liveApp) moveClaude(id string, delta int) string {
 	}
 	idx, err := rt.claudeMod.Store.LoadIndex()
 	if err != nil {
-		return err.Error()
+		return accountError(rt, err)
 	}
 	rows := idx.OrderedAccounts()
 	ids := make([]string, len(rows))
@@ -162,7 +162,11 @@ func (rt *liveApp) moveClaude(id string, delta int) string {
 func (u *settingsUI) previewClaudeFile(f *accountForm, rt *liveApp) {
 	l := u.L()
 	paths, err := mygo.Dialog.Open(mygo.OpenDialogOptions{Title: l.Text(l10n.KeyGrokAccountsAddFile)})
-	if err != nil || len(paths) == 0 {
+	if err != nil {
+		u.accountNotice(f, accountFailure(l, l.Text(l10n.KeyAccountsImportFailed), err))
+		return
+	}
+	if len(paths) == 0 {
 		return
 	}
 	u.accountAct(f, "", func() string {
@@ -311,12 +315,7 @@ func renderGrokAccounts(c *ui.Context, u *settingsUI, f *accountForm, rt *liveAp
 	}, func() string {
 		report := rt.grokMod.Refresh(context.Background(), grok.RefreshTarget{Kind: grok.RefreshAll})
 		rt.grok.reload(true)
-		for _, outcome := range report.Outcomes {
-			if outcome.Err != nil {
-				return accountError(rt)
-			}
-		}
-		return ""
+		return grokRefreshMessage(l, report)
 	})
 	accountEditor(c, u, f)
 	accountSelectionEditor(c, u, f, rt)
@@ -525,7 +524,7 @@ func (rt *liveApp) importCodexOfficial(l l10n.Localizer) string {
 		if key := runway.CredentialModeErrorKey(err); key != "" {
 			return l.Text(key)
 		}
-		return l.Text(l10n.KeyAccountsImportFailed)
+		return accountFailure(l, l.Text(l10n.KeyAccountsImportFailed), err)
 	}
 	rt.svc.ReloadAccounts()
 	return l.Textf(l10n.KeyAccountsImportSucceeded, 1)
@@ -534,6 +533,9 @@ func (rt *liveApp) importCodexOfficial(l l10n.Localizer) string {
 func (rt *liveApp) pasteCodex(l l10n.Localizer, text string) (string, bool) {
 	batch := (&codex.Importer{Store: rt.codex}).ImportPastedText(context.Background(), text, false)
 	rt.svc.ReloadAccounts()
+	if message := accountBatchFailure(l, len(batch.Succeeded), len(batch.Failures), batch.FailureErrors); message != "" {
+		return message, false
+	}
 	if len(batch.Succeeded) == 0 {
 		return l.Text(l10n.KeyAccountsImportNoCredentials), false
 	}
@@ -542,13 +544,16 @@ func (rt *liveApp) pasteCodex(l l10n.Localizer, text string) (string, bool) {
 
 func (rt *liveApp) importCodexFiles(l l10n.Localizer) string {
 	paths, err := mygo.Dialog.Open(mygo.OpenDialogOptions{Title: l.Text(l10n.KeyAccountsAddFile), Multiple: true})
-	if err != nil || len(paths) == 0 {
+	if err != nil {
+		return accountFailure(l, l.Text(l10n.KeyAccountsImportFailed), err)
+	}
+	if len(paths) == 0 {
 		return ""
 	}
 	batch := (&codex.Importer{Store: rt.codex}).ImportFiles(context.Background(), paths, false)
 	rt.svc.ReloadAccounts()
-	if len(batch.Succeeded) == 0 {
-		return l.Text(l10n.KeyAccountsImportFailed)
+	if message := accountBatchFailure(l, len(batch.Succeeded), len(batch.Failures), batch.FailureErrors); message != "" {
+		return message
 	}
 	return l.Textf(l10n.KeyAccountsImportSucceeded, len(batch.Succeeded))
 }
@@ -559,14 +564,20 @@ func (rt *liveApp) exportCodex(l l10n.Localizer, ids []string) (string, bool) {
 	}
 	path, pickErr := pickExport(l)
 	if pickErr != nil {
-		return l.Text(l10n.KeyAccountsExportFailed), false
+		return accountFailure(l, l.Text(l10n.KeyAccountsExportFailed), pickErr), false
 	}
 	if path == "" {
 		return "", false
 	}
 	res, err := (codex.Exporter{Store: rt.codex, AppVersion: rt.version}).Write(ids, path, time.Now())
 	if err != nil {
-		return l.Text(l10n.KeyAccountsExportFailed), false
+		if message := accountBatchFailure(l, 0, len(res.Failures), append(res.FailureErrors, err)); message != "" {
+			return message, false
+		}
+		return accountFailure(l, l.Text(l10n.KeyAccountsExportFailed), err), false
+	}
+	if message := accountBatchFailure(l, res.ExportedCount, len(res.Failures), res.FailureErrors); message != "" {
+		return message, false
 	}
 	return l.Textf(l10n.KeyAccountsExportSucceeded, res.ExportedCount), true
 }
@@ -574,8 +585,11 @@ func (rt *liveApp) exportCodex(l l10n.Localizer, ids []string) (string, bool) {
 func (rt *liveApp) setCodexMeta(l l10n.Localizer, id string, alias, note *string) string {
 	idx, err := rt.codex.LoadIndex()
 	acc, ok := idx.Account(id)
-	if err != nil || !ok {
-		return l.Text(l10n.KeyAccountsImportFailed)
+	if err != nil {
+		return accountFailure(l, tx(l, xAccountSaveFailed), err)
+	}
+	if !ok {
+		return accountFailure(l, tx(l, xAccountSaveFailed), &codex.AccountNotFoundError{ID: id})
 	}
 	if alias != nil {
 		acc.Alias = *alias
@@ -584,7 +598,7 @@ func (rt *liveApp) setCodexMeta(l l10n.Localizer, id string, alias, note *string
 		acc.Note = *note
 	}
 	if err := rt.codex.UpdateMetadata(acc); err != nil {
-		return l.Text(l10n.KeyAccountsImportFailed)
+		return accountFailure(l, tx(l, xAccountSaveFailed), err)
 	}
 	rt.svc.ReloadAccounts()
 	return ""
@@ -593,14 +607,14 @@ func (rt *liveApp) setCodexMeta(l l10n.Localizer, id string, alias, note *string
 func (rt *liveApp) moveCodex(id string, dir int) string {
 	idx, err := rt.codex.LoadIndex()
 	if err != nil {
-		return accountError(rt)
+		return accountError(rt, err)
 	}
 	next := moveIDs(accountIDs(sortedCodex(idx), func(a codex.ManagedAccount) string { return a.ID }), id, dir)
 	if next == nil {
 		return ""
 	}
 	if err := rt.codex.Reorder(next); err != nil {
-		return accountError(rt)
+		return accountError(rt, err)
 	}
 	rt.svc.ReloadAccounts()
 	return ""
@@ -609,13 +623,13 @@ func (rt *liveApp) moveCodex(id string, dir int) string {
 func (rt *liveApp) switchCodex(l l10n.Localizer, id, name string) string {
 	confirmed, err := confirmDialog(l, l.Text(l10n.KeyAccountsSwitchConfirmTitle), l.Textf(l10n.KeyAccountsSwitchConfirmMessage, name), "", l.Text(l10n.KeyAccountsMakeCurrent))
 	if err != nil {
-		return l.Text(l10n.KeyStatusError)
+		return accountFailure(l, l.Text(l10n.KeyStatusError), err)
 	}
 	if !confirmed {
 		return ""
 	}
 	if err := rt.svc.SwitchAccount(context.Background(), id); err != nil {
-		return l.Text(l10n.KeyAccountsSwitchFailed)
+		return accountFailure(l, l.Text(l10n.KeyAccountsSwitchFailed), err)
 	}
 	return ""
 }
@@ -623,13 +637,13 @@ func (rt *liveApp) switchCodex(l l10n.Localizer, id, name string) string {
 func (rt *liveApp) deleteCodex(l l10n.Localizer, id string) string {
 	confirmed, err := confirmDialog(l, l.Text(l10n.KeyAccountsDeleteConfirmTitle), l.Text(l10n.KeyAccountsDeleteConfirmMessage), "", l.Text(l10n.KeyAccountsDelete))
 	if err != nil {
-		return l.Text(l10n.KeyStatusError)
+		return accountFailure(l, l.Text(l10n.KeyStatusError), err)
 	}
 	if !confirmed {
 		return ""
 	}
 	if err := rt.codex.DeleteAccount(id); err != nil {
-		return l.Text(l10n.KeyStatusError)
+		return accountFailure(l, l.Text(l10n.KeyStatusError), err)
 	}
 	rt.svc.ReloadAccounts()
 	return ""
@@ -646,25 +660,37 @@ func (rt *liveApp) loginGrokContext(l l10n.Localizer, ctx context.Context) strin
 		return l.Text(l10n.KeyAccountsOAuthCancelled)
 	}
 	if err != nil {
-		return l.Text(l10n.KeyAccountsOAuthFailed)
+		return accountFailure(l, l.Text(l10n.KeyAccountsOAuthFailed), err)
 	}
 	return l.Textf(l10n.KeyAccountsImportSucceeded, 1)
 }
 
 func (rt *liveApp) importGrokFiles(l l10n.Localizer) string {
 	paths, err := mygo.Dialog.Open(mygo.OpenDialogOptions{Title: l.Text(l10n.KeyGrokAccountsAddFile), Multiple: true})
-	if err != nil || len(paths) == 0 {
+	if err != nil {
+		return accountFailure(l, l.Text(l10n.KeyAccountsImportFailed), err)
+	}
+	if len(paths) == 0 {
 		return ""
 	}
 	preview, err := rt.grokMod.PreviewImportFiles(context.Background(), paths)
-	if err != nil || len(preview.Items) == 0 {
-		return l.Text(l10n.KeyGrokAccountsImportNoCredentials)
+	if err != nil {
+		return accountFailure(l, l.Text(l10n.KeyAccountsImportFailed), err)
+	}
+	if len(preview.Items) == 0 {
+		if len(preview.Failures) == 0 {
+			return l.Text(l10n.KeyGrokAccountsImportNoCredentials)
+		}
+		return accountBatchFailure(l, 0, len(preview.Failures), preview.FailureErrors)
 	}
 	ids := accountIDs(preview.Items, func(c grok.ImportCandidate) string { return c.ID() })
 	batch, _, err := rt.grokMod.ImportPreviewSelection(context.Background(), preview.Items, ids)
 	rt.grok.reload(true)
-	if err != nil || batch.SuccessCount() == 0 {
-		return l.Text(l10n.KeyAccountsImportFailed)
+	if err != nil {
+		return accountBatchFailure(l, batch.SuccessCount(), batch.FailureCount()+len(preview.Failures)+1, append(append(batch.FailureErrors, preview.FailureErrors...), err))
+	}
+	if message := accountBatchFailure(l, batch.SuccessCount(), batch.FailureCount()+len(preview.Failures), append(batch.FailureErrors, preview.FailureErrors...)); message != "" {
+		return message
 	}
 	return l.Textf(l10n.KeyAccountsImportSucceeded, batch.SuccessCount())
 }
@@ -673,7 +699,7 @@ func (rt *liveApp) importGrokOfficial(l l10n.Localizer) string {
 	_, err := rt.grokMod.Apply(context.Background(), grok.Command{Kind: grok.CommandImportOfficial})
 	rt.grok.reload(true)
 	if err != nil {
-		return l.Text(l10n.KeyAccountsImportFailed)
+		return accountFailure(l, l.Text(l10n.KeyAccountsImportFailed), err)
 	}
 	return l.Textf(l10n.KeyAccountsImportSucceeded, 1)
 }
@@ -684,17 +710,23 @@ func (rt *liveApp) exportGrok(l l10n.Localizer, ids []string) (string, bool) {
 	}
 	path, pickErr := pickExport(l)
 	if pickErr != nil {
-		return l.Text(l10n.KeyAccountsExportFailed), false
+		return accountFailure(l, l.Text(l10n.KeyAccountsExportFailed), pickErr), false
 	}
 	if path == "" {
 		return "", false
 	}
 	res, err := rt.grokMod.ExportAccounts(ids)
 	if err != nil {
-		return l.Text(l10n.KeyAccountsExportFailed), false
+		if message := accountBatchFailure(l, 0, len(res.Failures), append(res.FailureErrors, err)); message != "" {
+			return message, false
+		}
+		return accountFailure(l, l.Text(l10n.KeyAccountsExportFailed), err), false
 	}
 	if err := codex.WriteTransferPack(path, res.Pack); err != nil {
-		return l.Text(l10n.KeyAccountsExportFailed), false
+		return accountFailure(l, l.Text(l10n.KeyAccountsExportFailed), err), false
+	}
+	if message := accountBatchFailure(l, res.ExportedCount, len(res.Failures), res.FailureErrors); message != "" {
+		return message, false
 	}
 	return l.Textf(l10n.KeyAccountsExportSucceeded, res.ExportedCount), true
 }
@@ -703,7 +735,7 @@ func (rt *liveApp) setGrokAlias(l l10n.Localizer, id, alias string) string {
 	_, err := rt.grokMod.Apply(context.Background(), grok.Command{Kind: grok.CommandSetAlias, ID: id, Alias: alias})
 	rt.grok.reload(true)
 	if err != nil {
-		return l.Text(l10n.KeyAccountsImportFailed)
+		return accountFailure(l, tx(l, xAccountSaveFailed), err)
 	}
 	return ""
 }
@@ -711,14 +743,14 @@ func (rt *liveApp) setGrokAlias(l l10n.Localizer, id, alias string) string {
 func (rt *liveApp) moveGrok(id string, dir int) string {
 	idx, err := rt.grokMod.Store.LoadIndex()
 	if err != nil {
-		return accountError(rt)
+		return accountError(rt, err)
 	}
 	next := moveIDs(accountIDs(idx.OrderedAccounts(), func(a grok.ManagedAccount) string { return a.ID }), id, dir)
 	if next == nil {
 		return ""
 	}
 	if _, err := rt.grokMod.Apply(context.Background(), grok.Command{Kind: grok.CommandReorder, IDs: next}); err != nil {
-		return accountError(rt)
+		return accountError(rt, err)
 	}
 	rt.grok.reload(true)
 	return ""
@@ -727,7 +759,7 @@ func (rt *liveApp) moveGrok(id string, dir int) string {
 func (rt *liveApp) switchGrok(l l10n.Localizer, id, name string) string {
 	confirmed, err := confirmDialog(l, l.Text(l10n.KeyAccountsSwitchConfirmTitle), l.Text(l10n.KeyGrokAccountsMakeCurrent), name, l.Text(l10n.KeyGrokAccountsMakeCurrent))
 	if err != nil {
-		return l.Text(l10n.KeyStatusError)
+		return accountFailure(l, l.Text(l10n.KeyStatusError), err)
 	}
 	if !confirmed {
 		return ""
@@ -737,7 +769,7 @@ func (rt *liveApp) switchGrok(l l10n.Localizer, id, name string) string {
 	if errors.As(err, &running) {
 		confirmed, confirmErr := confirmDialog(l, l.Text(l10n.KeyAccountsForceCurrent), l.Text(l10n.KeyGrokAccountsMakeCurrent), name, l.Text(l10n.KeyAccountsForceCurrent))
 		if confirmErr != nil {
-			return l.Text(l10n.KeyStatusError)
+			return accountFailure(l, l.Text(l10n.KeyStatusError), confirmErr)
 		}
 		if !confirmed {
 			return ""
@@ -746,7 +778,7 @@ func (rt *liveApp) switchGrok(l l10n.Localizer, id, name string) string {
 	}
 	rt.grok.reload(true)
 	if err != nil {
-		return l.Text(l10n.KeyAccountsSwitchFailed)
+		return accountFailure(l, l.Text(l10n.KeyAccountsSwitchFailed), err)
 	}
 	return ""
 }
@@ -754,18 +786,13 @@ func (rt *liveApp) switchGrok(l l10n.Localizer, id, name string) string {
 func (rt *liveApp) refreshGrok(id string) string {
 	report := rt.grokMod.Refresh(context.Background(), grok.RefreshTarget{Kind: grok.RefreshAccount, ID: id})
 	rt.grok.reload(true)
-	for _, outcome := range report.Outcomes {
-		if outcome.Err != nil {
-			return accountError(rt)
-		}
-	}
-	return ""
+	return grokRefreshMessage(l10n.New(rt.svc.Snapshot().Language), report)
 }
 
 func (rt *liveApp) deleteClaude(l l10n.Localizer, id string) string {
 	confirmed, err := confirmDialog(l, l.Text(l10n.KeyAccountsDeleteConfirmTitle), l.Text(l10n.KeyClaudeDeleteConfirmMessage), "", l.Text(l10n.KeyAccountsDelete))
 	if err != nil {
-		return l.Text(l10n.KeyStatusError)
+		return accountFailure(l, l.Text(l10n.KeyStatusError), err)
 	}
 	if !confirmed {
 		return ""
@@ -776,7 +803,7 @@ func (rt *liveApp) deleteClaude(l l10n.Localizer, id string) string {
 func (rt *liveApp) deleteGrok(l l10n.Localizer, id string) string {
 	confirmed, err := confirmDialog(l, l.Text(l10n.KeyGrokAccountsDeleteConfirmTitle), l.Text(l10n.KeyGrokAccountsDeleteConfirmMessage), "", l.Text(l10n.KeyGrokAccountsRemove))
 	if err != nil {
-		return l.Text(l10n.KeyStatusError)
+		return accountFailure(l, l.Text(l10n.KeyStatusError), err)
 	}
 	if !confirmed {
 		return ""
@@ -788,7 +815,7 @@ func (rt *liveApp) deleteGrok(l l10n.Localizer, id string) string {
 		return l.Text(l10n.KeyGrokAccountsCurrent)
 	}
 	if err != nil {
-		return l.Text(l10n.KeyStatusError)
+		return accountFailure(l, l.Text(l10n.KeyStatusError), err)
 	}
 	return ""
 }
@@ -829,6 +856,7 @@ func saveAccountMeta(l l10n.Localizer, kind int, mode, id, alias, note string) s
 	return rt.setCodexMeta(l, id, &alias, nil)
 }
 
-func accountError(rt *liveApp) string {
-	return l10n.New(rt.svc.Snapshot().Language).Text(l10n.KeyStatusError)
+func accountError(rt *liveApp, err error) string {
+	l := l10n.New(rt.svc.Snapshot().Language)
+	return accountFailure(l, l.Text(l10n.KeyStatusError), err)
 }

@@ -27,12 +27,12 @@ func (execRunner) Run(ctx context.Context, name string, args []string, stdin []b
 	if err == nil {
 		return out, 0, nil
 	}
+	if ctx.Err() != nil {
+		return nil, 0, ctx.Err()
+	}
 	var exit *exec.ExitError
 	if errors.As(err, &exit) {
 		return out, exit.ExitCode(), nil
-	}
-	if ctx.Err() != nil {
-		return nil, 0, ctx.Err()
 	}
 	return nil, 0, err
 }

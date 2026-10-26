@@ -100,7 +100,7 @@ func rtSwitchCodexResult(l l10n.Localizer, id string, restartAfter bool) (string
 		if key := runway.CredentialModeErrorKey(err); key != "" {
 			return l.Text(key), false
 		}
-		return l.Text(l10n.KeyAccountsSwitchFailed), false
+		return accountFailure(l, l.Text(l10n.KeyAccountsSwitchFailed), err), false
 	}
 	if restartAfter {
 		return l.Text(l10n.KeyAccountsRestartCodexSucceeded), true

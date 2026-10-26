@@ -245,7 +245,7 @@ func (m *Module) ImportPastedText(ctx context.Context, text string) (ImportBatch
 	payloads := ParsePayloads(text)
 	if len(payloads) == 0 {
 		state, err := m.reconcileOfficialIdentity(false)
-		return ImportBatchResult{Failures: []string{FailureNoCredentials}}, state, err
+		return ImportBatchResult{Failures: []string{FailureNoCredentials}, FailureErrors: []error{ErrInvalidCredential}}, state, err
 	}
 	before, err := m.Store.LoadIndex()
 	if err != nil {
@@ -267,6 +267,7 @@ func (m *Module) ImportPastedText(ctx context.Context, text string) (ImportBatch
 		account, err := m.importPayload(data, before, official, isFirst && canBootstrap)
 		if err != nil {
 			result.Failures = append(result.Failures, label+": "+safeImportFailureMessage(err))
+			result.FailureErrors = append(result.FailureErrors, err)
 			continue
 		}
 		result.Succeeded = append(result.Succeeded, account)
@@ -716,7 +717,7 @@ func (m *Module) loginOAuth(ctx context.Context) error {
 		return err
 	}
 	if err := os.RemoveAll(pendingHome); err != nil && !errors.Is(err, os.ErrNotExist) {
-		return &AccountIOError{Message: "Unable to clean up the pending Grok login directory."}
+		return &AccountIOError{Message: "Unable to clean up the pending Grok login directory.", Cause: err}
 	}
 	return nil
 }
@@ -730,7 +731,7 @@ func (m *Module) runLogin(ctx context.Context, pendingHome string) error {
 	}
 	data, err := os.ReadFile(pendingHome + string(os.PathSeparator) + authFileName)
 	if err != nil {
-		return &LoginFailedError{Message: "Grok OAuth login failed."}
+		return &LoginFailedError{Message: "Grok OAuth login failed.", Cause: err}
 	}
 	if _, err := parseCredential(data); err != nil {
 		return err
@@ -756,11 +757,11 @@ func loginError(ctx context.Context, err error) error {
 	case errors.Is(err, context.Canceled) || ctx.Err() != nil:
 		return ErrLoginCancelled
 	case errors.Is(err, context.DeadlineExceeded):
-		return &LoginFailedError{Message: "Grok OAuth login timed out."}
+		return &LoginFailedError{Message: "Grok OAuth login timed out.", Cause: err}
 	case errors.As(err, &oauth):
-		return &LoginFailedError{Message: safeLoginMessage(oauth)}
+		return &LoginFailedError{Message: safeLoginMessage(oauth), Cause: err}
 	}
-	return &LoginFailedError{Message: "Grok OAuth login failed."}
+	return &LoginFailedError{Message: "Grok OAuth login failed.", Cause: err}
 }
 
 func safeLoginMessage(err *OAuthError) string {
@@ -809,7 +810,7 @@ func (m *Module) makeCurrent(ctx context.Context, id string, allowWhileRunning b
 			if ctx.Err() != nil {
 				return ctx.Err()
 			}
-			return &AccountIOError{Message: "Unable to inspect running Grok processes."}
+			return &AccountIOError{Message: "Unable to inspect running Grok processes.", Cause: err}
 		}
 		if len(pids) > 0 {
 			return &ProcessesRunningError{PIDs: pids}
@@ -855,7 +856,7 @@ func (m *Module) installCurrentAccount(id string) error {
 		if errors.Is(err, platform.ErrLocked) {
 			return ErrAuthFileLocked
 		}
-		return &AccountIOError{Message: "Unable to open the Grok credential lock."}
+		return &AccountIOError{Message: "Unable to open the Grok credential lock.", Cause: err}
 	}
 	defer func() { _ = lock.Release() }()
 	return m.installLocked(id, target, targetData)
@@ -892,7 +893,7 @@ func (m *Module) installLocked(id string, target AuthDocument, targetData []byte
 		if isAccountError(err) {
 			return err
 		}
-		return &AccountIOError{Message: "Unable to switch the official Grok credential."}
+		return &AccountIOError{Message: "Unable to switch the official Grok credential.", Cause: err}
 	}
 	return nil
 }
@@ -926,14 +927,14 @@ func (m *Module) rollbackSwitch(official []byte, index AccountIndex) error {
 	}
 	if official != nil {
 		if current, err := m.Store.LoadOfficialCredentialData(); err != nil || !bytes.Equal(current, official) {
-			return &AccountIOError{Message: "Official Grok credential rollback verification failed."}
+			return &AccountIOError{Message: "Official Grok credential rollback verification failed.", Cause: err}
 		}
 	} else if _, err := os.Stat(m.Store.OfficialAuthPath()); err == nil {
 		return &AccountIOError{Message: "Official Grok credential removal could not be verified."}
 	}
 	current, err := m.Store.LoadIndex()
 	if err != nil || !indexesEqual(current, index) {
-		return &AccountIOError{Message: "Grok account index rollback verification failed."}
+		return &AccountIOError{Message: "Grok account index rollback verification failed.", Cause: err}
 	}
 	return nil
 }
@@ -997,7 +998,7 @@ func (m *Module) accountError(err error, accountID string) error {
 	if strings.Contains(strings.ToLower(err.Error()), "method not found") {
 		return &CLITooOldError{Version: "unknown"}
 	}
-	return &RefreshFailedError{AccountID: accountID, Message: m.persistedErrorCode(err)}
+	return &RefreshFailedError{AccountID: accountID, Message: m.persistedErrorCode(err), Cause: err}
 }
 
 // isAuthFailure reports whether err means the user has to sign in again.

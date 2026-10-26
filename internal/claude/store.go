@@ -154,21 +154,21 @@ func (s *Store) LoadIndex() (AccountIndex, error) {
 
 func (s *Store) loadIndex() (AccountIndex, error) {
 	if err := s.ensureRoot(); err != nil {
-		return AccountIndex{}, err
+		return AccountIndex{}, operationError(StageReadIndex, err)
 	}
 	data, err := os.ReadFile(s.IndexPath())
 	if errors.Is(err, os.ErrNotExist) {
 		return NewAccountIndex(), nil
 	}
 	if err != nil {
-		return AccountIndex{}, err
+		return AccountIndex{}, operationError(StageReadIndex, err)
 	}
 	idx, err := ParseAccountIndex(data)
 	if err != nil {
-		return AccountIndex{}, err
+		return AccountIndex{}, operationError(StageReadIndex, err)
 	}
 	if idx.Version != IndexVersion {
-		return AccountIndex{}, errors.New("claude: unsupported claude-index.json version")
+		return AccountIndex{}, classifiedError(StageReadIndex, KindUnsupportedVersion, errors.New("claude: unsupported index version"))
 	}
 	return idx, nil
 }
@@ -178,7 +178,7 @@ func (s *Store) loadIndex() (AccountIndex, error) {
 func ParseAccountIndex(data []byte) (AccountIndex, error) {
 	var idx AccountIndex
 	if err := json.Unmarshal(data, &idx); err != nil {
-		return AccountIndex{}, errors.New("claude: claude-index.json is unreadable")
+		return AccountIndex{}, classifiedError(StageReadIndex, KindInvalidData, err)
 	}
 	if idx.Accounts == nil {
 		idx.Accounts = []ManagedAccount{}
@@ -204,19 +204,19 @@ func normalizeAPIRows(rows []ManagedAccount) {
 
 func (s *Store) saveIndex(idx AccountIndex) error {
 	if err := s.ensureRoot(); err != nil {
-		return err
+		return operationError(StageWriteIndex, err)
 	}
 	if idx.Accounts == nil {
 		idx.Accounts = []ManagedAccount{}
 	}
 	data, err := marshalIndex(idx)
 	if err != nil {
-		return err
+		return operationError(StageWriteIndex, err)
 	}
 	if err := rejectTokenKeys(data); err != nil {
-		return err
+		return operationError(StageWriteIndex, err)
 	}
-	return platform.WriteFileAtomic(s.IndexPath(), data, storeFilePerm)
+	return operationError(StageWriteIndex, platform.WriteFileAtomic(s.IndexPath(), data, storeFilePerm))
 }
 
 func marshalIndex(idx AccountIndex) ([]byte, error) {
@@ -242,7 +242,7 @@ func (s *Store) loadCredential(id string) ([]byte, error) {
 	if errors.Is(err, os.ErrNotExist) {
 		return nil, &AccountNotFoundError{ID: id}
 	}
-	return data, err
+	return data, operationError(StageReadCredential, err)
 }
 
 // UpsertOptions tunes Upsert.
@@ -324,12 +324,12 @@ func nextSortIndex(idx AccountIndex) int {
 func (s *Store) saveCredential(id string, data []byte) error {
 	managed, err := ManagedDocument(data)
 	if err != nil {
-		return err
+		return operationError(StageWriteCredential, err)
 	}
 	if err := platform.EnsurePrivateDirectory(s.AccountDir(id)); err != nil {
-		return err
+		return operationError(StageWriteCredential, err)
 	}
-	return platform.WriteFileAtomic(s.CredentialPath(id), managed, storeFilePerm)
+	return operationError(StageWriteCredential, platform.WriteFileAtomic(s.CredentialPath(id), managed, storeFilePerm))
 }
 
 // UpdateMetadata replaces the row with the same id.
@@ -402,7 +402,8 @@ func (s *Store) Reorder(ids []string) error {
 
 // LoadOfficial reads the official credential blob.
 func (s *Store) LoadOfficial(ctx context.Context) ([]byte, error) {
-	return s.official().Load(ctx)
+	data, err := s.official().Load(ctx)
+	return data, operationError(StageReadOfficial, err)
 }
 
 // SaveOfficial writes the official credential blob. Callers are the explicit
@@ -411,7 +412,7 @@ func (s *Store) SaveOfficial(ctx context.Context, data []byte) error {
 	if _, err := ParseAuthDocument(data); err != nil {
 		return err
 	}
-	return s.official().Save(ctx, data)
+	return operationError(StageWriteCredential, s.official().Save(ctx, data))
 }
 
 // RefreshManaged rotates the refresh token of a non-current account and writes

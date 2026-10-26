@@ -15,6 +15,14 @@ var ErrAuthenticationRequired = errors.New("authentication required")
 // authentication refusal; see HTTPError for the status.
 var ErrBadServerResponse = errors.New("bad server response")
 
+// CallbackListenError preserves the local bind cause without exposing addresses
+// or external error text; ErrPortInUse remains the compatibility sentinel.
+type CallbackListenError struct{ Cause error }
+
+func (e *CallbackListenError) Error() string        { return "OAuth callback listener could not start" }
+func (e *CallbackListenError) Unwrap() error        { return e.Cause }
+func (e *CallbackListenError) Is(target error) bool { return target == ErrPortInUse }
+
 // HTTPError is an unsuccessful HTTP status. Its message never includes the
 // response body, which could echo a token.
 type HTTPError struct{ StatusCode int }

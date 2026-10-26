@@ -92,7 +92,7 @@ func (s *LoginCallbackServer) bindLoopback() error {
 				bound.Close()
 			}
 			s.listeners = nil
-			return ErrLoginPortInUse
+			return operationError(StageOAuthCallback, errors.Join(ErrLoginPortInUse, err))
 		}
 		s.listeners = append(s.listeners, listener)
 	}

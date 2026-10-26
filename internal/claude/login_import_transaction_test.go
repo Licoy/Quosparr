@@ -7,6 +7,7 @@ import (
 	"github.com/licoy/quosparr/internal/platform"
 	"os"
 	"strings"
+	"syscall"
 	"testing"
 )
 
@@ -87,10 +88,17 @@ func TestBrowserCommitRollbackFailureIsVisibleAndRedacted(t *testing.T) {
 			if err := os.Mkdir(r.store.CredentialPath(acc.ID), 0700); err != nil {
 				t.Fatal(err)
 			}
-			return errors.New("secret-in-error")
+			return errors.Join(errors.New("secret-in-error"), syscall.ENOSPC)
 		}
 		return platform.WriteFileAtomic(path, data, perm)
 	})
+	detail := requireOperation(t, err, StageRollbackCredential, KindRollbackFailed)
+	if detail.Failure == nil || detail.Failure.Stage != StageWriteIndex || detail.Failure.Kind != KindDiskFull || detail.Rollback == nil || detail.Rollback.Stage != StageRollbackCredential {
+		t.Fatal("original write and rollback summaries are missing")
+	}
+	if !errors.Is(err, syscall.ENOSPC) {
+		t.Fatal("original disk-full cause lost")
+	}
 	if !errors.Is(err, ErrLoginRollback) || strings.Contains(err.Error(), "secret-in-error") {
 		t.Fatalf("rollback error = %v", err)
 	}

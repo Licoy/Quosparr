@@ -329,7 +329,7 @@ func (u *settingsUI) generalPage(c *ui.Context) {
 		detail := l.Text(l10n.KeyLaunchAtLoginDescription)
 		switch {
 		case s.LoginError() != nil:
-			detail = l.Text(l10n.KeyLaunchAtLoginFailed)
+			detail = accountFailure(l, l.Text(l10n.KeyLaunchAtLoginFailed), s.LoginError())
 		case !s.LoginAvailable():
 			detail = l.Text(l10n.KeyLaunchAtLoginUnavailable)
 		case s.LoginStatus() == LoginRequiresApproval:
@@ -387,7 +387,7 @@ func (u *settingsUI) proxyGroup(c *ui.Context) {
 		if err := s.ProxyError(); err != nil {
 			row("", "", func() {
 				ui.Column(c).Grow(1).Basis(0).Gap(3).Children(func() {
-					ui.Text(c, l.Text(proxyErrorKey(err))).FontSize(12).TextColor(t.Danger)
+					ui.Text(c, proxyFailureText(l, err)).FontSize(12).TextColor(t.Danger)
 					ui.Text(c, tx(l, xProxyBlocked)).FontSize(11).TextColor(t.TextMuted)
 				})
 			})
@@ -543,7 +543,7 @@ func (u *settingsUI) saveProxy() {
 	}, func(err error) {
 		l := u.L()
 		if err != nil {
-			u.setProxyMsg(l.Text(proxyErrorKey(err)), true)
+			u.setProxyMsg(proxyFailureText(l, err), true)
 			return
 		}
 		r := u.proxyResult
@@ -566,7 +566,7 @@ func (u *settingsUI) loadCredentials() {
 		return err
 	}, func(err error) {
 		if err != nil {
-			u.setProxyMsg(u.L().Text(proxyErrorKey(err)), true)
+			u.setProxyMsg(proxyFailureText(u.L(), err), true)
 			return
 		}
 		u.draft.Username, u.draft.Password = got.Username, got.Password
@@ -600,7 +600,7 @@ func (u *settingsUI) testProxy() {
 		return u.s.proxyHooks.Test(context.Background(), cfg, creds, site)
 	}, func(err error) {
 		if err != nil {
-			u.setProxyMsg(u.L().Text(proxyErrorKey(err)), true)
+			u.setProxyMsg(proxyFailureText(u.L(), err), true)
 			return
 		}
 		u.flashProxyMsg(u.L().Text(l10n.KeyNetworkProxyTestSucceeded))

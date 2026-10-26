@@ -84,7 +84,7 @@ func (flow claudeLoginFlow) run(a *claudeLoginAttempt, stage func(textKey)) (tex
 	}
 	stage(xClaudeOAuthQuotaLoading)
 	if err := flow.module.Refresh(a.ctx, account.ID, true); err != nil {
-		return xClaudeOAuthQuotaFailed, nil
+		return xClaudeOAuthQuotaFailed, err
 	}
 	return xClaudeOAuthAdded, nil
 }
@@ -95,7 +95,7 @@ func (u *settingsUI) startClaudeLogin(f *accountForm, rt *liveApp) {
 	}
 	network, err := netx.Current()
 	if err != nil {
-		u.accountNotice(f, tx(u.L(), xOAuthExchange))
+		u.accountNotice(f, accountFailure(u.L(), tx(u.L(), xOAuthExchange), err))
 		return
 	}
 	u.startClaudeLoginFlow(f, rt, claudeLoginFlow{module: rt.claudeMod, openBrowser: openAccountBrowser, callbackText: claudeCallbackText(u.L())}, netx.WithContext(context.Background(), network))
@@ -148,11 +148,13 @@ func (u *settingsUI) finishClaudeLogin(f *accountForm, a *claudeLoginAttempt, ou
 		return
 	}
 	u.stopClaudeLogin(f, a)
-	if err != nil {
-		u.accountNotice(f, claudeLoginFailure(u.L(), err))
+	if outcome != "" {
+		u.accountNotice(f, accountFailure(u.L(), tx(u.L(), outcome), err))
 		return
 	}
-	u.accountNotice(f, tx(u.L(), outcome))
+	if err != nil {
+		u.accountNotice(f, claudeLoginFailure(u.L(), err))
+	}
 }
 
 func (u *settingsUI) stopClaudeLogin(f *accountForm, a *claudeLoginAttempt) {
@@ -169,26 +171,28 @@ func claudeLoginFailure(l l10n.Localizer, err error) string {
 	var stage *claudeLoginError
 	switch {
 	case errors.Is(err, claude.ErrLoginRollback):
-		return tx(l, xClaudeOAuthRollback)
+		return accountFailure(l, tx(l, xClaudeOAuthRollback), err)
+	case accountRollbackFailed(err):
+		return accountFailure(l, l.Text(l10n.KeyAccountsOAuthFailed), err)
 	case errors.Is(err, context.Canceled):
 		return ""
 	case errors.Is(err, claude.ErrLoginPortInUse):
-		return tx(l, xClaudeOAuthPort)
+		return accountFailure(l, tx(l, xClaudeOAuthPort), err)
 	case errors.Is(err, claude.ErrLoginTimedOut), errors.Is(err, context.DeadlineExceeded):
-		return tx(l, xOAuthTimeout)
+		return accountFailure(l, tx(l, xOAuthTimeout), err)
 	case errors.Is(err, claude.ErrLoginDenied):
-		return tx(l, xClaudeOAuthDenied)
+		return accountFailure(l, tx(l, xClaudeOAuthDenied), err)
 	case errors.Is(err, claude.ErrLoginCallback):
-		return tx(l, xOAuthCallback)
+		return accountFailure(l, tx(l, xOAuthCallback), err)
 	case errors.Is(err, claude.ErrLoginExchange):
-		return tx(l, xOAuthExchange)
+		return accountFailure(l, tx(l, xOAuthExchange), err)
 	case errors.Is(err, claude.ErrCredentialChanged):
-		return tx(l, xClaudeOAuthChanged)
+		return accountFailure(l, tx(l, xClaudeOAuthChanged), err)
 	case errors.Is(err, claude.ErrLoginIdentity), errors.Is(err, claude.ErrIdentityRequired):
-		return tx(l, xClaudeOAuthIdentity)
+		return accountFailure(l, tx(l, xClaudeOAuthIdentity), err)
 	case errors.As(err, &stage):
-		return tx(l, stage.reason)
+		return accountFailure(l, tx(l, stage.reason), stage.cause)
 	default:
-		return l.Text(l10n.KeyAccountsOAuthFailed)
+		return accountFailure(l, l.Text(l10n.KeyAccountsOAuthFailed), err)
 	}
 }

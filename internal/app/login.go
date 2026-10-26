@@ -2,7 +2,6 @@ package app
 
 import (
 	"errors"
-	"fmt"
 	"runtime"
 	"strings"
 
@@ -95,8 +94,15 @@ func loginFailure(kind, cause error) error {
 	if cause == nil {
 		return kind
 	}
-	return fmt.Errorf("%w: %v", kind, cause)
+	return &loginItemError{kind: kind, cause: cause}
 }
+
+// loginItemError keeps diagnostics available without rendering platform output.
+type loginItemError struct{ kind, cause error }
+
+func (e *loginItemError) Error() string        { return "login item operation failed" }
+func (e *loginItemError) Is(target error) bool { return errors.Is(e.kind, target) }
+func (e *loginItemError) Unwrap() error        { return e.cause }
 
 // mygoLoginBackend uses mygo's login API: SMAppService or a launch agent on
 // macOS, an XDG autostart entry on Linux, the Run key on Windows. mygo's

@@ -27,14 +27,14 @@ func (f FileStore) Load(context.Context) ([]byte, error) {
 		return nil, ErrNotLoggedIn
 	}
 	if err != nil {
-		return nil, err
+		return nil, operationError(StageReadOfficial, err)
 	}
 	return data, nil
 }
 
 // Save writes data atomically with owner-only permissions.
 func (f FileStore) Save(_ context.Context, data []byte) error {
-	return platform.WriteFileAtomic(f.Path, data, storeFilePerm)
+	return operationError(StageWriteCredential, platform.WriteFileAtomic(f.Path, data, storeFilePerm))
 }
 
 // Exists reports whether the file is present.
@@ -44,7 +44,7 @@ func (f FileStore) Exists(context.Context) (bool, error) {
 		return false, nil
 	}
 	if err != nil {
-		return false, err
+		return false, operationError(StageReadOfficial, err)
 	}
 	return true, nil
 }
@@ -55,5 +55,5 @@ func (f FileStore) Remove(context.Context) error {
 	if errors.Is(err, os.ErrNotExist) {
 		return nil
 	}
-	return err
+	return operationError(StageWriteCredential, err)
 }

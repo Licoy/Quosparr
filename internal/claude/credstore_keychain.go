@@ -80,16 +80,26 @@ func (k KeychainStore) Load(ctx context.Context) ([]byte, error) {
 	defer cancel()
 	args := []string{"find-generic-password", "-s", k.Service, "-a", k.Account, "-w"}
 	stdout, code, err := k.runner().Run(ctx, securityPath, args, nil)
+	if ctx.Err() != nil {
+		return nil, operationError(StageReadKeychain, ctx.Err())
+	}
 	if err != nil {
-		return nil, err
+		return nil, operationError(StageReadKeychain, err)
 	}
 	if code == securityExitNotFound {
 		return nil, ErrNotLoggedIn
 	}
 	if code != 0 {
-		return nil, errors.New("claude: keychain read failed")
+		return nil, &OperationError{Stage: StageReadKeychain, Kind: KindCommand, ExitCode: code, cause: ErrCredentialStore}
 	}
-	return decodeKeychainStdout(stdout)
+	data, err := decodeKeychainStdout(stdout)
+	if err == nil {
+		_, err = rawObject(data)
+	}
+	if err != nil {
+		return nil, classifiedError(StageReadKeychain, KindInvalidData, err)
+	}
+	return data, nil
 }
 
 // Exists reports whether Load finds an item. ErrNotLoggedIn is false, nil.
@@ -128,7 +138,10 @@ func (k KeychainStore) Save(ctx context.Context, data []byte) error {
 		}
 	}
 	if err := k.add(ctx, data); err != nil {
-		_ = k.rollback(ctx, previous, had)
+		rbErr := k.rollback(ctx, previous, had)
+		if rbErr != nil {
+			return rollbackOperationError(StageRollbackKeychain, err, rbErr)
+		}
 		return err
 	}
 	got, err := k.Load(ctx)
@@ -136,9 +149,12 @@ func (k KeychainStore) Save(ctx context.Context, data []byte) error {
 		return nil
 	}
 	if rbErr := k.rollback(ctx, previous, had); rbErr != nil {
-		return rbErr
+		return rollbackOperationError(StageRollbackKeychain, err, rbErr)
 	}
-	return ErrKeychainVerify
+	if err != nil {
+		return operationError(StageWriteKeychain, err)
+	}
+	return classifiedError(StageWriteKeychain, KindInvalidData, ErrKeychainVerify)
 }
 
 // Remove runs `delete-generic-password -s <service> -a <account>`. A missing
@@ -148,11 +164,14 @@ func (k KeychainStore) Remove(ctx context.Context) error {
 	defer cancel()
 	args := []string{"delete-generic-password", "-s", k.Service, "-a", k.Account}
 	_, code, err := k.runner().Run(ctx, securityPath, args, nil)
+	if ctx.Err() != nil {
+		return operationError(StageRollbackKeychain, ctx.Err())
+	}
 	if err != nil {
-		return err
+		return operationError(StageRollbackKeychain, err)
 	}
 	if code != 0 && code != securityExitNotFound {
-		return errors.New("claude: keychain delete failed")
+		return &OperationError{Stage: StageRollbackKeychain, Kind: KindCommand, ExitCode: code, cause: ErrCredentialStore}
 	}
 	return nil
 }
@@ -175,16 +194,19 @@ func (k KeychainStore) rollback(ctx context.Context, previous []byte, had bool) 
 		if err := k.Remove(ctx); err != nil {
 			return err
 		}
-		return ErrKeychainVerify
+		return nil
 	}
 	if err := k.add(ctx, previous); err != nil {
 		return err
 	}
 	got, err := k.Load(ctx)
-	if err != nil || !sameKeychainBytes(previous, got) {
-		return errors.New("claude: keychain rollback could not be verified")
+	if err != nil {
+		return operationError(StageRollbackKeychain, errors.Join(ErrKeychainVerify, err))
 	}
-	return ErrKeychainVerify
+	if !sameKeychainBytes(previous, got) {
+		return classifiedError(StageRollbackKeychain, KindInvalidData, ErrKeychainVerify)
+	}
+	return nil
 }
 
 func (k KeychainStore) add(ctx context.Context, data []byte) error {
@@ -195,11 +217,14 @@ func (k KeychainStore) add(ctx context.Context, data []byte) error {
 	ctx, cancel := k.withTimeout(ctx)
 	defer cancel()
 	_, code, err := k.runner().Run(ctx, securityPath, []string{"-i"}, []byte(line))
+	if ctx.Err() != nil {
+		return operationError(StageWriteKeychain, ctx.Err())
+	}
 	if err != nil {
-		return err
+		return operationError(StageWriteKeychain, err)
 	}
 	if code != 0 {
-		return errors.New("claude: keychain write failed")
+		return &OperationError{Stage: StageWriteKeychain, Kind: KindCommand, ExitCode: code, cause: ErrCredentialStore}
 	}
 	return nil
 }

@@ -2,6 +2,7 @@ package claude
 
 import (
 	"context"
+	"errors"
 	"io"
 	"net/http"
 	"strconv"
@@ -46,7 +47,16 @@ func (c *UsageClient) Fetch(ctx context.Context, accessToken string) ([]byte, ti
 
 // FetchProfile loads the profile JSON.
 func (c *UsageClient) FetchProfile(ctx context.Context, accessToken string) ([]byte, time.Time, error) {
-	return c.get(ctx, c.profileURL(), accessToken)
+	data, at, err := c.get(ctx, c.profileURL(), accessToken)
+	var detail *OperationError
+	if errors.As(err, &detail) {
+		copy := *detail
+		copy.Stage = StageReadIdentity
+		err = &copy
+	} else {
+		err = operationError(StageReadIdentity, err)
+	}
+	return data, at, err
 }
 
 func (c *UsageClient) usageURL() string {
@@ -78,27 +88,27 @@ func (c *UsageClient) get(ctx context.Context, rawURL, accessToken string) ([]by
 	}
 	client, err := c.client(ctx)
 	if err != nil {
-		return nil, time.Time{}, err
+		return nil, time.Time{}, operationError(StageReadUsage, err)
 	}
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, rawURL, nil)
 	if err != nil {
-		return nil, time.Time{}, ErrUsageStatus
+		return nil, time.Time{}, classifiedError(StageReadUsage, KindInvalidData, errors.Join(ErrUsageStatus, err))
 	}
 	applyUsageHeaders(req.Header, accessToken, c.version())
 	resp, err := client.Do(req)
 	if err != nil {
-		return nil, time.Time{}, err
+		return nil, time.Time{}, operationError(StageReadUsage, err)
 	}
 	defer resp.Body.Close()
 	body, err := io.ReadAll(io.LimitReader(resp.Body, usageMaxBody+1))
 	if err != nil {
-		return nil, time.Time{}, err
+		return nil, time.Time{}, operationError(StageReadUsage, err)
 	}
 	if len(body) > usageMaxBody {
-		return nil, time.Time{}, ErrUsageParse
+		return nil, time.Time{}, classifiedError(StageReadUsage, KindInvalidData, ErrUsageParse)
 	}
 	if err := usageStatus(resp); err != nil {
-		return nil, time.Time{}, err
+		return nil, time.Time{}, &OperationError{Stage: StageReadUsage, Kind: KindHTTP, HTTPStatus: resp.StatusCode, cause: err}
 	}
 	return body, c.now(), nil
 }

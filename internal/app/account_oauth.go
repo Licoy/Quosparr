@@ -44,7 +44,7 @@ func (f codexLoginFlow) run(ctx context.Context) (codex.ManagedAccount, error) {
 		return codex.ManagedAccount{}, err
 	}
 	if err := f.openBrowser(ctx, session.AuthURL); err != nil {
-		if ctx.Err() != nil {
+		if ctx.Err() != nil && !accountRollbackFailed(err) {
 			return codex.ManagedAccount{}, ctx.Err()
 		}
 		return codex.ManagedAccount{}, &codexLoginError{xOAuthBrowser, err}
@@ -89,7 +89,7 @@ func (u *settingsUI) startCodexLoginFlow(f *accountForm, rt *liveApp, flow codex
 	u.accountAct(f, l.Text(l10n.KeyAccountsOAuthWaiting), func() string {
 		defer cancel()
 		_, err := flow.run(ctx)
-		if errors.Is(err, context.Canceled) || errors.Is(err, codexapi.ErrCancelled) {
+		if !accountRollbackFailed(err) && (errors.Is(err, context.Canceled) || errors.Is(err, codexapi.ErrCancelled)) {
 			return l.Text(l10n.KeyAccountsOAuthCancelled)
 		}
 		if err != nil {
@@ -103,14 +103,16 @@ func (u *settingsUI) startCodexLoginFlow(f *accountForm, rt *liveApp, flow codex
 func codexLoginFailure(l l10n.Localizer, err error) string {
 	var stage *codexLoginError
 	switch {
+	case accountRollbackFailed(err):
+		return accountFailure(l, l.Text(l10n.KeyAccountsOAuthFailed), err)
 	case errors.Is(err, codexapi.ErrPortInUse):
-		return tx(l, xOAuthPort)
+		return accountFailure(l, tx(l, xOAuthPort), err)
 	case errors.Is(err, codexapi.ErrTimedOut), errors.Is(err, context.DeadlineExceeded):
 		return tx(l, xOAuthTimeout)
 	case errors.As(err, &stage):
-		return tx(l, stage.reason)
+		return accountFailure(l, tx(l, stage.reason), stage.cause)
 	default:
-		return l.Text(l10n.KeyAccountsOAuthFailed)
+		return accountFailure(l, l.Text(l10n.KeyAccountsOAuthFailed), err)
 	}
 }
 

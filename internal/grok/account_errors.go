@@ -29,6 +29,13 @@ var (
 	ErrAuthenticationRequired = errors.New("grok: authentication is required")
 )
 
+// InvalidIndexError identifies an unreadable account-index format while
+// preserving the parser cause without exposing its text.
+type InvalidIndexError struct{ Cause error }
+
+func (e *InvalidIndexError) Error() string { return "grok: account index is invalid or corrupted" }
+func (e *InvalidIndexError) Unwrap() error { return e.Cause }
+
 // AccountNotFoundError reports an id that is not in the index.
 type AccountNotFoundError struct{ ID string }
 
@@ -76,12 +83,22 @@ func (e *UnsupportedIndexVersionError) Error() string {
 }
 
 // LoginFailedError carries a message that is safe to show to the user.
-type LoginFailedError struct{ Message string }
+type LoginFailedError struct {
+	Message string
+	Cause   error
+}
+
+func (e *LoginFailedError) Unwrap() error { return e.Cause }
 
 func (e *LoginFailedError) Error() string { return "grok: " + e.Message }
 
 // RefreshFailedError: a refresh of one account failed.
-type RefreshFailedError struct{ AccountID, Message string }
+type RefreshFailedError struct {
+	AccountID, Message string
+	Cause              error
+}
+
+func (e *RefreshFailedError) Unwrap() error { return e.Cause }
 
 func (e *RefreshFailedError) Error() string {
 	return fmt.Sprintf("grok: refreshing account %q failed: %s", e.AccountID, e.Message)
@@ -93,7 +110,12 @@ type CLITooOldError struct{ Version string }
 func (e *CLITooOldError) Error() string { return "grok: the Grok CLI is too old (" + e.Version + ")" }
 
 // AccountIOError is a file-system failure with a fixed, secret-free message.
-type AccountIOError struct{ Message string }
+type AccountIOError struct {
+	Message string
+	Cause   error
+}
+
+func (e *AccountIOError) Unwrap() error { return e.Cause }
 
 func (e *AccountIOError) Error() string { return "grok: " + e.Message }
 
@@ -104,7 +126,13 @@ func (e *PartialWriteError) Error() string { return "grok: " + e.Message }
 
 // TokenRequestError is a failed token request. Message is short and carries no
 // credential text.
-type TokenRequestError struct{ Message string }
+type TokenRequestError struct {
+	Message    string
+	Cause      error
+	StatusCode int
+}
+
+func (e *TokenRequestError) Unwrap() error { return e.Cause }
 
 func (e *TokenRequestError) Error() string { return "grok: token request failed: " + e.Message }
 

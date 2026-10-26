@@ -304,6 +304,7 @@ type ExportResult struct {
 	Pack          TransferPack
 	ExportedCount int
 	Failures      []string
+	FailureErrors []error `json:"-"`
 }
 
 // Exporter builds portable packs from the managed account library.
@@ -324,15 +325,18 @@ func (e Exporter) Export(ids []string, now time.Time) (ExportResult, error) {
 	}
 	var entries []TransferEntry
 	var failures []string
+	var failureErrors []error
 	for _, id := range ids {
 		meta, ok := idx.Account(id)
 		if !ok {
 			failures = append(failures, id+": account not found")
+			failureErrors = append(failureErrors, &AccountNotFoundError{ID: id})
 			continue
 		}
 		credential, err := e.Store.LoadCredentialData(id)
 		if err != nil {
 			failures = append(failures, meta.ResolvedDisplayName()+": credential missing")
+			failureErrors = append(failureErrors, err)
 			continue
 		}
 		entries = append(entries, TransferEntry{
@@ -341,20 +345,20 @@ func (e Exporter) Export(ids []string, now time.Time) (ExportResult, error) {
 		})
 	}
 	if len(entries) == 0 {
-		return ExportResult{}, ErrNoAccountsExported
+		return ExportResult{Failures: failures, FailureErrors: failureErrors}, ErrNoAccountsExported
 	}
 	pack := NewTransferPack(ProviderCodex, now, e.AppVersion, entries)
-	return ExportResult{Pack: pack, ExportedCount: len(entries), Failures: failures}, nil
+	return ExportResult{Pack: pack, ExportedCount: len(entries), Failures: failures, FailureErrors: failureErrors}, nil
 }
 
 // Write exports ids and writes the pack to path.
 func (e Exporter) Write(ids []string, path string, now time.Time) (ExportResult, error) {
 	result, err := e.Export(ids, now)
 	if err != nil {
-		return ExportResult{}, err
+		return result, err
 	}
 	if err := WriteTransferPack(path, result.Pack); err != nil {
-		return ExportResult{}, err
+		return result, err
 	}
 	return result, nil
 }

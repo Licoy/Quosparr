@@ -16,7 +16,6 @@ package codex
 
 import (
 	"errors"
-	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -135,7 +134,7 @@ func (s *Store) loadIndex() (AccountIndex, error) {
 	}
 	idx, err := ParseIndex(data)
 	if err != nil {
-		return AccountIndex{}, fmt.Errorf("codex: index.json is unreadable: %w", err)
+		return AccountIndex{}, &InvalidIndexError{Cause: err}
 	}
 	for i := range idx.Accounts {
 		if err := s.hydrateLegacyRow(&idx.Accounts[i]); err != nil {

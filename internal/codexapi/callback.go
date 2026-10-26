@@ -66,7 +66,7 @@ func (s *CallbackServer) Start() error {
 	addr := func(host string) string { return net.JoinHostPort(host, strconv.Itoa(int(s.port))) }
 	v4, err := net.Listen("tcp4", addr("127.0.0.1"))
 	if err != nil {
-		return ErrPortInUse
+		return &CallbackListenError{Cause: err}
 	}
 	s.listeners = []net.Listener{v4}
 	if v6, err := net.Listen("tcp6", addr("::1")); err == nil {

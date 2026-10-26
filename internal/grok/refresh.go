@@ -165,14 +165,14 @@ func (r TokenRefresher) postRefresh(ctx context.Context, refreshToken, clientID 
 		if errors.Is(err, context.DeadlineExceeded) || isTimeout(err) {
 			return refreshedTokens{}, &AccountTimeoutError{Operation: "token-refresh"}
 		}
-		return refreshedTokens{}, &TokenRequestError{Message: shortError(err)}
+		return refreshedTokens{}, &TokenRequestError{Message: "token transport failed", Cause: err}
 	}
 	switch {
 	case status >= 200 && status <= 299:
 	case status == 400 || status == 401 || status == 403:
 		return refreshedTokens{}, ErrAuthenticationRequired
 	default:
-		return refreshedTokens{}, &TokenRequestError{Message: fmt.Sprintf("token HTTP %d", status)}
+		return refreshedTokens{}, &TokenRequestError{Message: fmt.Sprintf("token HTTP %d", status), StatusCode: status}
 	}
 	object, err := acctParseObject(body)
 	if err != nil {
@@ -183,7 +183,7 @@ func (r TokenRefresher) postRefresh(ctx context.Context, refreshToken, clientID 
 		case "invalid_grant", "invalid_token", "access_denied":
 			return refreshedTokens{}, ErrAuthenticationRequired
 		}
-		return refreshedTokens{}, &TokenRequestError{Message: truncateRunes(firstOf(oauthString(object["error_description"]), code), 200)}
+		return refreshedTokens{}, &TokenRequestError{Message: "token server rejected request", StatusCode: status}
 	}
 	access := oauthString(object["access_token"])
 	if access == "" {

@@ -381,7 +381,7 @@ func apiSavedText(l l10n.Localizer, mode string, apply apiApply) string {
 	return tx(l, xAPISavedApplied, product)
 }
 
-// apiErrorText localizes an API account error; "" when err is not one.
+// apiErrorText localizes API validation and classifies other failures safely.
 func apiErrorText(l l10n.Localizer, err error) string {
 	switch {
 	case err == nil:
@@ -400,19 +400,19 @@ func apiErrorText(l l10n.Localizer, err error) string {
 	case errors.Is(err, claude.ErrAPIUnauthorized), errors.Is(err, apiquota.ErrUnauthorized):
 		return tx(l, xAPIKeyRejected)
 	case errors.Is(err, claude.ErrAPIUnavailable):
-		return tx(l, xAPIBalanceFailed)
+		return accountFailure(l, tx(l, xAPIBalanceFailed), err)
 	}
 	if key := netx.L10nKey(err); key != "" {
-		return l.Text(key)
+		return accountFailure(l, l.Text(key), err)
 	}
-	return ""
+	return accountErrorReason(l, err)
 }
 
 func apiModelsErrorText(l l10n.Localizer, err error) string {
-	if text := apiErrorText(l, err); text != "" {
-		return text
+	if err == nil {
+		return ""
 	}
-	return tx(l, xAPIModelsFailed)
+	return tx(l, xAPIModelsFailed) + "\n" + apiErrorText(l, err)
 }
 
 // apiBalanceSummary is the one-line balance of an API account row: the

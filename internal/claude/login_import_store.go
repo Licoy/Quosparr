@@ -35,20 +35,20 @@ func (s *Store) commitBrowser(change browserCommit, write func(string, []byte, o
 	path := s.CredentialPath(change.account.ID)
 	original, mode, existed, err := readOptional(path)
 	if err != nil {
-		return errors.New("claude: cannot snapshot browser account credential")
+		return operationError(StageReadCredential, err)
 	}
 	dir := s.AccountDir(change.account.ID)
 	info, dirErr := os.Stat(dir)
 	if dirErr != nil && !errors.Is(dirErr, os.ErrNotExist) {
-		return errors.New("claude: cannot inspect browser account directory")
+		return operationError(StagePrepareDirectory, dirErr)
 	}
 	if dirErr == nil {
 		if !info.IsDir() || platform.VerifyOwnerOnly(dir, storeDirPerm) != nil {
-			return errors.New("claude: browser account directory is not private")
+			return classifiedError(StagePrepareDirectory, KindNotPrivate, ErrCredentialStore)
 		}
 	}
 	if existed && platform.VerifyOwnerOnly(path, storeFilePerm) != nil {
-		return errors.New("claude: browser account credential is not private")
+		return classifiedError(StageReadCredential, KindNotPrivate, ErrCredentialStore)
 	}
 	managed, err := ManagedDocument(change.credential)
 	if err != nil {
@@ -56,7 +56,7 @@ func (s *Store) commitBrowser(change browserCommit, write func(string, []byte, o
 	}
 	index, err := marshalIndex(change.index)
 	if err != nil {
-		return errors.New("claude: cannot encode browser account index")
+		return operationError(StageWriteIndex, err)
 	}
 	if err := rejectTokenKeys(index); err != nil {
 		return err
@@ -64,13 +64,14 @@ func (s *Store) commitBrowser(change browserCommit, write func(string, []byte, o
 	if err := platform.EnsurePrivateDirectory(dir); err != nil {
 		if errors.Is(dirErr, os.ErrNotExist) {
 			if cleanup := os.Remove(dir); cleanup != nil && !errors.Is(cleanup, os.ErrNotExist) {
-				return errors.Join(errors.New("claude: cannot prepare browser account directory"), ErrLoginRollback)
+				return rollbackOperationError(StageRollbackCredential, operationError(StagePrepareDirectory, err), errors.Join(cleanup, ErrLoginRollback))
 			}
 		}
-		return errors.New("claude: cannot prepare browser account directory")
+		return operationError(StagePrepareDirectory, err)
 	}
-	if err = write(path, managed, storeFilePerm); err == nil {
-		err = write(s.IndexPath(), index, storeFilePerm)
+	err = operationError(StageWriteCredential, write(path, managed, storeFilePerm))
+	if err == nil {
+		err = operationError(StageWriteIndex, write(s.IndexPath(), index, storeFilePerm))
 	}
 	if err == nil {
 		return nil
@@ -90,9 +91,9 @@ func (s *Store) commitBrowser(change browserCommit, write func(string, []byte, o
 		rollback = errors.Join(rollback, os.Remove(dir))
 	}
 	if rollback != nil {
-		return errors.Join(errors.New("claude: browser account commit failed"), ErrLoginRollback)
+		return rollbackOperationError(StageRollbackCredential, err, errors.Join(rollback, ErrLoginRollback))
 	}
-	return errors.New("claude: browser account commit failed; credential restored")
+	return err
 }
 
 // browserOfficialCurrent reflects settings.json, rather than a possibly stale
@@ -107,7 +108,7 @@ func (s *Store) browserOfficialCurrent(idx AccountIndex, proof browserOfficialPr
 		}
 		key, err := s.loadAPIKey(acc.ID)
 		if err != nil {
-			return "", errors.New("claude: cannot verify active API account")
+			return "", operationError(StageReadCredential, err)
 		}
 		if key == proof.api.AuthToken {
 			return acc.ID, nil

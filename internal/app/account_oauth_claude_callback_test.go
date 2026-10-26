@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"strings"
 	"testing"
 	"time"
 
@@ -34,7 +35,7 @@ func TestClaudeBrowserLoginManualCallback(t *testing.T) {
 			t.Fatal("valid callback was rejected or retained")
 		}
 		waitClaudeUI(t, e, func() bool { return !f.busy })
-		if !u.noticeOpen || u.notice != tx(u.L(), xOAuthExchange) {
+		if !u.noticeOpen || !strings.HasPrefix(u.notice, tx(u.L(), xOAuthExchange)+"\n") {
 			t.Fatal("manual callback did not reach exchange")
 		}
 		server.Close()
