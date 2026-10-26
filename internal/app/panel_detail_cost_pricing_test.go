@@ -105,3 +105,31 @@ func TestExportPartialCostReview(t *testing.T) {
 		}
 	}
 }
+func TestCostPricingNotesStayInVersionTooltip(t *testing.T) {
+	l := l10n.New(l10n.English)
+	sum := partialCostFixture(time.Date(2026, 10, 26, 12, 0, 0, 0, time.UTC))
+	for i := range costHelpSources + 3 {
+		sum.Warnings = append(sum.Warnings, fmt.Sprintf("price-source:models.dev:extra-%02d", i))
+	}
+	tt := ui.NewTester(func(c *ui.Context) {
+		applyTheme(c)
+		ui.Column(c).Fill().Children(func() { costResult(c, l, &panelCostState{}, sum) })
+	}, 600, 2000)
+	tt.Frame()
+	source := l.PricingRule("pricingSourceModel", "priced-model", "models.dev")
+	if hasExact(tt, l.Pricing("currentEstimate")) || hasExact(tt, source) || hasExact(tt, l.Pricing("source")) {
+		t.Fatalf("pricing notes shown on the page: %q", tt.Texts())
+	}
+	if !hasExact(tt, l.PricingRule("unknownModel", "new-model")) || !hasExact(tt, l.PricingRule("scanMalformed", "2")) {
+		t.Fatal("unpriced or scan notice hidden")
+	}
+	help := costPricingHelp(l, sum)
+	for _, want := range []string{sum.PricingVersion, l.Pricing("currentEstimate"), source, "… +4"} {
+		if !strings.Contains(help, want) {
+			t.Fatalf("tooltip lacks %q: %q", want, help)
+		}
+	}
+	if strings.Contains(help, "extra-12") {
+		t.Fatal("tooltip lists every source")
+	}
+}

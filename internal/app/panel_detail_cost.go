@@ -292,8 +292,7 @@ func costResult(c *ui.Context, l l10n.Localizer, s *panelCostState, sum usage.Su
 		figure = l.Text(l10n.KeyTokensOnly)
 	}
 	pageSummaryRow(c, title, costMeta(l, sum), figure)
-	ui.Text(c, l.Pricing("version")+": "+pricingShortVersion(sum.PricingVersion)).Tooltip(sum.PricingVersion).FontSize(fsCaption).TextColor(inkSecondary(c.Theme()))
-	ui.Text(c, l.Pricing("currentEstimate")).FontSize(fsCaption).TextColor(inkSecondary(c.Theme()))
+	costPricingVersion(c, l, sum)
 	costPricingNotes(c, l, sum)
 	costStats(c, l, sum)
 	costTokenParts(c, l, sum.Totals)
@@ -449,17 +448,44 @@ func costSourceName(l l10n.Localizer, s usage.Source) string {
 	return l.Text(l10n.KeyUsageAnalyticsEmpty)
 }
 
+// costPricingVersion is the price list's version; the repricing note and
+// each model's price source wait in its tooltip.
+func costPricingVersion(c *ui.Context, l l10n.Localizer, sum usage.Summary) {
+	t := c.Theme()
+	ui.Row(c).Gap(4).AlignItems(ui.Center).Tooltip(costPricingHelp(l, sum)).Children(func() {
+		ui.Text(c, l.Pricing("version")+": "+pricingShortVersion(sum.PricingVersion)).FontSize(fsCaption).TextColor(inkSecondary(t)).SingleLine().Ellipsis("…").Shrink(1)
+		ui.Icon(c, icInfo).Size(12, 12).TextColor(inkTertiary(t))
+	})
+}
+
+// costHelpSources is how many model price sources the tooltip lists.
+const costHelpSources = 12
+
+func costPricingHelp(l l10n.Localizer, sum usage.Summary) string {
+	_, sources, _ := costIssueLists(l, sum)
+	lines := []string{sum.PricingVersion, l.Pricing("currentEstimate")}
+	if len(sources) > 0 {
+		lines = append(lines, "", l.Pricing("source"))
+		lines = append(lines, sources[:min(costHelpSources, len(sources))]...)
+		if n := len(sources) - costHelpSources; n > 0 {
+			lines = append(lines, "… +"+strconv.Itoa(n))
+		}
+	}
+	return strings.Join(lines, "\n")
+}
+
 // costPricingNotes keeps the full pricing issue list independent of the compact
-// eight-row breakdowns; source metadata never makes a price incomplete.
+// eight-row breakdowns; source metadata never makes a price incomplete and
+// stays in the version's tooltip.
 func costPricingNotes(c *ui.Context, l l10n.Localizer, sum usage.Summary) {
-	issues, sources, scan := costIssueLists(l, sum)
+	issues, _, scan := costIssueLists(l, sum)
 	if sum.UnpricedTokens > 0 {
 		ui.Text(c, l.PricingRule("unpricedCount", tokenCompact(int(sum.UnpricedTokens)))).FontSize(fsCaption).TextColor(sys(c.Theme(), sysOrange))
 	}
 	for _, group := range []struct {
 		title string
 		lines []string
-	}{{l.Pricing("pricingIssues"), issues}, {l.Pricing("source"), sources}, {l.Pricing("scanIssues"), scan}} {
+	}{{l.Pricing("pricingIssues"), issues}, {l.Pricing("scanIssues"), scan}} {
 		if len(group.lines) == 0 {
 			continue
 		}
