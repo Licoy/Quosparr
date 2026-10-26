@@ -1,6 +1,7 @@
 package usage
 
 import (
+	"github.com/licoy/quosparr/internal/pricing"
 	"strings"
 
 	"github.com/licoy/quosparr/internal/usage/decimal"
@@ -165,7 +166,7 @@ func PriceFor(model string) (Price, bool) { return LookupPrice(builtInPrices, mo
 // version may still be shown: the current built-in version, or any version
 // derived from the online catalog.
 func IsCompatiblePricingVersion(version string) bool {
-	return version == PricingVersion || strings.HasPrefix(version, onlinePricingVersionPrefix)
+	return version == PricingVersion || strings.HasPrefix(version, PricingVersion+"+models-dev-") || strings.HasPrefix(version, onlinePricingVersionPrefix)
 }
 
 func costFor(uncached, cached, output int64, p Price) decimal.Decimal {
@@ -206,6 +207,7 @@ type PriceBook struct {
 	version         string
 	prices          map[string]Price
 	equivalentPrice Price
+	snapshot        *pricing.Snapshot
 }
 
 // NewPriceBook builds a price book from an explicit table.
@@ -226,15 +228,51 @@ func CurrentPriceBook() PriceBook {
 func (b PriceBook) Version() string { return b.version }
 
 // Price looks model up; ok is false for unknown models.
-func (b PriceBook) Price(model string) (Price, bool) { return LookupPrice(b.prices, model) }
+func (b PriceBook) Price(model string) (Price, bool) {
+	if m, ok := b.remoteModel(model); ok && m.Rate.Input != nil && m.Rate.CacheRead != nil && m.Rate.Output != nil {
+		return Price{InputPerMillion: *m.Rate.Input, CachedInputPerMillion: *m.Rate.CacheRead, OutputPerMillion: *m.Rate.Output}, true
+	}
+	return LookupPrice(b.prices, model)
+}
 
 // Cost prices totals for model; ok is false for unknown models.
 func (b PriceBook) Cost(model string, t Totals) (decimal.Decimal, bool) {
-	p, ok := b.Price(model)
-	if !ok {
-		return decimal.Zero, false
+	c, ok, _ := b.CostWithSource(model, t)
+	return c, ok
+}
+
+// CostWithSource selects a whole applicable rate group, never mixing missing fields.
+func (b PriceBook) CostWithSource(model string, t Totals) (decimal.Decimal, bool, string) {
+	m, remote := b.remoteModel(model)
+	if remote {
+		r, applicable := remoteRate(m, t.UncachedInputTokens+t.CachedInputTokens)
+		if applicable && completeRate(r, t) {
+			return rateCost(r, t), true, "models.dev"
+		}
+		if !applicable {
+			return decimal.Zero, false, "ambiguous-tier"
+		}
 	}
-	return costFor(t.UncachedInputTokens, t.CachedInputTokens, t.OutputTokens, p), true
+	p, ok := LookupPrice(b.prices, model)
+	if !ok {
+		reason := "unknown-model"
+		if remote {
+			reason = "missing-rate"
+		}
+		return decimal.Zero, false, reason
+	}
+	if remote && len(m.Tiers) > 0 {
+		input := t.UncachedInputTokens + t.CachedInputTokens
+		for _, tier := range m.Tiers {
+			if input > tier.Size {
+				// The legacy built-in table stores long rates without their boundaries.
+				// It cannot prove that its long group applies to this remote tier.
+				return decimal.Zero, false, "missing-long-rule"
+			}
+		}
+	}
+
+	return costFor(t.UncachedInputTokens, t.CachedInputTokens, t.OutputTokens, p), true, "builtin"
 }
 
 // EquivalentCost prices totals at the book's equivalent price.

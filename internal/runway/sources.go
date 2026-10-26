@@ -3,6 +3,7 @@ package runway
 import (
 	"context"
 	"errors"
+	"path/filepath"
 	"time"
 
 	"github.com/licoy/quosparr/internal/apiquota"
@@ -115,9 +116,10 @@ type LiveConfig struct {
 	CodexHome string
 	Quota     codexapi.QuotaClient
 	Refresher codexapi.TokenRefresher
-	// Repo is the local usage index; nil disables local cost scans.
-	Repo *usage.Repository
-	Now  func() time.Time
+	// Repo is the local usage index; nil uses the direct scanner for costs.
+	Repo   *usage.Repository
+	Prices usage.PriceSource
+	Now    func() time.Time
 }
 
 // NewLiveSources builds the production Sources.
@@ -149,9 +151,7 @@ func NewLiveSources(cfg LiveConfig) Sources {
 		RepairSessions: func(context.Context) (sessions.Report, error) {
 			return sessions.Repairer{CodexHome: cfg.CodexHome}.Repair()
 		},
-		ScanRecentSessions: func(_ context.Context, limit int) (sessions.Summary, error) {
-			return sessions.Scanner{CodexHome: cfg.CodexHome, Pricer: sessionPricer}.Scan(limit)
-		},
+		ScanRecentSessions: l.scanRecentSessions,
 		ScanSpeed: func(ctx context.Context, now time.Time) (speed.Report, error) {
 			ss, err := sessions.Scanner{CodexHome: cfg.CodexHome}.ScanSpeed(ctx, now)
 			if err != nil {
@@ -189,17 +189,62 @@ type live struct {
 	accounts codexapi.AccountQuotaRefresher
 }
 
-func sessionPricer(model string, t sessions.Totals) (swiftjson.Decimal, bool) {
-	cost, ok := usage.CostForTotals(model, usage.Totals{
-		TotalTokens: int64(t.TotalTokens), UncachedInputTokens: int64(t.UncachedInputTokens),
-		CachedInputTokens: int64(t.CachedInputTokens), OutputTokens: int64(t.OutputTokens),
-		Turns: int64(t.Turns), Threads: int64(t.Threads),
-	})
-	if !ok {
-		return swiftjson.Decimal{}, false
+func (l *live) scanRecentSessions(ctx context.Context, limit int) (sessions.Summary, error) {
+	scanner := sessions.Scanner{CodexHome: l.CodexHome}
+	if l.Repo == nil {
+		scanner.Pricer = sessionPricerFor(l.priceBook(ctx))
 	}
-	d, err := swiftjson.ParseDecimal(cost.String())
-	return d, err == nil
+	recent, err := scanner.Scan(limit)
+	if err != nil || len(recent.Items) == 0 || l.Repo == nil {
+		return recent, err
+	}
+	queries := make([]usage.Query, 0, len(recent.Items))
+	// Query every indexed event of the selected sources; request keys retain
+	// the path and the repository captures one immutable book for the batch
+	window := usage.Window{Start: time.Time{}, End: time.Date(9999, 12, 31, 23, 59, 59, 0, time.UTC)}
+	for _, item := range recent.Items {
+		sourcePath, err := filepath.EvalSymlinks(item.SourcePath)
+		if err != nil {
+			return sessions.Summary{}, err
+		}
+		queries = append(queries, usage.Query{ID: item.ID, SourcePath: sourcePath, Window: window})
+	}
+	summaries, err := l.Repo.Summaries(ctx, queries, l.Now(), usage.RefreshIfChanged, nil)
+	if err != nil {
+		return sessions.Summary{}, err
+	}
+	for i := range recent.Items {
+		summary := summaries[recent.Items[i].ID]
+		recent.Items[i].EstimatedUSD = swiftDecimal(summary.EstimatedUSD)
+		recent.Items[i].UnpricedTokens = summary.UnpricedTokens + max(0, int64(recent.Items[i].Totals.TotalTokens)-summary.Totals.TotalTokens)
+	}
+	return recent, nil
+}
+
+func (l *live) priceBook(ctx context.Context) usage.PriceBook {
+	if l.Prices != nil {
+		return l.Prices.PriceBook(ctx)
+	}
+	return usage.CurrentPriceBook()
+}
+
+func sessionPricer(model string, t sessions.Totals) (swiftjson.Decimal, bool) {
+	return sessionPricerFor(usage.CurrentPriceBook())(model, t)
+}
+
+func sessionPricerFor(book usage.PriceBook) sessions.Pricer {
+	return func(model string, t sessions.Totals) (swiftjson.Decimal, bool) {
+		cost, ok := book.Cost(model, usage.Totals{
+			TotalTokens: int64(t.TotalTokens), UncachedInputTokens: int64(t.UncachedInputTokens),
+			CachedInputTokens: int64(t.CachedInputTokens), OutputTokens: int64(t.OutputTokens),
+			Turns: int64(t.Turns), Threads: int64(t.Threads),
+		})
+		if !ok {
+			return swiftjson.Decimal{}, false
+		}
+		d, err := swiftjson.ParseDecimal(cost.String())
+		return d, err == nil
+	}
 }
 
 func (l *live) loadValidAuth(ctx context.Context, preferCached bool, cached *codex.Auth) (codex.Auth, error) {
@@ -370,7 +415,17 @@ func (l *live) loadAPIKey(id string) (string, error) {
 
 func (l *live) scanCost(ctx context.Context, q []usage.Query, at time.Time, p usage.RefreshPolicy, progress *usage.ProgressReporter) (map[string]usage.Summary, error) {
 	if l.Repo == nil {
-		return nil, errors.New("local usage index unavailable")
+		book := l.priceBook(ctx)
+		scanner := usage.Scanner{CodexHome: l.CodexHome, Prices: book}
+		out := make(map[string]usage.Summary, len(q))
+		for _, query := range q {
+			summary, err := scanner.ScanAPIEquivalent(ctx, query.Window, at)
+			if err != nil {
+				return nil, err
+			}
+			out[query.ID] = summary
+		}
+		return out, nil
 	}
 	return l.Repo.Summaries(ctx, q, at, p, progress)
 }

@@ -3,6 +3,7 @@ package runway
 import (
 	"errors"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/licoy/quosparr/internal/codex"
@@ -188,8 +189,10 @@ func costRangeText(lc l10n.Localizer, r store.CostRange) string {
 // minute granularity so the string changes once a minute.
 func CostSubtitle(lc l10n.Localizer, s usage.Summary, r store.CostRange, now time.Time) string {
 	pricing := lc.Text(l10n.KeyApiTokenPricing)
-	if s.Confidence == usage.ConfidenceTokensOnly {
+	if s.EstimatedUSD == nil || s.Confidence == usage.ConfidenceTokensOnly {
 		pricing = lc.Text(l10n.KeyTokensOnly)
+	} else if s.Confidence == usage.ConfidencePartiallyPriced || s.UnpricedTokens > 0 {
+		pricing = lc.Pricing("partial")
 	}
 	calculated := RelativePast(s.CalculatedAt, now, lc.Language(), false)
 	return costRangeText(lc, r) + " · " + pricing + " · " + strconv.FormatInt(s.Totals.Turns, 10) + " " +
@@ -218,6 +221,9 @@ func DisplayCost(lc l10n.Localizer, s usage.Summary, r store.CostRange, scanNote
 		amount := "--"
 		if s.EstimatedUSD != nil {
 			amount = Money(*s.EstimatedUSD)
+			if s.Confidence == usage.ConfidencePartiallyPriced || s.UnpricedTokens > 0 {
+				amount += " · " + lc.Pricing("partial")
+			}
 		}
 		t := s.Totals
 		d.Text = amount + " " + lc.Text(l10n.KeyApiEquivalent) + " · " + CompactNumber(t.TotalTokens) + " " + lc.Text(l10n.KeyTokens) + " · " + src
@@ -229,6 +235,36 @@ func DisplayCost(lc l10n.Localizer, s usage.Summary, r store.CostRange, scanNote
 			{lc.Text(l10n.KeyApiCostSource), src},
 			{lc.Text(l10n.KeyPricingVersion), s.PricingVersion},
 		}
+		if s.EstimatedUSD == nil {
+			d.Text = lc.Text(l10n.KeyTokensOnly) + " · " + CompactNumber(t.TotalTokens) + " " + lc.Text(l10n.KeyTokens) + " · " + src
+		}
+		if s.UnpricedTokens > 0 {
+			d.Lines = append(d.Lines, DetailLine{lc.Pricing("unpriced"), lc.PricingRule("unpricedCount", CompactNumber(s.UnpricedTokens))})
+		}
+		if s.Source == usage.SourceLocalSessions {
+			d.Lines = append(d.Lines, DetailLine{lc.Text(l10n.KeyEstimatedAPICost), lc.Pricing("currentEstimate")})
+		}
+		for _, warning := range s.Warnings {
+			if strings.HasPrefix(warning, "price-source:") {
+				continue
+			}
+			kind, model, hasModel := strings.Cut(warning, ":")
+			key := ""
+			switch kind {
+			case "unknown-model":
+				key = "unknownModel"
+			case "fast-unpriced":
+				key = "fastUnpriced"
+			case "missing-rate", "missing-price-rule", "missing-long-rule", "ambiguous-tier":
+				key = "missingPrice"
+			}
+			if key != "" && hasModel {
+				d.Lines = append(d.Lines, DetailLine{lc.Pricing("pricingIssues"), lc.PricingRule(key, model)})
+			} else {
+				d.Lines = append(d.Lines, DetailLine{lc.Pricing("scanIssues"), warning})
+			}
+		}
+
 		if s.Source == usage.SourceOnlineAnalytics {
 			d.Lines = append(d.Lines, DetailLine{lc.Text(l10n.KeyRawAnalyticsCredits), strconv.FormatFloat(s.RawCredits, 'f', 1, 64)})
 		}

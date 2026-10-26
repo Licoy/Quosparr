@@ -51,6 +51,7 @@ const (
 // Query is one window to summarize.
 type Query struct {
 	ID          string
+	SourcePath  string
 	Window      Window
 	DayBoundary DayBoundary
 }
@@ -307,7 +308,7 @@ func queryLess(a, b Query) bool {
 func requestKey(queries []Query, calculatedAt time.Time, policy RefreshPolicy, pricing string) string {
 	var b strings.Builder
 	for _, q := range queries {
-		fmt.Fprintf(&b, "%q|%d|%d|%d;", q.ID, q.Window.Start.UnixNano(), q.Window.End.UnixNano(), q.DayBoundary)
+		fmt.Fprintf(&b, "%q|%d|%d|%d|%q;", q.ID, q.Window.Start.UnixNano(), q.Window.End.UnixNano(), q.DayBoundary, q.SourcePath)
 	}
 	b.WriteString(strconv.FormatInt(calculatedAt.UnixNano(), 10))
 	fmt.Fprintf(&b, "|%d|%s", policy, pricing)

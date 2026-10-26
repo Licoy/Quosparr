@@ -77,6 +77,7 @@ public struct RunwayWidgetProviderSnapshot: Codable, Equatable, Sendable {
     /// Preformatted balance in the site's own unit ("¥12.30"); preferred over balanceUSD.
     public var balanceText: String?
     public var apiEquivalentCostUSD: Decimal?
+    public var apiEquivalentCostPartial: Bool?
     public var tokenSource: RunwayWidgetTokenSource
     public var dailyTokens: [RunwayWidgetDailyTokens]
     public var resetCredits: RunwayWidgetResetCredits?
@@ -92,7 +93,8 @@ public struct RunwayWidgetProviderSnapshot: Codable, Equatable, Sendable {
         tokenSource: RunwayWidgetTokenSource,
         dailyTokens: [RunwayWidgetDailyTokens],
         resetCredits: RunwayWidgetResetCredits?,
-        balanceText: String? = nil)
+        balanceText: String? = nil,
+        apiEquivalentCostPartial: Bool? = nil)
     {
         self.provider = provider
         self.availability = availability
@@ -102,6 +104,7 @@ public struct RunwayWidgetProviderSnapshot: Codable, Equatable, Sendable {
         self.balanceUSD = balanceUSD
         self.balanceText = balanceText
         self.apiEquivalentCostUSD = apiEquivalentCostUSD
+        self.apiEquivalentCostPartial = apiEquivalentCostPartial
         self.tokenSource = tokenSource
         self.dailyTokens = dailyTokens.sorted { $0.date < $1.date }
         self.resetCredits = resetCredits

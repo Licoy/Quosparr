@@ -31,8 +31,9 @@ const (
 
 // Options configures a Service.
 type Options struct {
-	Sources     Sources
-	Preferences store.Preferences
+	PricingVersion func() string
+	Sources        Sources
+	Preferences    store.Preferences
 
 	// File locations; an empty path turns the feature off.
 	AlertsPath          string // alerts.json (which alerts were shown)
@@ -72,8 +73,11 @@ type Options struct {
 // Service is the Codex-side coordinator. All methods are safe from any
 // goroutine. Data flows one way: sources -> Service state -> Snapshot.
 type Service struct {
-	opts Options
-	src  Sources
+	opts                          Options
+	pricingGeneration             uint64
+	pricingVersion                string
+	pricingPending, pricingWorker bool
+	src                           Sources
 
 	root   context.Context
 	cancel context.CancelFunc
@@ -185,11 +189,12 @@ type Service struct {
 
 // flight is one shared detail cost query.
 type flight struct {
-	epoch  uint64
-	cancel context.CancelFunc
-	done   chan struct{}
-	sum    usage.Summary
-	err    error
+	epoch   uint64
+	pricing priceStamp
+	cancel  context.CancelFunc
+	done    chan struct{}
+	sum     usage.Summary
+	err     error
 }
 
 // New builds a Service. Nothing runs until Start (or a Refresh call).
@@ -226,6 +231,9 @@ func New(o Options) *Service {
 	}
 	s.lc = s.localizer()
 	s.progressReports = usage.NewProgressReporter(100*time.Millisecond, s.setProgress)
+	if o.PricingVersion != nil {
+		s.pricingVersion = o.PricingVersion()
+	}
 	s.bootstrap()
 	if o.Grok != nil {
 		o.Grok.SetOnChange(s.publish)
@@ -388,7 +396,7 @@ func (s *Service) setProgress(p usage.Progress) {
 func (s *Service) bootstrap() {
 	now := s.now()
 	if cache := s.costCache(); cache != nil {
-		if l := cache.Load(); l.State == usage.CacheLoaded {
+		if l := cache.Load(); l.State == usage.CacheLoaded && (s.opts.PricingVersion == nil || l.Summary.Source != usage.SourceLocalSessions || l.Summary.PricingVersion == s.opts.PricingVersion()) {
 			c := l.Summary
 			s.cost = &c
 			if s.prefs.APICostSummaryRange == store.CostRangeCurrent {

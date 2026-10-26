@@ -12,6 +12,7 @@ import (
 	"strings"
 
 	"github.com/licoy/quosparr/internal/export/swiftjson"
+	"github.com/licoy/quosparr/internal/pricing"
 	"github.com/licoy/quosparr/internal/sessions"
 )
 
@@ -23,6 +24,8 @@ func (s SessionScanner) ListManaged(ctx context.Context) ([]sessions.ManagedSess
 	if err := ctx.Err(); err != nil {
 		return nil, err
 	}
+	snapshot := s.pricingSnapshot()
+	s.PricingSnapshot = func() pricing.Snapshot { return snapshot }
 	root := filepath.Join(s.GrokHome, "sessions")
 	st, err := os.Lstat(root)
 	if os.IsNotExist(err) {
@@ -103,7 +106,7 @@ func (s SessionScanner) managedFromCapturedSummary(root, summaryPath string, fil
 		totals := SessionUsageTotals{}
 		updatesPath := filepath.Join(dir, "updates.jsonl")
 		if managedGrokFileCaptured(files, updatesPath) {
-			parsed, err := parseSessionUpdates(updatesPath, sum.updatedAt, sum.model, s.loc())
+			parsed, err := parseSessionUpdates(updatesPath, sum.updatedAt, sum.model, s.loc(), s.pricingSnapshot())
 			if err != nil {
 				return sessions.ManagedSession{}, err
 			}

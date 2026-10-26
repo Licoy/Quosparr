@@ -12,15 +12,16 @@ import (
 )
 
 type panelCostState struct {
-	selected    int
-	initialized bool
-	start, end  time.Time
-	cancel      context.CancelFunc
-	generation  uint64
-	task        Task
-	summary     *usage.Summary
-	sourceCost  *usage.Summary
-	query       *CostQuery
+	pricingVersion string
+	selected       int
+	initialized    bool
+	start, end     time.Time
+	cancel         context.CancelFunc
+	generation     uint64
+	task           Task
+	summary        *usage.Summary
+	sourceCost     *usage.Summary
+	query          *CostQuery
 }
 
 func (a *App) cancelPanelDetails() {
@@ -50,6 +51,10 @@ func (a *App) startCostQuery(q CostQuery, acts PanelActions) {
 	}
 	s.generation++
 	gen := s.generation
+	if acts.PricingVersion != nil {
+		s.pricingVersion = acts.PricingVersion(a.panelState.provider)
+	}
+	priceVersion := s.pricingVersion
 	s.summary, s.task = nil, Task{Running: true}
 	query := q
 	s.query = &query
@@ -68,6 +73,9 @@ func (a *App) startCostQuery(q CostQuery, acts PanelActions) {
 		sum, err := acts.QueryCost(ctx, provider, q)
 		runOnMain(func() {
 			current := a.Snapshot()
+			if acts.PricingVersion != nil && acts.PricingVersion(provider) != priceVersion {
+				return
+			}
 			if ctx.Err() != nil || a.panelState.cost.generation != gen || a.settings.Prefs().SelectedProvider != provider || activePanelAccount(current, provider) != account || activePanelGeneration(current, provider) != accountGeneration {
 				return
 			}

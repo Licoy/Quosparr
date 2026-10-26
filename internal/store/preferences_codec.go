@@ -43,6 +43,7 @@ func DecodePreferences(data []byte) (Preferences, error) {
 // readPreferences reads every known key; the order follows the Swift struct.
 func readPreferences(r *reader) Preferences {
 	p := DefaultPreferences()
+	p.ModelPricing = readModelPricing(r)
 	p.SelectedProvider = readEnumOrDefault(r, "selectedProvider", p.SelectedProvider, Provider.Valid)
 	p.Language = readEnumOrDefault(r, "language", p.Language, Language.Valid)
 	p.Appearance = readEnumOrDefault(r, "appearance", p.Appearance, Appearance.Valid)
@@ -97,6 +98,9 @@ func readPreferences(r *reader) Preferences {
 // Validate reports invalid enums and quota alert thresholds. EncodePreferences
 // refuses these values rather than silently replacing them with defaults.
 func (p Preferences) Validate() error {
+	if err := p.ModelPricing.Validate(); err != nil {
+		return err
+	}
 	checks := []struct {
 		key string
 		ok  bool

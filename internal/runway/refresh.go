@@ -1211,12 +1211,18 @@ func (s *Service) loadRecentSessions(ctx context.Context) {
 		return
 	}
 	defer s.leave(SectionRecentSessions)
+	s.mu.Lock()
+	price := s.priceStampLocked()
+	s.mu.Unlock()
 	sum, err := s.src.ScanRecentSessions(ctx, s.opts.RecentSessions)
 	if stopped(ctx, err) && err != nil {
 		return
 	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	if !s.pricesMatchLocked(price) {
+		return
+	}
 	if err != nil {
 		s.recent, s.recentErr = nil, err.Error()
 	} else {

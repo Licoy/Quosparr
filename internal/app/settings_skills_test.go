@@ -144,10 +144,10 @@ func settleSkills(t *testing.T, tt *ui.Tester, queue chan func(), n int) {
 
 func TestSettingsSkillsTabFollowsNotificationsInItsOwnGroup(t *testing.T) {
 	i := slices.Index(settingsTabs, tabSkills)
-	if i <= 0 || settingsTabs[i-1] != tabSessions || settingsTabs[i+1] != tabMCP || settingsTabs[i+2] != tabAdvanced {
+	if i <= 0 || settingsTabs[i-1] != tabSessions || settingsTabs[i+1] != tabMCP || settingsTabs[i+2] != tabModelPricing {
 		t.Fatalf("tabs = %v", settingsTabs)
 	}
-	if !sidebarGroupStarts[tabSessions] || sidebarGroupStarts[tabSkills] || sidebarGroupStarts[tabMCP] || !sidebarGroupStarts[tabAdvanced] {
+	if !sidebarGroupStarts[tabSessions] || sidebarGroupStarts[tabSkills] || sidebarGroupStarts[tabMCP] || !sidebarGroupStarts[tabModelPricing] || sidebarGroupStarts[tabAdvanced] {
 		t.Fatal("sessions, skills, and MCP are not one sidebar group")
 	}
 }

@@ -74,37 +74,42 @@ func PricingFor(model string) (PricingPrice, bool) {
 
 var pricingSnapshotSuffix = regexp.MustCompile(`-\p{Nd}{4}-\p{Nd}{2}-\p{Nd}{2}$`)
 
-func pricingLookup(model string, prices map[string]PricingPrice) (PricingPrice, bool) {
+func pricingLookup[T any](model string, prices map[string]T) (T, bool) {
+	return pricingLookupWith(model, func(key string) (T, bool) { p, ok := prices[key]; return p, ok })
+}
+
+func pricingLookupWith[T any](model string, lookup func(string) (T, bool)) (T, bool) {
+	var zero T
 	key := strings.ToLower(billingTrim(model))
 	if key == "" {
-		return PricingPrice{}, false
+		return zero, false
 	}
-	if p, ok := prices[key]; ok {
+	if p, ok := lookup(key); ok {
 		return p, true
 	}
 	if strings.HasSuffix(key, "-latest") {
 		key = strings.TrimSuffix(key, "-latest")
-		if p, ok := prices[key]; ok {
+		if p, ok := lookup(key); ok {
 			return p, true
 		}
 	}
 	if base, ok := pricingStripProduct(key); ok {
-		if p, ok := prices[base]; ok {
+		if p, ok := lookup(base); ok {
 			return p, true
 		}
 	}
 	if loc := pricingSnapshotSuffix.FindStringIndex(key); loc != nil {
 		snapshot := key[:loc[0]]
-		if p, ok := prices[snapshot]; ok {
+		if p, ok := lookup(snapshot); ok {
 			return p, true
 		}
 		if base, ok := pricingStripProduct(snapshot); ok {
-			if p, ok := prices[base]; ok {
+			if p, ok := lookup(base); ok {
 				return p, true
 			}
 		}
 	}
-	return PricingPrice{}, false
+	return zero, false
 }
 
 // pricingStripProduct removes "-build-free" or "-build": CLI product SKUs

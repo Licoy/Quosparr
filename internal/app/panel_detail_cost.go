@@ -3,6 +3,7 @@ package app
 import (
 	"errors"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/egoist/mygo/ui"
@@ -38,6 +39,10 @@ func (a *App) costDetailPage(c *ui.Context, l l10n.Localizer, prefs store.Prefer
 func (a *App) syncCostQuery(prefs store.Preferences, v runway.CodexView, acts PanelActions) {
 	s := &a.panelState.cost
 	ranges := store.CostRanges()
+	if acts.PricingVersion != nil && s.query != nil && s.pricingVersion != acts.PricingVersion(prefs.SelectedProvider) {
+		a.startCostQuery(*s.query, acts)
+		return
+	}
 	if prefs.SelectedProvider == store.ProviderCodex && s.query != nil && s.query.Range == store.CostRangeCurrent && v.Cost != nil && v.Cost != s.sourceCost {
 		if s.sourceCost != nil && !s.sourceCost.Window.Start.Equal(v.Cost.Window.Start) {
 			// A different cycle must resolve its own window through the query.
@@ -278,13 +283,24 @@ func costScanNote(l l10n.Localizer, s *panelCostState, v runway.CodexView) func(
 }
 
 func costResult(c *ui.Context, l l10n.Localizer, s *panelCostState, sum usage.Summary) {
-	pageSummaryRow(c, l.Text(l10n.KeyApiCost), costMeta(l, sum), costFigure(l, sum))
+	title := l.Text(l10n.KeyApiCost)
+	figure := costMoney(sum.EstimatedUSD)
+	if claudePartialCost(sum) {
+		title = l.Pricing("partial")
+	}
+	if sum.EstimatedUSD == nil {
+		figure = l.Text(l10n.KeyTokensOnly)
+	}
+	pageSummaryRow(c, title, costMeta(l, sum), figure)
+	ui.Text(c, l.Pricing("version")+": "+pricingShortVersion(sum.PricingVersion)).Tooltip(sum.PricingVersion).FontSize(fsCaption).TextColor(inkSecondary(c.Theme()))
+	ui.Text(c, l.Pricing("currentEstimate")).FontSize(fsCaption).TextColor(inkSecondary(c.Theme()))
+	costPricingNotes(c, l, sum)
 	costStats(c, l, sum)
 	costTokenParts(c, l, sum.Totals)
 	costDailyTable(c, l, sum.DailyRows, costRangeTitle(l, s))
-	costBreakdown(c, l.Text(l10n.KeyProjectBreakdown), sum.ProjectRows)
-	costBreakdown(c, l.Text(l10n.KeyModelBreakdown), sum.ModelRows)
-	costBreakdown(c, l.Text(l10n.KeyApiCostSource), sum.ClientRows)
+	costBreakdown(c, l, l.Text(l10n.KeyProjectBreakdown), sum.ProjectRows)
+	costBreakdown(c, l, l.Text(l10n.KeyModelBreakdown), sum.ModelRows)
+	costBreakdown(c, l, l.Text(l10n.KeyApiCostSource), sum.ClientRows)
 	if sum.Source == usage.SourceOnlineAnalytics {
 		dimText(c, l.Text(l10n.KeyRawAnalyticsCredits)+": "+strconv.FormatFloat(sum.RawCredits, 'f', 3, 64))
 	}
@@ -301,12 +317,22 @@ func costFigure(l l10n.Localizer, sum usage.Summary) string {
 	if sum.EstimatedUSD == nil {
 		return l.Text(l10n.KeyTokensOnly)
 	}
-	return runway.Money(*sum.EstimatedUSD)
+	return costAmount(l, sum.EstimatedUSD, claudePartialCost(sum))
+}
+func costAmount(l l10n.Localizer, d *decimal.Decimal, partial bool) string {
+	if d == nil {
+		return "—"
+	}
+	out := runway.Money(*d)
+	if partial {
+		out += " · " + l.Pricing("partial")
+	}
+	return out
 }
 
 func costMeta(l l10n.Localizer, sum usage.Summary) string {
 	window := mediumDateTime(l, sum.Window.Start) + " – " + mediumDateTime(l, sum.Window.End)
-	return window + " · " + l.Text(l10n.KeyCalculatedAt) + " " + mediumDateTime(l, sum.CalculatedAt) + " · " + sum.PricingVersion + " · " + costSourceName(l, sum.Source)
+	return window + " · " + l.Text(l10n.KeyCalculatedAt) + " " + mediumDateTime(l, sum.CalculatedAt) + " · " + costSourceName(l, sum.Source)
 }
 
 // mediumDateTime is a medium date and medium time in the user's language.
@@ -316,7 +342,7 @@ func mediumDateTime(l l10n.Localizer, t time.Time) string {
 
 func costMoney(d *decimal.Decimal) string {
 	if d == nil {
-		return "--"
+		return "—"
 	}
 	return runway.Money(*d)
 }
@@ -326,7 +352,13 @@ func costStats(c *ui.Context, l l10n.Localizer, sum usage.Summary) {
 	tot := sum.Totals
 	parts := tokenCompact(int(tot.UncachedInputTokens)) + " / " + tokenCompact(int(tot.CachedInputTokens)) + " / " + tokenCompact(int(tot.OutputTokens))
 	statGrid(c,
-		func() { statCard(c, l.Text(l10n.KeyEstimatedAPICost), costMoney(sum.EstimatedUSD), sys(t, sysGreen)) },
+		func() {
+			title := l.Text(l10n.KeyEstimatedAPICost)
+			if claudePartialCost(sum) {
+				title = l.Pricing("partial")
+			}
+			statCard(c, title, costMoney(sum.EstimatedUSD), sys(t, sysGreen))
+		},
 		func() { statCard(c, l.Text(l10n.KeyTokens), tokenCompact(int(tot.TotalTokens)), sys(t, sysBlue)) },
 		func() { statCard(c, l.Text(l10n.KeyInputCachedOutput), parts, sys(t, sysTeal)) },
 		func() { statCard(c, l.Text(l10n.KeyTurns), strconv.FormatInt(tot.Turns, 10), sys(t, sysOrange)) },
@@ -368,25 +400,25 @@ func costDailyTable(c *ui.Context, l l10n.Localizer, rows []usage.DailyRow, titl
 			})
 		}, func() {
 			for i := len(rows) - 1; i >= 0; i-- {
-				costDailyRow(c, rows[i], i == len(rows)-1)
+				costDailyRow(c, l, rows[i], i == len(rows)-1)
 			}
 		})
 	})
 }
 
-func costDailyRow(c *ui.Context, r usage.DailyRow, first bool) {
+func costDailyRow(c *ui.Context, l l10n.Localizer, r usage.DailyRow, first bool) {
 	tableRowRule(c, first)
 	ui.Row(c).Gap(8).Padding(6, 10).Children(func() {
 		cell := func(s string) ui.Element { return ui.Text(c, s).FontSize(fsCaption).FontFeatures("tnum").SingleLine() }
 		cell(r.Date).Width(costColDate)
 		cell(tokenCompact(int(r.Totals.TotalTokens))).Grow(1).Basis(0).TextAlign(ui.End)
-		cell(costMoney(r.EstimatedUSD)).Grow(1).Basis(0).TextAlign(ui.End)
+		ui.Column(c).Grow(1).Basis(0).AlignItems(ui.End).Children(func() { costAmountCell(c, l, r.EstimatedUSD, r.UnpricedTokens > 0) })
 		cell(strconv.FormatInt(r.Totals.Turns, 10)).Width(costColTurns).TextAlign(ui.End)
 	})
 }
 
 // costBreakdown is a sunken card of at most eight name / tokens / cost rows.
-func costBreakdown(c *ui.Context, title string, rows []usage.BreakdownRow) {
+func costBreakdown(c *ui.Context, l l10n.Localizer, title string, rows []usage.BreakdownRow) {
 	if len(rows) == 0 {
 		return
 	}
@@ -399,7 +431,7 @@ func costBreakdown(c *ui.Context, title string, rows []usage.BreakdownRow) {
 				ui.Row(c).Gap(8).Padding(6, 10).Children(func() {
 					ui.Text(c, r.Name).FontSize(fsCaption).FontFeatures("tnum").SingleLine().Ellipsis("…").Grow(1).Basis(0)
 					ui.Text(c, tokenCompact(int(r.Totals.TotalTokens))).FontSize(fsCaption).FontFeatures("tnum").TextColor(inkSecondary(t)).SingleLine()
-					ui.Text(c, costMoney(r.EstimatedUSD)).FontSize(fsCaption).FontFeatures("tnum").Width(costColMoney).TextAlign(ui.End).SingleLine()
+					ui.Column(c).Width(110).AlignItems(ui.End).Children(func() { costAmountCell(c, l, r.EstimatedUSD, r.UnpricedTokens > 0) })
 				})
 			}
 		})
@@ -415,4 +447,80 @@ func costSourceName(l l10n.Localizer, s usage.Source) string {
 		return l.Text(l10n.KeySourceOnlineSupplement)
 	}
 	return l.Text(l10n.KeyUsageAnalyticsEmpty)
+}
+
+// costPricingNotes keeps the full pricing issue list independent of the compact
+// eight-row breakdowns; source metadata never makes a price incomplete.
+func costPricingNotes(c *ui.Context, l l10n.Localizer, sum usage.Summary) {
+	issues, sources, scan := costIssueLists(l, sum)
+	if sum.UnpricedTokens > 0 {
+		ui.Text(c, l.PricingRule("unpricedCount", tokenCompact(int(sum.UnpricedTokens)))).FontSize(fsCaption).TextColor(sys(c.Theme(), sysOrange))
+	}
+	for _, group := range []struct {
+		title string
+		lines []string
+	}{{l.Pricing("pricingIssues"), issues}, {l.Pricing("source"), sources}, {l.Pricing("scanIssues"), scan}} {
+		if len(group.lines) == 0 {
+			continue
+		}
+		ui.Column(c).Gap(4).Children(func() {
+			ui.Text(c, group.title).FontSize(fsCallout).FontWeight(600)
+			for _, line := range group.lines {
+				ui.Text(c, line).FontSize(fsCaption).Selectable()
+			}
+		})
+	}
+}
+func costIssueLists(l l10n.Localizer, sum usage.Summary) (issues, sources, scan []string) {
+	seen := map[string]bool{}
+	add := func(dst *[]string, text string) {
+		if !seen[text] {
+			*dst = append(*dst, text)
+			seen[text] = true
+		}
+	}
+	for _, warning := range sum.Warnings {
+		kind, value, ok := strings.Cut(warning, ":")
+		if !ok {
+			scan = append(scan, warning)
+			continue
+		}
+		switch kind {
+		case "price-source":
+			source, model, _ := strings.Cut(value, ":")
+			if source == "builtin" {
+				source = l.Pricing("builtin")
+			}
+			add(&sources, l.PricingRule("pricingSourceModel", model, source))
+		case "unknown-model":
+			add(&issues, l.PricingRule("unknownModel", value))
+		case "fast-unpriced":
+			add(&issues, l.PricingRule("fastUnpriced", value))
+		case "ambiguous-tier":
+			add(&issues, l.PricingRule("ambiguousTier", value))
+		case "missing-price-rule", "missing-input-price", "missing-output-price", "missing-cache-price":
+			add(&issues, l.PricingRule("missingPrice", value))
+		case "malformed-jsonl-lines":
+			add(&scan, l.PricingRule("scanMalformed", value))
+		default:
+			if strings.HasPrefix(kind, "missing-") {
+				add(&issues, l.PricingRule("missingPrice", value))
+			} else {
+				add(&scan, warning)
+			}
+		}
+	}
+	for _, row := range sum.ModelRows {
+		if row.UnpricedTokens > 0 {
+			add(&issues, l.PricingRule("modelUnpriced", row.Name, tokenCompact(int(row.UnpricedTokens))))
+		}
+	}
+	return
+}
+
+func costAmountCell(c *ui.Context, l l10n.Localizer, d *decimal.Decimal, partial bool) {
+	ui.Text(c, costMoney(d)).FontSize(fsCaption).FontFeatures("tnum").SingleLine()
+	if partial && d != nil {
+		ui.Text(c, l.Pricing("partial")).FontSize(fsCaption).TextColor(sys(c.Theme(), sysOrange)).TextAlign(ui.End)
+	}
 }

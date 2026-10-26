@@ -92,11 +92,12 @@ type ProviderSnapshot struct {
 	BalanceUSD   *swiftjson.Decimal `json:"balanceUSD,omitempty"`
 	// BalanceText is the preformatted API relay balance in its own unit;
 	// the widget prefers it over BalanceUSD.
-	BalanceText          *string            `json:"balanceText,omitempty"`
-	APIEquivalentCostUSD *swiftjson.Decimal `json:"apiEquivalentCostUSD,omitempty"`
-	TokenSource          TokenSource        `json:"tokenSource"`
-	DailyTokens          []DailyTokens      `json:"dailyTokens"`
-	ResetCredits         *ResetCredits      `json:"resetCredits,omitempty"`
+	BalanceText              *string            `json:"balanceText,omitempty"`
+	APIEquivalentCostUSD     *swiftjson.Decimal `json:"apiEquivalentCostUSD,omitempty"`
+	APIEquivalentCostPartial bool               `json:"apiEquivalentCostPartial,omitempty,omitzero"`
+	TokenSource              TokenSource        `json:"tokenSource"`
+	DailyTokens              []DailyTokens      `json:"dailyTokens"`
+	ResetCredits             *ResetCredits      `json:"resetCredits,omitempty"`
 }
 
 // NewProviderSnapshot orders the quota rows (SortedQuota) and the daily tokens

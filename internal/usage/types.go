@@ -21,9 +21,10 @@ type Confidence string
 
 // Summary confidence levels.
 const (
-	ConfidencePriced      Confidence = "priced"
-	ConfidenceTokensOnly  Confidence = "tokensOnly"
-	ConfidenceUnavailable Confidence = "unavailable"
+	ConfidencePriced          Confidence = "priced"
+	ConfidencePartiallyPriced Confidence = "partiallyPriced"
+	ConfidenceTokensOnly      Confidence = "tokensOnly"
+	ConfidenceUnavailable     Confidence = "unavailable"
 )
 
 // TokenUsage is a plain token triple. InputTokens includes the cached part.
@@ -52,10 +53,11 @@ func (t Totals) HasTokenParts() bool {
 // DailyRow is one calendar day of a Summary. EstimatedUSD is nil when the day
 // has no priced usage.
 type DailyRow struct {
-	Date         string
-	Totals       Totals
-	EstimatedUSD *decimal.Decimal
-	RawCredits   float64
+	Date           string
+	Totals         Totals
+	EstimatedUSD   *decimal.Decimal
+	UnpricedTokens int64
+	RawCredits     float64
 	// CreditsReported and TotalsReported are nil for local or legacy data
 	// whose reporting status is unknown.
 	CreditsReported *bool
@@ -64,10 +66,11 @@ type DailyRow struct {
 
 // BreakdownRow is one model, project or client of a Summary.
 type BreakdownRow struct {
-	Name         string
-	Totals       Totals
-	EstimatedUSD *decimal.Decimal
-	RawCredits   float64
+	Name           string
+	Totals         Totals
+	EstimatedUSD   *decimal.Decimal
+	UnpricedTokens int64
+	RawCredits     float64
 }
 
 // Window is a closed time interval [Start, End].
@@ -93,6 +96,7 @@ type Summary struct {
 	Confidence     Confidence
 	Window         Window
 	EstimatedUSD   *decimal.Decimal
+	UnpricedTokens int64
 	Totals         Totals
 	DailyRows      []DailyRow
 	ModelRows      []BreakdownRow

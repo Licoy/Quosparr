@@ -189,7 +189,8 @@ func TestScannerWeeklyWindowPricesKnownModelsOnly(t *testing.T) {
 		t.Fatal("calculatedAt")
 	}
 	eq(t, "source", s.Source, SourceLocalSessions)
-	eq(t, "confidence", s.Confidence, ConfidencePriced)
+	eq(t, "confidence", s.Confidence, ConfidencePartiallyPriced)
+	eq(t, "unpriced tokens", s.UnpricedTokens, 525)
 	eq(t, "uncached", s.Totals.UncachedInputTokens, 1300)
 	eq(t, "cached", s.Totals.CachedInputTokens, 200)
 	eq(t, "output", s.Totals.OutputTokens, 75)

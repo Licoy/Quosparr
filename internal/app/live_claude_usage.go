@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/licoy/quosparr/internal/claude"
+	"github.com/licoy/quosparr/internal/pricing"
 	"github.com/licoy/quosparr/internal/runway"
 	"github.com/licoy/quosparr/internal/sessions"
 	"github.com/licoy/quosparr/internal/speed"
@@ -19,6 +20,7 @@ func (g *claudeBridge) scanLocal(ctx context.Context) error {
 	}
 	g.mu.Lock()
 	p, gen, st := g.prefs.Clone(), g.generation, g.state
+	priceGen, pricingSnapshot := g.pricingGeneration, g.pricingSnapshot
 	g.mu.Unlock()
 	now := time.Now()
 	opts := claude.DefaultSessionScanOptions(now)
@@ -27,11 +29,16 @@ func (g *claudeBridge) scanLocal(ctx context.Context) error {
 		opts.RecentLimit = 0
 	}
 	scanner := claude.SessionScanner{ConfigDir: g.mod.Store.ConfigDir(), Home: g.mod.Store.HomeDir(), Location: time.Local, Cache: &g.sessions}
+	snapshot := pricing.Snapshot{}
+	if pricingSnapshot != nil {
+		snapshot = pricingSnapshot()
+		scanner.PricingSnapshot = func() pricing.Snapshot { return snapshot }
+	}
 	local, err := scanner.Scan(ctx, opts)
 	report, speedErr := scanClaudeSpeed(ctx, scanner, p, now)
 	g.mu.Lock()
 	defer g.mu.Unlock()
-	if gen != g.generation || ctx.Err() != nil {
+	if gen != g.generation || priceGen != g.pricingGeneration || (pricingSnapshot != nil && snapshot.ProviderVersion("anthropic") != pricingSnapshot().ProviderVersion("anthropic")) || ctx.Err() != nil {
 		return ctx.Err()
 	}
 	g.localErr = err

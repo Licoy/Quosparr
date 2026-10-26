@@ -64,7 +64,7 @@ func breakdown(rows []usage.BreakdownRow) []export.CostBreakdownRow {
 	for _, r := range rows {
 		out = append(out, export.CostBreakdownRow{
 			Name: r.Name, Totals: sessionTotals(r.Totals),
-			EstimatedUSD: swiftDecimal(r.EstimatedUSD), RawCredits: r.RawCredits,
+			EstimatedUSD: swiftDecimal(r.EstimatedUSD), UnpricedTokens: r.UnpricedTokens, RawCredits: r.RawCredits,
 		})
 	}
 	return out
@@ -75,7 +75,7 @@ func exportCost(c usage.Summary) export.CostSummary {
 	daily := make([]export.CostDailyRow, 0, len(c.DailyRows))
 	for _, r := range c.DailyRows {
 		daily = append(daily, export.CostDailyRow{
-			Date: r.Date, Totals: sessionTotals(r.Totals), EstimatedUSD: swiftDecimal(r.EstimatedUSD),
+			Date: r.Date, Totals: sessionTotals(r.Totals), EstimatedUSD: swiftDecimal(r.EstimatedUSD), UnpricedTokens: r.UnpricedTokens,
 			RawCredits: r.RawCredits, CreditsReported: r.CreditsReported, TotalsReported: r.TotalsReported,
 		})
 	}
@@ -83,7 +83,7 @@ func exportCost(c usage.Summary) export.CostSummary {
 	return export.CostSummary{
 		Source: string(c.Source), Confidence: string(c.Confidence),
 		Window:       export.Interval{Start: c.Window.Start, Duration: c.Window.End.Sub(c.Window.Start).Seconds()},
-		EstimatedUSD: swiftDecimal(c.EstimatedUSD), Totals: sessionTotals(c.Totals),
+		EstimatedUSD: swiftDecimal(c.EstimatedUSD), UnpricedTokens: c.UnpricedTokens, Totals: sessionTotals(c.Totals),
 		DailyRows: daily, ModelRows: breakdown(c.ModelRows), ProjectRows: breakdown(c.ProjectRows),
 		ClientRows: breakdown(c.ClientRows), RawCredits: c.RawCredits, Warnings: warnings,
 		PricingVersion: c.PricingVersion, CalculatedAt: c.CalculatedAt,

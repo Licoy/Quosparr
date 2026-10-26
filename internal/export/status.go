@@ -87,6 +87,7 @@ type CostDailyRow struct {
 	Date            string             `json:"date"`
 	Totals          sessions.Totals    `json:"totals"`
 	EstimatedUSD    *swiftjson.Decimal `json:"estimatedUSD,omitempty"`
+	UnpricedTokens  int64              `json:"unpricedTokens,omitempty,omitzero"`
 	RawCredits      float64            `json:"rawCredits"`
 	CreditsReported *bool              `json:"creditsReported,omitempty"`
 	TotalsReported  *bool              `json:"totalsReported,omitempty"`
@@ -94,20 +95,22 @@ type CostDailyRow struct {
 
 // CostBreakdownRow is a model, project or client line of the cost.
 type CostBreakdownRow struct {
-	Name         string             `json:"name"`
-	Totals       sessions.Totals    `json:"totals"`
-	EstimatedUSD *swiftjson.Decimal `json:"estimatedUSD,omitempty"`
-	RawCredits   float64            `json:"rawCredits"`
+	Name           string             `json:"name"`
+	Totals         sessions.Totals    `json:"totals"`
+	EstimatedUSD   *swiftjson.Decimal `json:"estimatedUSD,omitempty"`
+	UnpricedTokens int64              `json:"unpricedTokens,omitempty,omitzero"`
+	RawCredits     float64            `json:"rawCredits"`
 }
 
 // CostSummary mirrors the Swift ApiEquivalentSummary, the cost block of the
 // status file. Source is localSessions, onlineAnalytics or unavailable;
-// Confidence is priced, tokensOnly or unavailable.
+// Confidence is priced, partiallyPriced, tokensOnly or unavailable.
 type CostSummary struct {
 	Source         string             `json:"source"`
 	Confidence     string             `json:"confidence"`
 	Window         Interval           `json:"window"`
 	EstimatedUSD   *swiftjson.Decimal `json:"estimatedUSD,omitempty"`
+	UnpricedTokens int64              `json:"unpricedTokens,omitempty,omitzero"`
 	Totals         sessions.Totals    `json:"totals"`
 	DailyRows      []CostDailyRow     `json:"dailyRows"`
 	ModelRows      []CostBreakdownRow `json:"modelRows"`

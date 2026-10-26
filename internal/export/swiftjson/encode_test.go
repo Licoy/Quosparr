@@ -174,3 +174,20 @@ func TestInvalidNumberAndUnsupportedValuesFail(t *testing.T) {
 		}
 	}
 }
+
+func TestOptInZeroOmissionRetainsLegacyFields(t *testing.T) {
+	type row struct {
+		Legacy  int   `json:"legacy,omitempty"`
+		Count   int64 `json:"count,omitempty,omitzero"`
+		Partial bool  `json:"partial,omitempty,omitzero"`
+	}
+	for _, tc := range []struct {
+		in   row
+		want string
+	}{{row{}, `{"legacy":0}`}, {row{Count: 4, Partial: true}, `{"count":4,"legacy":0,"partial":true}`}} {
+		got, err := Marshal(tc.in, false)
+		if err != nil || string(got) != tc.want {
+			t.Fatalf("%s %v want %s", got, err, tc.want)
+		}
+	}
+}

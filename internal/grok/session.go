@@ -14,6 +14,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/licoy/quosparr/internal/pricing"
 	"github.com/licoy/quosparr/internal/usage"
 	"github.com/licoy/quosparr/internal/usage/decimal"
 )
@@ -30,6 +31,8 @@ type SessionUsageTotals struct {
 	Turns            int64
 	ModelCalls       int64
 	EstimatedUSD     *decimal.Decimal
+	UnpricedTokens   int64
+	unpricedReasons  []string
 }
 
 // HasData reports whether any token, turn or cost was counted.
@@ -65,6 +68,8 @@ func (t *SessionUsageTotals) Merge(o SessionUsageTotals) {
 	t.ReasoningTokens += o.ReasoningTokens
 	t.Turns += o.Turns
 	t.ModelCalls += o.ModelCalls
+	t.UnpricedTokens += o.UnpricedTokens
+	t.unpricedReasons = append(t.unpricedReasons, o.unpricedReasons...)
 	switch {
 	case t.EstimatedUSD != nil && o.EstimatedUSD != nil:
 		sum := t.EstimatedUSD.Add(*o.EstimatedUSD)
@@ -120,6 +125,8 @@ type SessionScanner struct {
 	Location *time.Location
 	// Cache reuses window-independent cache-hit samples across range changes.
 	Cache *CacheScanCache
+	// PricingSnapshot is captured once for each complete scan
+	PricingSnapshot func() pricing.Snapshot
 }
 
 // SessionScanOptions selects what Scan returns.
@@ -169,6 +176,7 @@ func (s SessionScanner) ScanCost(ctx context.Context, window usage.Window, now t
 // directory is an empty result, an unreadable or malformed summary is
 // skipped; only a cancelled context is an error.
 func (s SessionScanner) Scan(ctx context.Context, opts SessionScanOptions) (SessionUsageSummary, error) {
+	snapshot := s.pricingSnapshot()
 	loc := s.loc()
 	recentLimit := max(0, opts.RecentLimit)
 	sessionLimit := max(recentLimit, opts.SessionLimit)
@@ -197,7 +205,7 @@ func (s SessionScanner) Scan(ctx context.Context, opts SessionScanOptions) (Sess
 		if err := ctx.Err(); err != nil {
 			return SessionUsageSummary{}, err
 		}
-		parsed, err := parseSessionUpdates(filepath.Join(sum.directory, "updates.jsonl"), sum.updatedAt, sum.model, loc)
+		parsed, err := parseSessionUpdates(filepath.Join(sum.directory, "updates.jsonl"), sum.updatedAt, sum.model, loc, snapshot)
 		if err != nil {
 			return SessionUsageSummary{}, err
 		}
@@ -222,7 +230,7 @@ func (s SessionScanner) Scan(ctx context.Context, opts SessionScanOptions) (Sess
 		ModelRows:    sortedSessionModelRows(byModel),
 		RecentItems:  items,
 		DailyTokens:  dailyTokens,
-		CostSummary:  makeSessionCostSummary(agg, byModel, byProject, byDay, window, now),
+		CostSummary:  makeSessionCostSummary(agg, byModel, byProject, byDay, window, now, snapshotPricingVersion(snapshot)),
 		CalculatedAt: now,
 		SourceLabel:  "local-sessions",
 	}, nil
@@ -412,7 +420,11 @@ var (
 	sessionUsageMarker = []byte(`"usage"`)
 )
 
-func parseSessionUpdates(path string, fallbackDate time.Time, fallbackModel *string, loc *time.Location) (sessionParsed, error) {
+func parseSessionUpdates(path string, fallbackDate time.Time, fallbackModel *string, loc *time.Location, snapshots ...pricing.Snapshot) (sessionParsed, error) {
+	snapshot := pricing.Snapshot{}
+	if len(snapshots) > 0 {
+		snapshot = snapshots[0]
+	}
 	parsed := sessionParsed{byDay: map[string]SessionUsageTotals{}, byDayModel: map[string]map[string]SessionUsageTotals{}}
 	data, err := os.ReadFile(path)
 	if errors.Is(err, fs.ErrNotExist) {
@@ -445,7 +457,8 @@ func parseSessionUpdates(path string, fallbackDate time.Time, fallbackModel *str
 		}
 		day := sessionDayKey(obj, fallbackDate, loc)
 		turn := sessionUsageTotals(usageNode, true, nil)
-		turn.EstimatedUSD = accumulateSessionModels(usageNode.get("modelUsage"), usageNode, fallbackModel, day, parsed.byDayModel)
+		priced := accumulateSessionModels(usageNode.get("modelUsage"), usageNode, fallbackModel, day, parsed.byDayModel, snapshot)
+		turn.EstimatedUSD, turn.UnpricedTokens, turn.unpricedReasons = priced.EstimatedUSD, priced.UnpricedTokens, priced.unpricedReasons
 		dayTotals := parsed.byDay[day]
 		dayTotals.Merge(turn)
 		parsed.byDay[day] = dayTotals
@@ -457,8 +470,8 @@ func parseSessionUpdates(path string, fallbackDate time.Time, fallbackModel *str
 // sum of the priced rows (nil when none was priced), so an unknown model does
 // not blank the turn.
 func accumulateSessionModels(modelUsage, fallbackUsage *jsonNode, fallbackModel *string, day string,
-	byDayModel map[string]map[string]SessionUsageTotals) *decimal.Decimal {
-	var sum *decimal.Decimal
+	byDayModel map[string]map[string]SessionUsageTotals, snapshot pricing.Snapshot) SessionUsageTotals {
+	var sum SessionUsageTotals
 	saw := false
 	if modelUsage != nil && modelUsage.kind == jsonObject {
 		for model, value := range modelUsage.obj {
@@ -466,16 +479,21 @@ func accumulateSessionModels(modelUsage, fallbackUsage *jsonNode, fallbackModel 
 				continue
 			}
 			saw = true
-			mergeSessionModelRow(sessionUsageTotals(value, false, &model), model, day, byDayModel, &sum)
+			mergeSessionModelRow(sessionUsageTotals(value, false, &model, snapshot), model, day, byDayModel, &sum)
 		}
 	}
-	if !saw && fallbackModel != nil && *fallbackModel != "" {
-		mergeSessionModelRow(sessionUsageTotals(fallbackUsage, false, fallbackModel), *fallbackModel, day, byDayModel, &sum)
+	if !saw {
+		model := "unknown"
+		if fallbackModel == nil || *fallbackModel == "" {
+			return sessionUsageTotals(fallbackUsage, false, &model, snapshot)
+		}
+		model = *fallbackModel
+		mergeSessionModelRow(sessionUsageTotals(fallbackUsage, false, &model, snapshot), model, day, byDayModel, &sum)
 	}
 	return sum
 }
 
-func mergeSessionModelRow(row SessionUsageTotals, model, day string, byDayModel map[string]map[string]SessionUsageTotals, sum **decimal.Decimal) {
+func mergeSessionModelRow(row SessionUsageTotals, model, day string, byDayModel map[string]map[string]SessionUsageTotals, sum *SessionUsageTotals) {
 	models := byDayModel[day]
 	if models == nil {
 		models = map[string]SessionUsageTotals{}
@@ -484,16 +502,14 @@ func mergeSessionModelRow(row SessionUsageTotals, model, day string, byDayModel 
 	cur := models[model]
 	cur.Merge(row)
 	models[model] = cur
-	if row.EstimatedUSD != nil {
-		total := *row.EstimatedUSD
-		if *sum != nil {
-			total = (**sum).Add(total)
-		}
-		*sum = &total
-	}
+	sum.Merge(row)
 }
 
-func sessionUsageTotals(usageNode *jsonNode, countTurn bool, model *string) SessionUsageTotals {
+func sessionUsageTotals(usageNode *jsonNode, countTurn bool, model *string, snapshots ...pricing.Snapshot) SessionUsageTotals {
+	snapshot := pricing.Snapshot{}
+	if len(snapshots) > 0 {
+		snapshot = snapshots[0]
+	}
 	input := sessionIntValue(usageNode.get("inputTokens"))
 	output := sessionIntValue(usageNode.get("outputTokens"))
 	cached := sessionIntValue(usageNode.get("cachedReadTokens"))
@@ -510,8 +526,13 @@ func sessionUsageTotals(usageNode *jsonNode, countTurn bool, model *string) Sess
 		t.Turns = 1
 	}
 	if model != nil {
-		if cost, ok := PricingCost(*model, int(input), int(cached), int(output)); ok {
+		if cost, ok, reason := PricingCostWithSnapshot(snapshot, *model, int(input), int(cached), int(output)); ok {
 			t.EstimatedUSD = &cost
+		} else {
+			t.UnpricedTokens = max(0, input-cached) + cached + output
+			if t.UnpricedTokens > 0 {
+				t.unpricedReasons = []string{reason}
+			}
 		}
 	}
 	return t
@@ -653,7 +674,11 @@ func sessionNameLess(a, b string) bool {
 }
 
 func makeSessionCostSummary(agg SessionUsageTotals, byModel, byProject, byDay map[string]SessionUsageTotals,
-	w usage.Window, now time.Time) usage.Summary {
+	w usage.Window, now time.Time, versions ...string) usage.Summary {
+	version := PricingVersion
+	if len(versions) > 0 {
+		version = versions[0]
+	}
 	days := make([]string, 0, len(byDay))
 	for d := range byDay {
 		days = append(days, d)
@@ -662,15 +687,15 @@ func makeSessionCostSummary(agg SessionUsageTotals, byModel, byProject, byDay ma
 	daily := make([]usage.DailyRow, 0, len(days))
 	for _, d := range days {
 		t := byDay[d]
-		daily = append(daily, usage.DailyRow{Date: d, Totals: t.APITotals(), EstimatedUSD: t.EstimatedUSD})
+		daily = append(daily, usage.DailyRow{Date: d, Totals: t.APITotals(), EstimatedUSD: t.EstimatedUSD, UnpricedTokens: t.UnpricedTokens})
 	}
 	models := []usage.BreakdownRow{}
 	for _, r := range sortedSessionModelRows(byModel) {
-		models = append(models, usage.BreakdownRow{Name: r.Model, Totals: r.Totals.APITotals(), EstimatedUSD: r.Totals.EstimatedUSD})
+		models = append(models, usage.BreakdownRow{Name: r.Model, Totals: r.Totals.APITotals(), EstimatedUSD: r.Totals.EstimatedUSD, UnpricedTokens: r.Totals.UnpricedTokens})
 	}
 	projects := make([]usage.BreakdownRow, 0, len(byProject))
 	for name, t := range byProject {
-		projects = append(projects, usage.BreakdownRow{Name: name, Totals: t.APITotals(), EstimatedUSD: t.EstimatedUSD})
+		projects = append(projects, usage.BreakdownRow{Name: name, Totals: t.APITotals(), EstimatedUSD: t.EstimatedUSD, UnpricedTokens: t.UnpricedTokens})
 	}
 	sort.Slice(projects, func(i, j int) bool {
 		if projects[i].Totals.TotalTokens != projects[j].Totals.TotalTokens {
@@ -678,17 +703,15 @@ func makeSessionCostSummary(agg SessionUsageTotals, byModel, byProject, byDay ma
 		}
 		return sessionNameLess(projects[i].Name, projects[j].Name)
 	})
-	var unknown []string
-	for m := range byModel {
-		if _, ok := PricingFor(m); !ok {
-			unknown = append(unknown, m)
-		}
+	reasons := map[string]struct{}{}
+	for _, reason := range agg.unpricedReasons {
+		reasons[reason] = struct{}{}
 	}
-	sort.Strings(unknown)
-	warnings := make([]string, 0, len(unknown))
-	for _, m := range unknown {
-		warnings = append(warnings, "unknown-model:"+m)
+	warnings := make([]string, 0, len(reasons))
+	for reason := range reasons {
+		warnings = append(warnings, reason)
 	}
+	sort.Strings(warnings)
 	source, confidence := usage.SourceUnavailable, usage.ConfidencePriced
 	if agg.TotalTokens > 0 {
 		source = usage.SourceLocalSessions
@@ -698,19 +721,22 @@ func makeSessionCostSummary(agg SessionUsageTotals, byModel, byProject, byDay ma
 		confidence = usage.ConfidenceUnavailable
 	case agg.EstimatedUSD == nil:
 		confidence = usage.ConfidenceTokensOnly
+	case agg.UnpricedTokens > 0:
+		confidence = usage.ConfidencePartiallyPriced
 	}
 	return usage.Summary{
 		Source:         source,
 		Confidence:     confidence,
 		Window:         w,
 		EstimatedUSD:   agg.EstimatedUSD,
+		UnpricedTokens: agg.UnpricedTokens,
 		Totals:         agg.APITotals(),
 		DailyRows:      daily,
 		ModelRows:      models,
 		ProjectRows:    projects,
-		ClientRows:     []usage.BreakdownRow{{Name: SessionClientName, Totals: agg.APITotals(), EstimatedUSD: agg.EstimatedUSD}},
+		ClientRows:     []usage.BreakdownRow{{Name: SessionClientName, Totals: agg.APITotals(), EstimatedUSD: agg.EstimatedUSD, UnpricedTokens: agg.UnpricedTokens}},
 		Warnings:       warnings,
-		PricingVersion: PricingVersion,
+		PricingVersion: version,
 		CalculatedAt:   now,
 	}
 }

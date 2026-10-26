@@ -109,7 +109,7 @@ func (w *worker) calculate(ctx context.Context, queries []Query, calculatedAt ti
 		if q.DayBoundary == DayUTC {
 			boundary = dayUTC
 		}
-		events, err := opened.store.events(ctx, unixSeconds(q.Window.Start), unixSeconds(q.Window.End), boundary)
+		events, err := opened.store.events(ctx, unixSeconds(q.Window.Start), unixSeconds(q.Window.End), boundary, q.SourcePath)
 		if err != nil {
 			return nil, err
 		}

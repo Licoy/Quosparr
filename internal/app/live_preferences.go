@@ -149,6 +149,9 @@ func (rt *liveApp) applyPreferences(p store.Preferences) {
 	if reflect.DeepEqual(rt.svc.Preferences(), p) {
 		return
 	}
+	if rt.pricing != nil {
+		rt.pricing.configure(p)
+	}
 	rt.grok.setPreferences(p, rt.langs)
 	if rt.claudeB != nil {
 		rt.claudeB.setPreferences(p, rt.langs)

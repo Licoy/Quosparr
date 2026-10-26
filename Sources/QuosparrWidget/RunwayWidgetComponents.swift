@@ -264,3 +264,8 @@ func runwayMoney(_ value: Decimal?) -> String? {
     formatter.maximumFractionDigits = 2
     return formatter.string(from: value as NSDecimalNumber)
 }
+
+func runwayAPICost(_ provider: RunwayWidgetProviderSnapshot, l10n: L10n) -> String {
+    guard let amount = runwayMoney(provider.apiEquivalentCostUSD) else { return "—" }
+    return provider.apiEquivalentCostPartial == true ? amount + " · " + l10n.text(.widgetPartialCost) : amount
+}

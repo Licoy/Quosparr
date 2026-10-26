@@ -17,29 +17,33 @@ import (
 	"github.com/licoy/quosparr/internal/export/swiftjson"
 	"github.com/licoy/quosparr/internal/l10n"
 	"github.com/licoy/quosparr/internal/platform"
+	"github.com/licoy/quosparr/internal/pricing"
 	"github.com/licoy/quosparr/internal/runway"
 	"github.com/licoy/quosparr/internal/speed"
 	"github.com/licoy/quosparr/internal/store"
+	"github.com/licoy/quosparr/internal/usage"
 )
 
 type claudeBridge struct {
-	mod        *claude.Module
-	mu         sync.Mutex
-	onChange   func()
-	state      runway.ClaudeState
-	refreshes  int
-	lc         l10n.Localizer
-	prefs      store.Preferences
-	local      *claude.SessionUsageSummary
-	localRange store.CostRange
-	localErr   error
-	speed      *speed.Report
-	speedErr   error
-	generation uint64
-	gateway    bool
-	refreshMu  sync.Mutex
-	scanMu     sync.Mutex
-	sessions   claude.SessionCache
+	pricingSnapshot   func() pricing.Snapshot
+	pricingGeneration uint64
+	mod               *claude.Module
+	mu                sync.Mutex
+	onChange          func()
+	state             runway.ClaudeState
+	refreshes         int
+	lc                l10n.Localizer
+	prefs             store.Preferences
+	local             *claude.SessionUsageSummary
+	localRange        store.CostRange
+	localErr          error
+	speed             *speed.Report
+	speedErr          error
+	generation        uint64
+	gateway           bool
+	refreshMu         sync.Mutex
+	scanMu            sync.Mutex
+	sessions          claude.SessionCache
 }
 
 func newClaudeBridge(mod *claude.Module, prefs store.Preferences, langs []string) *claudeBridge {
@@ -447,6 +451,7 @@ func claudeWidget(st runway.ClaudeState) *export.ProviderSnapshot {
 		d, err := swiftjson.ParseDecimal(st.Cost.EstimatedUSD.String())
 		if err == nil {
 			p.APIEquivalentCostUSD = &d
+			p.APIEquivalentCostPartial = st.Cost.UnpricedTokens > 0 || st.Cost.Confidence == usage.ConfidencePartiallyPriced
 		}
 	}
 	if st.ResetCreditSummary != nil {

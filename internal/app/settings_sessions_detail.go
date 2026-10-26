@@ -61,7 +61,7 @@ func (u *settingsUI) sessionMetadata(c *ui.Context, item sessions.ManagedSession
 	if item.Model != nil && *item.Model != "" {
 		model = *item.Model
 	}
-	cost := recentCost(item.Item)
+	cost := recentCostLocalized(l, item.Item)
 	cache := sessionCacheTotals(item.Totals)
 	var cacheInk *ui.Color
 	if h, ok := cacheHealth(cache); ok {

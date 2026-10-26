@@ -76,6 +76,7 @@ func (s Scanner) ScanReport(ctx context.Context, w Window) (CostSummary, ScanDia
 	}
 	book := s.book()
 	byModel := map[string]TokenUsage{}
+	costs := map[string]decimal.Decimal{}
 	unknown := map[string]struct{}{}
 	stream := s.stream()
 	diag := ScanDiagnostics{CandidateFiles: len(files)}
@@ -98,7 +99,14 @@ func (s Scanner) ScanReport(ctx context.Context, w Window) (CostSummary, ScanDia
 				return err
 			}
 			byModel[model] = sum
-			if _, ok := book.Price(model); !ok {
+			tokens, err := totalsFromUsage(*rec.Usage, 0, 0)
+			if err != nil {
+				return err
+			}
+			cost, ok := book.Cost(model, tokens)
+			if ok {
+				costs[model] = costs[model].Add(cost)
+			} else if tokens.HasTokenParts() {
 				unknown[model] = struct{}{}
 			}
 			return nil
@@ -115,12 +123,7 @@ func (s Scanner) ScanReport(ctx context.Context, w Window) (CostSummary, ScanDia
 	for _, m := range models {
 		u := byModel[m]
 		usages = append(usages, u)
-		cost := decimal.Zero
-		if p, ok := book.Price(m); ok {
-			cost = costFor(u.InputTokens-u.CachedInputTokens, u.CachedInputTokens, u.OutputTokens, p)
-		} else {
-			unknown[m] = struct{}{}
-		}
+		cost := costs[m]
 		total = total.Add(cost)
 		breakdown = append(breakdown, ModelCostBreakdown{Model: m, Usage: u, EstimatedUSD: cost})
 	}
@@ -160,18 +163,13 @@ func (s Scanner) ScanAPIEquivalentReport(ctx context.Context, w Window, calculat
 	}
 	book := s.book()
 	g := newEventGroups()
-	unknown := map[string]struct{}{}
 	stream := s.stream()
 	diag := ScanDiagnostics{CandidateFiles: len(files)}
 	add := func(t Totals, model, project, day string) error {
 		if err := g.add(model, project, day, t); err != nil {
 			return err
 		}
-		if t.TotalTokens > 0 {
-			if _, ok := book.Price(model); !ok {
-				unknown[model] = struct{}{}
-			}
-		}
+
 		return nil
 	}
 	for _, file := range files {
@@ -216,12 +214,7 @@ func (s Scanner) ScanAPIEquivalentReport(ctx context.Context, w Window, calculat
 	if diag.OversizedLines > 0 {
 		warnings = append(warnings, "oversized-jsonl-lines:"+strconv.Itoa(diag.OversizedLines))
 	}
-	unknownList := make([]string, 0, len(unknown))
-	for m := range unknown {
-		unknownList = append(unknownList, m)
-	}
-	sort.Strings(unknownList)
-	out, err := summaryFromGroups(g, w, calculatedAt, book, unknownList, warnings)
+	out, err := summaryFromGroups(g, w, calculatedAt, book, nil, warnings)
 	return out, diag, err
 }
 

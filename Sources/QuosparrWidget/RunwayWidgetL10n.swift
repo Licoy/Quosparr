@@ -92,6 +92,7 @@ enum L10nKey: String, CaseIterable, Sendable {
     case widgetAllDevices
     case widgetBalance
     case widgetCost
+    case widgetPartialCost
     case widgetDataCorrupt
     case widgetDataOld
     case widgetNoData
@@ -149,6 +150,7 @@ extension L10n {
         .widgetProviderGrok: "Grok",
         .widgetProviderGrokClaude: "Grok + Claude",
         .widgetCost: "API equivalent",
+        .widgetPartialCost: "Partial cost",
         .widgetDataCorrupt: "Widget data is damaged. Refresh Quosparr.",
         .widgetDataOld: "Data is old",
         .widgetNoData: "Open Quosparr to load widget data.",
@@ -199,6 +201,7 @@ extension L10n {
         .widgetProviderGrok: "Grok",
         .widgetProviderGrokClaude: "Grok + Claude",
         .widgetCost: "API 等价成本",
+        .widgetPartialCost: "部分成本",
         .widgetDataCorrupt: "组件数据已损坏，请刷新 Quosparr。",
         .widgetDataOld: "数据已过期",
         .widgetNoData: "打开 Quosparr 以加载组件数据。",
@@ -249,6 +252,7 @@ extension L10n {
         .widgetProviderGrok: "Grok",
         .widgetProviderGrokClaude: "Grok + Claude",
         .widgetCost: "API 等价成本",
+        .widgetPartialCost: "部分成本",
         .widgetDataCorrupt: "小工具資料已損壞，請重新整理 Quosparr。",
         .widgetDataOld: "資料已過期",
         .widgetNoData: "開啟 Quosparr 以載入小工具資料。",
@@ -299,6 +303,7 @@ extension L10n {
         .widgetProviderGrok: "Grok",
         .widgetProviderGrokClaude: "Grok + Claude",
         .widgetCost: "API 환산",
+        .widgetPartialCost: "일부 비용",
         .widgetDataCorrupt: "위젯 데이터가 손상되었습니다. Quosparr를 새로고침하세요.",
         .widgetDataOld: "데이터가 오래됨",
         .widgetNoData: "위젯 데이터를 불러오려면 Quosparr를 여세요.",
@@ -349,6 +354,7 @@ extension L10n {
         .widgetProviderGrok: "Grok",
         .widgetProviderGrokClaude: "Grok + Claude",
         .widgetCost: "API 換算",
+        .widgetPartialCost: "一部の費用",
         .widgetDataCorrupt: "ウィジェットデータが壊れています。Quosparr を更新してください。",
         .widgetDataOld: "データが古いです",
         .widgetNoData: "ウィジェットデータを読み込むには Quosparr を開いてください。",
@@ -399,6 +405,7 @@ extension L10n {
         .widgetProviderGrok: "Grok",
         .widgetProviderGrokClaude: "Grok + Claude",
         .widgetCost: "Эквивалент API",
+        .widgetPartialCost: "Частичная стоимость",
         .widgetDataCorrupt: "Данные виджета повреждены. Обновите Quosparr.",
         .widgetDataOld: "Данные устарели",
         .widgetNoData: "Откройте Quosparr, чтобы загрузить данные виджета.",
@@ -449,6 +456,7 @@ extension L10n {
         .widgetProviderGrok: "Grok",
         .widgetProviderGrokClaude: "Grok + Claude",
         .widgetCost: "Équivalent API",
+        .widgetPartialCost: "Coût partiel",
         .widgetDataCorrupt: "Les données du widget sont endommagées. Actualisez Quosparr.",
         .widgetDataOld: "Données anciennes",
         .widgetNoData: "Ouvrez Quosparr pour charger les données du widget.",

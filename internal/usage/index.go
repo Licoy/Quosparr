@@ -605,10 +605,9 @@ const (
 	dayUTC
 )
 
-const eventsSQLFormat = `SELECT MIN(timestamp), %s AS aggregate_day_key, model, project,
-       SUM(uncached_input_tokens), SUM(cached_input_tokens),
-       SUM(output_tokens), SUM(turns),
-       MAX(CASE WHEN
+const eventsSQLFormat = `SELECT timestamp, %s AS aggregate_day_key, model, project,
+       uncached_input_tokens, cached_input_tokens, output_tokens, turns,
+       CASE WHEN
            typeof(timestamp) NOT IN ('real', 'integer') OR
            typeof(day_key) != 'text' OR typeof(model) != 'text' OR
            typeof(project) != 'text' OR
@@ -616,20 +615,24 @@ const eventsSQLFormat = `SELECT MIN(timestamp), %s AS aggregate_day_key, model, 
            typeof(cached_input_tokens) != 'integer' OR
            typeof(output_tokens) != 'integer' OR
            typeof(turns) != 'integer'
-       THEN 1 ELSE 0 END)
+       THEN 1 ELSE 0 END
 FROM usage_events
-WHERE timestamp >= ? AND timestamp <= ?
-GROUP BY aggregate_day_key, model, project
-ORDER BY aggregate_day_key, model, project`
+WHERE timestamp >= ? AND timestamp <= ?%s
+ORDER BY aggregate_day_key, model, project, timestamp`
 
-// events returns the events inside [start, end] (Unix seconds) grouped by day,
-// model and project.
-func (s *indexStore) events(ctx context.Context, start, end float64, b dayBoundary) ([]indexedEvent, error) {
+// events returns individual events so request-sized tiers are priced before aggregation.
+func (s *indexStore) events(ctx context.Context, start, end float64, b dayBoundary, sourcePath string) ([]indexedEvent, error) {
 	key := "day_key"
 	if b == dayUTC {
 		key = "strftime('%Y-%m-%d', timestamp, 'unixepoch')"
 	}
-	rows, err := s.db.Query(ctx, fmt.Sprintf(eventsSQLFormat, key), start, end)
+	filter := ""
+	args := []any{start, end}
+	if sourcePath != "" {
+		filter = " AND file_id IN (SELECT id FROM source_files WHERE path = ?)"
+		args = append(args, sourcePath)
+	}
+	rows, err := s.db.Query(ctx, fmt.Sprintf(eventsSQLFormat, key, filter), args...)
 	if err != nil {
 		return nil, err
 	}

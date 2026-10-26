@@ -97,14 +97,16 @@ func NewTotals(input, cached, output, turns, threads int) (Totals, error) {
 
 // Item is one entry of the recent sessions list.
 type Item struct {
-	ID           string             `json:"id"`
-	Title        string             `json:"title"`
-	ProjectName  string             `json:"projectName"`
-	Cwd          *string            `json:"cwd"`
-	UpdatedAt    time.Time          `json:"updatedAt"`
-	State        State              `json:"state"`
-	Totals       Totals             `json:"totals"`
-	EstimatedUSD *swiftjson.Decimal `json:"estimatedUSD"`
+	ID             string             `json:"id"`
+	Title          string             `json:"title"`
+	ProjectName    string             `json:"projectName"`
+	Cwd            *string            `json:"cwd"`
+	UpdatedAt      time.Time          `json:"updatedAt"`
+	State          State              `json:"state"`
+	Totals         Totals             `json:"totals"`
+	EstimatedUSD   *swiftjson.Decimal `json:"estimatedUSD"`
+	SourcePath     string             `json:"-"`
+	UnpricedTokens int64              `json:"unpricedTokens,omitempty,omitzero"`
 	// Model is the model of a Grok session. The Swift Codex item has none, so
 	// it is not part of the JSON.
 	Model *string `json:"-"`
@@ -115,7 +117,7 @@ type Summary struct {
 	Items []Item `json:"items"`
 }
 
-// Pricer prices one model's tokens in USD. ok is false for a model without a
+// Pricer prices one request of one model in USD. ok is false for a model without a
 // price, which is then left out of the session's estimate. The price table
 // belongs to the usage package; a nil Pricer prices nothing.
 type Pricer func(model string, totals Totals) (usd swiftjson.Decimal, ok bool)

@@ -182,7 +182,7 @@ func TestStartBackgroundStopsOnATempHome(t *testing.T) {
 	t.Setenv("GROK_HOME", filepath.Join(home, "grok"))
 	e := newEnv(t, nil)
 	_ = e.s.Load()
-	e.s.Update(func(p *store.Preferences) { p.ShowsRateLimitResetToday = false })
+	e.s.Update(func(p *store.Preferences) { p.ShowsRateLimitResetToday = false; p.ModelPricing.AutoSync = false })
 	stop := StartBackground(context.Background(), BackgroundOptions{Home: home, Settings: e.s})
 	if LiveService() == nil {
 		t.Fatal("service was not installed")

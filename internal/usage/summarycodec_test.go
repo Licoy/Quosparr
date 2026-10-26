@@ -192,3 +192,34 @@ func TestCacheStoreIgnoresCorruptFile(t *testing.T) {
 }
 
 func runtimeUnix() bool { return os.PathSeparator == '/' }
+
+func TestLegacyMixedCacheRequiresCoverageRebuild(t *testing.T) {
+	store := CacheStore{Path: filepath.Join(t.TempDir(), SummaryCacheFileName)}
+	s := sampleSummary()
+	s.Warnings = []string{"unknown-model:new-model"}
+	if err := store.Save(s); err != nil {
+		t.Fatal(err)
+	}
+	if got := store.Load(); got.State != CacheIncompatible || got.Reason != "stale-coverage" {
+		t.Fatalf("unsafe old cache %+v", got)
+	}
+	// Already covered new partial summaries and unrelated warning-only caches remain readable.
+	s.Confidence = ConfidencePartiallyPriced
+	s.UnpricedTokens = 500
+	s.DailyRows[0].UnpricedTokens = 500
+	s.ModelRows[0].UnpricedTokens = 500
+	if err := store.Save(s); err != nil {
+		t.Fatal(err)
+	}
+	if got := store.Load(); got.State != CacheLoaded || got.Summary.UnpricedTokens != 500 {
+		t.Fatalf("new cache %+v", got)
+	}
+	s = sampleSummary()
+	s.Warnings = []string{"oversized-jsonl-lines:1"}
+	if err := store.Save(s); err != nil {
+		t.Fatal(err)
+	}
+	if got := store.Load(); got.State != CacheLoaded {
+		t.Fatalf("unrelated warning %+v", got)
+	}
+}

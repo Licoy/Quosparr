@@ -281,7 +281,7 @@ func recentRow(c *ui.Context, l l10n.Localizer, it sessions.Item, grok, first bo
 				ui.Text(c, title).FontSize(fsCallout).FontWeight(500).SingleLine().Ellipsis("…")
 				ui.Text(c, recentSubtitle(l, it, grok)).FontSize(fsCaption).TextColor(inkSecondary(t)).SingleLine().Ellipsis("…")
 			})
-			ui.Text(c, recentCost(it)).FontSize(fsCaption).FontFeatures("tnum").TextColor(inkSecondary(t)).SingleLine()
+			ui.Text(c, recentCostLocalized(l, it)).FontSize(fsCaption).FontFeatures("tnum").TextColor(inkSecondary(t)).SingleLine()
 		})
 	})
 }
@@ -317,11 +317,16 @@ func recentSubtitle(l l10n.Localizer, it sessions.Item, grok bool) string {
 	return it.ProjectName + " · " + state + " · " + tokens
 }
 
-func recentCost(it sessions.Item) string {
+func recentCost(it sessions.Item) string { return recentCostLocalized(l10n.New(l10n.English), it) }
+func recentCostLocalized(l l10n.Localizer, it sessions.Item) string {
 	if it.EstimatedUSD == nil {
-		return "--"
+		return "—"
 	}
-	return fmt.Sprintf("$%.4f", it.EstimatedUSD.Float64())
+	out := fmt.Sprintf("$%.4f", it.EstimatedUSD.Float64())
+	if it.UnpricedTokens > 0 {
+		out += " · " + l.Pricing("partial")
+	}
+	return out
 }
 
 // tokenCompact is the "1.23K" / "4.56M" style of the session rows.

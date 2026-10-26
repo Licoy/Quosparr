@@ -40,7 +40,8 @@ var (
 // Struct fields use the name in their `json` tag; fields without a tag use the
 // Go name. Unexported fields and `json:"-"` are skipped. omitempty is ignored.
 // The extra option `omitnil` drops a nil slice or map the way Swift drops a nil
-// optional array (a nil slice without it encodes as []).
+// optional array (a nil slice without it encodes as []); `omitzero` opts a
+// field into omitting its zero value without changing legacy Swift fields.
 func Marshal(v any, pretty bool) ([]byte, error) {
 	return MarshalWithOptions(v, Options{Pretty: pretty})
 }
@@ -199,10 +200,11 @@ func (e *encoder) object(v reflect.Value, depth int) error {
 			continue
 		}
 		name := f.Name
-		omitNil := false
+		omitNil, omitZero := false, false
 		if tag, ok := f.Tag.Lookup("json"); ok {
 			head, opts, _ := strings.Cut(tag, ",")
 			omitNil = strings.Contains(","+opts+",", ",omitnil,")
+			omitZero = strings.Contains(","+opts+",", ",omitzero,")
 			if head == "-" {
 				continue
 			}
@@ -211,6 +213,9 @@ func (e *encoder) object(v reflect.Value, depth int) error {
 			}
 		}
 		fv := v.Field(i)
+		if omitZero && fv.IsZero() {
+			continue
+		}
 		if (fv.Kind() == reflect.Pointer || fv.Kind() == reflect.Interface) && fv.IsNil() {
 			continue
 		}

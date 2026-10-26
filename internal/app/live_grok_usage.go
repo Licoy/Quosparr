@@ -8,6 +8,7 @@ import (
 	"github.com/licoy/quosparr/internal/export"
 	"github.com/licoy/quosparr/internal/export/swiftjson"
 	"github.com/licoy/quosparr/internal/grok"
+	"github.com/licoy/quosparr/internal/pricing"
 	"github.com/licoy/quosparr/internal/runway"
 	"github.com/licoy/quosparr/internal/sessions"
 	"github.com/licoy/quosparr/internal/speed"
@@ -28,6 +29,7 @@ func (g *grokBridge) scanLocal(ctx context.Context) error {
 	}
 	g.mu.Lock()
 	p, gen, st := g.prefs.Clone(), g.generation, g.state
+	priceGen, pricingSnapshot := g.pricingGeneration, g.pricingSnapshot
 	g.mu.Unlock()
 	opts := grok.DefaultSessionScanOptions(time.Now())
 	opts.CostWindow = grokCostWindow(p.APICostSummaryRange, st.Detail, opts.Now)
@@ -35,11 +37,16 @@ func (g *grokBridge) scanLocal(ctx context.Context) error {
 		opts.RecentLimit = 0
 	}
 	scanner := grok.SessionScanner{GrokHome: g.mod.Store.OfficialHome(), Location: time.Local}
+	snapshot := pricing.Snapshot{}
+	if pricingSnapshot != nil {
+		snapshot = pricingSnapshot()
+		scanner.PricingSnapshot = func() pricing.Snapshot { return snapshot }
+	}
 	local, err := scanner.Scan(ctx, opts)
 	report, speedErr := scanGrokSpeed(ctx, scanner, p, opts.Now)
 	g.mu.Lock()
 	defer g.mu.Unlock()
-	if gen != g.generation || ctx.Err() != nil {
+	if gen != g.generation || priceGen != g.pricingGeneration || (pricingSnapshot != nil && snapshot.ProviderVersion("xai") != pricingSnapshot().ProviderVersion("xai")) || ctx.Err() != nil {
 		return ctx.Err()
 	}
 	g.localErr = err
@@ -105,7 +112,7 @@ func applyGrokLocal(st *runway.GrokState, local *grok.SessionUsageSummary) {
 	st.Cost = &cost
 	st.Heatmap = runway.HeatmapData{Local: local.DailyTokens, CalculatedAt: local.CalculatedAt}
 	for _, item := range local.RecentItems {
-		row := sessions.Item{ID: item.ID, Title: item.Title, ProjectName: item.ProjectName, Cwd: item.CWD, UpdatedAt: item.UpdatedAt, State: sessions.StateRecent, Model: item.Model}
+		row := sessions.Item{UnpricedTokens: item.Totals.UnpricedTokens, ID: item.ID, Title: item.Title, ProjectName: item.ProjectName, Cwd: item.CWD, UpdatedAt: item.UpdatedAt, State: sessions.StateRecent, Model: item.Model}
 		totals := item.Totals.APITotals()
 		row.Totals = sessions.Totals{TotalTokens: int(totals.TotalTokens), UncachedInputTokens: int(totals.UncachedInputTokens), CachedInputTokens: int(totals.CachedInputTokens), OutputTokens: int(totals.OutputTokens), Turns: int(totals.Turns), Threads: int(totals.Threads)}
 		if item.Totals.EstimatedUSD != nil {

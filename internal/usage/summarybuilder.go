@@ -3,8 +3,6 @@ package usage
 import (
 	"sort"
 	"time"
-
-	"github.com/licoy/quosparr/internal/usage/decimal"
 )
 
 // buildSummary aggregates index events into a Summary for window. Models the
@@ -15,13 +13,7 @@ func buildSummary(events []indexedEvent, window Window, calculatedAt time.Time, 
 	if err != nil {
 		return Summary{}, err
 	}
-	var unknown []string
-	for _, m := range sortedKeys(g.byModel) {
-		if _, ok := book.Price(m); !ok {
-			unknown = append(unknown, m)
-		}
-	}
-	return summaryFromGroups(g, window, calculatedAt, book, unknown, warnings)
+	return summaryFromGroups(g, window, calculatedAt, book, nil, warnings)
 }
 
 // summaryFromGroups turns grouped totals into a Summary. unknown lists the
@@ -36,19 +28,22 @@ func summaryFromGroups(g eventGroups, window Window, calculatedAt time.Time, boo
 		return Summary{}, err
 	}
 	models := sortedKeys(g.byModel)
-	estimated := estimatedCost(g.byModel, book)
+	priced := priceGroups(g, book)
+	estimated := priced.total.usd()
 	confidence := ConfidencePriced
 	switch {
 	case totals.TotalTokens == 0:
 		confidence = ConfidenceUnavailable
 	case estimated == nil:
 		confidence = ConfidenceTokensOnly
+	case priced.total.unpriced > 0:
+		confidence = ConfidencePartiallyPriced
 	}
 	source := SourceUnavailable
 	if totals.TotalTokens > 0 {
 		source = SourceLocalSessions
 	}
-	projectRows, err := projectRows(g.byProjectModel, book)
+	projectRows, err := projectRows(g.byProjectModel, priced.projects)
 	if err != nil {
 		return Summary{}, err
 	}
@@ -57,17 +52,18 @@ func summaryFromGroups(g eventGroups, window Window, calculatedAt time.Time, boo
 		Confidence:     confidence,
 		Window:         window,
 		EstimatedUSD:   estimated,
+		UnpricedTokens: priced.total.unpriced,
 		Totals:         totals,
-		DailyRows:      dailyRows(g, book),
-		ModelRows:      modelRows(g.byModel, models, book),
+		DailyRows:      dailyRows(g, priced.days),
+		ModelRows:      modelRows(g.byModel, models, priced.models),
 		ProjectRows:    projectRows,
 		ClientRows:     []BreakdownRow{},
 		Warnings:       []string{},
 		PricingVersion: book.Version(),
 		CalculatedAt:   calculatedAt,
 	}
-	for _, m := range unknown {
-		out.Warnings = append(out.Warnings, "unknown-model:"+m)
+	for _, warning := range sortedKeys(priced.warnings) {
+		out.Warnings = append(out.Warnings, warning)
 	}
 	out.Warnings = append(out.Warnings, warnings...)
 	return out, nil
@@ -78,12 +74,12 @@ func newEventGroups() eventGroups {
 		byModel:        map[string]Totals{},
 		byProjectModel: map[string]map[string]Totals{},
 		byDay:          map[string]Totals{},
-		byDayModel:     map[string]map[string]Totals{},
 	}
 }
 
-// add accumulates t under the four groupings.
-func (g eventGroups) add(model, project, day string, t Totals) error {
+// add retains per-event usage and accumulates model, project and day totals.
+func (g *eventGroups) add(model, project, day string, t Totals) error {
+	g.events = append(g.events, groupedUsage{model, project, day, t})
 	if err := addInto(g.byModel, model, t); err != nil {
 		return err
 	}
@@ -93,14 +89,18 @@ func (g eventGroups) add(model, project, day string, t Totals) error {
 	if err := addInto(g.byDay, day, t); err != nil {
 		return err
 	}
-	return addNested(g.byDayModel, day, model, t)
+	return nil
 }
 
+type groupedUsage struct {
+	model, project, day string
+	totals              Totals
+}
 type eventGroups struct {
+	events         []groupedUsage
 	byModel        map[string]Totals
 	byProjectModel map[string]map[string]Totals
 	byDay          map[string]Totals
-	byDayModel     map[string]map[string]Totals
 }
 
 func addInto(m map[string]Totals, key string, t Totals) error {
@@ -147,20 +147,18 @@ func sortedKeys[V any](m map[string]V) []string {
 	return keys
 }
 
-func modelRows(byModel map[string]Totals, models []string, book PriceBook) []BreakdownRow {
+func modelRows(byModel map[string]Totals, models []string, prices map[string]pricedTotal) []BreakdownRow {
 	rows := make([]BreakdownRow, 0, len(models))
 	for _, m := range models {
 		t := byModel[m]
-		row := BreakdownRow{Name: m, Totals: t}
-		if c, ok := book.Cost(m, t); ok {
-			row.EstimatedUSD = &c
-		}
+		c := prices[m]
+		row := BreakdownRow{Name: m, Totals: t, EstimatedUSD: c.usd(), UnpricedTokens: c.unpriced}
 		rows = append(rows, row)
 	}
 	return rows
 }
 
-func projectRows(byProject map[string]map[string]Totals, book PriceBook) ([]BreakdownRow, error) {
+func projectRows(byProject map[string]map[string]Totals, prices map[string]pricedTotal) ([]BreakdownRow, error) {
 	rows := make([]BreakdownRow, 0, len(byProject))
 	for _, project := range sortedKeys(byProject) {
 		byModel := byProject[project]
@@ -172,7 +170,8 @@ func projectRows(byProject map[string]map[string]Totals, book PriceBook) ([]Brea
 		if err != nil {
 			return nil, err
 		}
-		rows = append(rows, BreakdownRow{Name: project, Totals: t, EstimatedUSD: estimatedCost(byModel, book)})
+		c := prices[project]
+		rows = append(rows, BreakdownRow{Name: project, Totals: t, EstimatedUSD: c.usd(), UnpricedTokens: c.unpriced})
 	}
 	sort.SliceStable(rows, func(i, j int) bool {
 		if rows[i].Totals.TotalTokens != rows[j].Totals.TotalTokens {
@@ -183,30 +182,12 @@ func projectRows(byProject map[string]map[string]Totals, book PriceBook) ([]Brea
 	return rows, nil
 }
 
-func dailyRows(g eventGroups, book PriceBook) []DailyRow {
+func dailyRows(g eventGroups, prices map[string]pricedTotal) []DailyRow {
 	days := sortedKeys(g.byDay)
 	rows := make([]DailyRow, 0, len(days))
 	for _, day := range days {
-		rows = append(rows, DailyRow{Date: day, Totals: g.byDay[day], EstimatedUSD: estimatedCost(g.byDayModel[day], book)})
+		c := prices[day]
+		rows = append(rows, DailyRow{Date: day, Totals: g.byDay[day], EstimatedUSD: c.usd(), UnpricedTokens: c.unpriced})
 	}
 	return rows
-}
-
-// estimatedCost prices every known model and sums them; it is nil when no
-// model is known.
-func estimatedCost(byModel map[string]Totals, book PriceBook) *decimal.Decimal {
-	result := decimal.Zero
-	priced := false
-	for _, m := range sortedKeys(byModel) {
-		c, ok := book.Cost(m, byModel[m])
-		if !ok {
-			continue
-		}
-		priced = true
-		result = result.Add(c)
-	}
-	if !priced {
-		return nil
-	}
-	return &result
 }

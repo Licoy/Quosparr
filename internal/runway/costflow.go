@@ -162,6 +162,7 @@ func (s *Service) scanCostAndHeatmap(ctx context.Context, quota codexapi.QuotaSn
 	now := s.now()
 	s.mu.Lock()
 	rng, loc := s.prefs.APICostSummaryRange, s.opts.Location
+	price := s.priceStampLocked()
 	s.mu.Unlock()
 
 	var fullP, elapsedP *usage.Window
@@ -192,7 +193,7 @@ func (s *Service) scanCostAndHeatmap(ctx context.Context, quota codexapi.QuotaSn
 	s.reportProgress(usage.ProgressPreparing())
 
 	err := s.scanSteps(ctx, auth, gen, now, scanPlan{
-		policy: policy, queries: queries, rng: rng, loc: loc, elapsed: elapsedP, sel: sel,
+		pricing: price, policy: policy, queries: queries, rng: rng, loc: loc, elapsed: elapsedP, sel: sel,
 		cost: includeCost, heat: includeHeat,
 	})
 	if err == nil || stopped(ctx, err) || errors.Is(err, errHeatmap) {
@@ -221,6 +222,7 @@ func (s *Service) scanCostAndHeatmap(ctx context.Context, quota codexapi.QuotaSn
 }
 
 type scanPlan struct {
+	pricing    priceStamp
 	policy     usage.RefreshPolicy
 	queries    []usage.Query
 	rng        store.CostRange
@@ -275,13 +277,17 @@ func (s *Service) costStep(ctx context.Context, auth codex.Auth, gen uint64, now
 	}
 	if current != nil {
 		sum := *current
-		if !s.apply(auth, gen, func() {
+		if !s.applyPriced(auth, gen, p.pricing, func() {
 			s.applyCurrentLocked(sum)
 			s.detail.put(currentKey, sum)
 		}) {
 			return context.Canceled
 		}
-		s.saveCostCache(sum)
+		s.mu.Lock()
+		if s.pricesMatchLocked(p.pricing) {
+			s.saveCostCache(sum)
+		}
+		s.mu.Unlock()
 	}
 	shown, err := s.resolveDisplayed(ctx, p.rng, p.sel, current, summaryPtr(local, querySelected), auth, now)
 	if err != nil {
@@ -290,7 +296,7 @@ func (s *Service) costStep(ctx context.Context, auth codex.Auth, gen uint64, now
 	if ctx.Err() != nil {
 		return context.Canceled
 	}
-	if !s.apply(auth, gen, func() {
+	if !s.applyPriced(auth, gen, p.pricing, func() {
 		s.disp, s.dispRange, s.costNote, s.costErrText = &shown, p.rng, "", ""
 		if p.sel != nil {
 			s.detail.put(detailCacheKey(*p.sel), shown)
@@ -511,14 +517,15 @@ func (s *Service) markHeatmapFailed(gen uint64) {
 func (s *Service) QueryCost(ctx context.Context, r usage.CostRange) (usage.Summary, error) {
 	key := detailCacheKey(r)
 	s.mu.Lock()
-	if sum, ok := s.detail.get(key); ok {
+	stamp := s.priceStampLocked()
+	if sum, ok := s.detail.get(key); ok && (s.opts.PricingVersion == nil || sum.Source != usage.SourceLocalSessions || sum.PricingVersion == stamp.version) {
 		s.mu.Unlock()
 		return sum, nil
 	}
 	f := s.detailFlight[key]
-	if f == nil || f.epoch != s.epoch {
+	if f == nil || f.epoch != s.epoch || f.pricing != stamp {
 		workCtx, cancel := context.WithCancel(s.root)
-		f = &flight{done: make(chan struct{}), epoch: s.epoch, cancel: cancel}
+		f = &flight{done: make(chan struct{}), epoch: s.epoch, cancel: cancel, pricing: stamp}
 		s.detailFlight[key] = f
 		epoch := s.epoch
 		if !s.spawn(func() { s.runDetail(workCtx, key, r, f, epoch) }) {
@@ -544,10 +551,10 @@ func (s *Service) runDetail(ctx context.Context, key string, r usage.CostRange, 
 	if s.detailFlight[key] == f {
 		delete(s.detailFlight, key)
 	}
-	if epoch != s.epoch || ctx.Err() != nil {
+	if epoch != s.epoch || !s.pricesMatchLocked(f.pricing) || ctx.Err() != nil {
 		sum, err = usage.Summary{}, context.Canceled
 	}
-	if err == nil && epoch == s.epoch {
+	if err == nil && epoch == s.epoch && s.pricesMatchLocked(f.pricing) {
 		s.detail.put(key, sum)
 	}
 	f.sum, f.err = sum, err
@@ -594,7 +601,7 @@ func (s *Service) QueryCurrentCycleCost(ctx context.Context) (usage.Summary, err
 	}
 	r := usage.RangeForWindow(elapsed, s.opts.Location)
 	s.mu.Lock()
-	if c := s.cost; c != nil && c.IsDisplayableCost() && windowMatches(c.Window, r.Window) {
+	if c := s.cost; c != nil && c.IsDisplayableCost() && windowMatches(c.Window, r.Window) && (s.opts.PricingVersion == nil || c.Source != usage.SourceLocalSessions || c.PricingVersion == s.priceStampLocked().version) {
 		sum := *c
 		s.mu.Unlock()
 		return sum, nil

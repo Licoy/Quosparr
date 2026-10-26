@@ -286,8 +286,15 @@ func TestMixedUnknownModelsKeepPricedTotal(t *testing.T) {
 		tokenLine("2026-06-29T03:00:00Z", 250_000, outputTokens(0), modelName("codex-auto-review")),
 	), "rollout-mixed-unknown.jsonl")
 	s := sum(t, f.repo(), fullQuery())
-	eq(t, "confidence", s.Confidence, ConfidencePriced)
+	eq(t, "confidence", s.Confidence, ConfidencePartiallyPriced)
 	wantDec(t, "total", s.EstimatedUSD, "4")
+	eq(t, "unpriced", s.UnpricedTokens, 750_000)
+	eq(t, "day unpriced", s.DailyRows[0].UnpricedTokens, 750_000)
+	eq(t, "project unpriced", s.ProjectRows[0].UnpricedTokens, 750_000)
+	eq(t, "unknown model unpriced", modelRow(s, "unknown-model").UnpricedTokens, 500_000)
+	eq(t, "known model unpriced", modelRow(s, "gpt-5.6-sol").UnpricedTokens, 0)
+	wantDec(t, "day amount", s.DailyRows[0].EstimatedUSD, "4")
+	wantDec(t, "project amount", s.ProjectRows[0].EstimatedUSD, "4")
 	wantDec(t, "sol", modelRow(s, "gpt-5.6-sol").EstimatedUSD, "4")
 	if modelRow(s, "unknown-model").EstimatedUSD != nil || modelRow(s, "codex-auto-review").EstimatedUSD != nil {
 		t.Fatal("unknown models must be unpriced")
@@ -897,7 +904,7 @@ func TestInvalidStorageClassesRebuild(t *testing.T) {
 	}
 }
 
-func TestOrdinarySQLiteErrorDoesNotRebuild(t *testing.T) {
+func TestAggregateOverflowDoesNotRebuild(t *testing.T) {
 	f := newFixture(t)
 	f.write(tokenLine("2026-06-29T01:00:00Z", 100)+"\n", "rollout-query-error.jsonl")
 	r := f.repo()
@@ -915,8 +922,8 @@ func TestOrdinarySQLiteErrorDoesNotRebuild(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected aggregate overflow")
 	}
-	if code := sqliteCode(err); code != 1 {
-		t.Fatalf("sqlite code %d (%v)", code, err)
+	if !strings.Contains(err.Error(), "integer overflow") {
+		t.Fatalf("expected explicit aggregate overflow: %v", err)
 	}
 	eq(t, "rebuilds", r.Diagnostics().DatabaseRebuilds, before.DatabaseRebuilds)
 	if _, err := os.Stat(f.dbPath); err != nil {

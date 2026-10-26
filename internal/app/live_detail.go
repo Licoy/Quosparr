@@ -24,7 +24,14 @@ var (
 	errInvalidCostRange     = errors.New("invalid cost range")
 )
 
-func (rt *liveApp) queryDetailCost(ctx context.Context, provider store.Provider, q CostQuery) (usage.Summary, error) {
+func (rt *liveApp) queryDetailCost(ctx context.Context, provider store.Provider, q CostQuery) (result usage.Summary, err error) {
+	version := rt.pricingVersion(provider)
+	defer func() {
+		if version != rt.pricingVersion(provider) {
+			result = usage.Summary{}
+			err = context.Canceled
+		}
+	}()
 	now := time.Now()
 	switch provider {
 	case store.ProviderGrok:
@@ -82,7 +89,7 @@ func (rt *liveApp) queryGrokDetailCost(ctx context.Context, q CostQuery, now tim
 	if !window.End.After(window.Start) {
 		return usage.Summary{}, errInvalidCostRange
 	}
-	return (grok.SessionScanner{GrokHome: rt.grokMod.Store.OfficialHome(), Location: time.Local}).ScanCost(ctx, window, now)
+	return (grok.SessionScanner{GrokHome: rt.grokMod.Store.OfficialHome(), Location: time.Local, PricingSnapshot: rt.grok.pricingSnapshot}).ScanCost(ctx, window, now)
 }
 
 // queryClaudeDetailCost scans the Claude Code logs for one range. The
@@ -107,7 +114,7 @@ func (rt *liveApp) queryClaudeDetailCost(ctx context.Context, q CostQuery, now t
 	if !window.End.After(window.Start) {
 		return usage.Summary{}, errInvalidCostRange
 	}
-	scanner := claude.SessionScanner{ConfigDir: rt.claudeMod.Store.ConfigDir(), Home: rt.claudeMod.Store.HomeDir(), Location: time.Local, Cache: &g.sessions}
+	scanner := claude.SessionScanner{ConfigDir: rt.claudeMod.Store.ConfigDir(), Home: rt.claudeMod.Store.HomeDir(), Location: time.Local, Cache: &g.sessions, PricingSnapshot: g.pricingSnapshot}
 	return scanner.ScanCost(ctx, window, now)
 }
 

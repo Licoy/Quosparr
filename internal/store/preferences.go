@@ -53,6 +53,7 @@ func RateLimitResetTodayRefreshIntervalOptions() []int {
 // DecodePreferences and EncodePreferences to read and write the stored form:
 // they keep unknown keys and reject what the Swift app would reject.
 type Preferences struct {
+	ModelPricing                ModelPricing           `json:"modelPricing,omitzero"`
 	SelectedProvider            Provider               `json:"selectedProvider"`
 	Language                    Language               `json:"language"`
 	Appearance                  Appearance             `json:"appearance"`
@@ -142,6 +143,7 @@ type Preferences struct {
 // Swift RunwayPreferences() initializer.
 func DefaultPreferences() Preferences {
 	return Preferences{
+		ModelPricing:                              DefaultModelPricing(),
 		SelectedProvider:                          ProviderCodex,
 		Language:                                  LanguageSystem,
 		Appearance:                                AppearanceSystem,
@@ -186,6 +188,7 @@ func DefaultPreferences() Preferences {
 
 // Clone returns a deep copy.
 func (p Preferences) Clone() Preferences {
+	p.ModelPricing.extra = maps.Clone(p.ModelPricing.extra)
 	p.MainPanelModuleOrder = slices.Clone(p.MainPanelModuleOrder)
 	p.StatusBarProviders = slices.Clone(p.StatusBarProviders)
 	p.FloatingWindow = p.FloatingWindow.clone()

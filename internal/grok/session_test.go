@@ -148,7 +148,7 @@ func TestSessionKeepsPricedTotalsWithUnknownModels(t *testing.T) {
 		t.Fatal("grok-4.5-build must be priced")
 	}
 	c := res.CostSummary
-	if !sessionDecEq(c.EstimatedUSD, priced) || c.Confidence != usage.ConfidencePriced {
+	if !sessionDecEq(c.EstimatedUSD, priced) || c.Confidence != usage.ConfidencePartiallyPriced || c.UnpricedTokens != 1050 {
 		t.Errorf("cost = %v %s", c.EstimatedUSD, c.Confidence)
 	}
 	if len(c.ModelRows) != 2 || c.ModelRows[0].Name != "grok-4.5-build" || c.ModelRows[1].Name != "mystery-model" {

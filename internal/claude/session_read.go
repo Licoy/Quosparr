@@ -30,6 +30,7 @@ type usageRecord struct {
 	parent       time.Time
 	hasParent    bool
 	model        string
+	pricingModel string
 	effort       string
 	parts        TokenParts
 	cacheInput   int64
@@ -351,7 +352,7 @@ func (sink *scanSink) consume(line []byte, mtime time.Time, parent *time.Time, h
 	rec := usageRecord{
 		sessionID: sessionID, at: at, hasTime: hasTime, firstAt: at, hasFirst: hasTime,
 		parent: *parent, hasParent: *hasParent,
-		model: NormalizeModel(row.Message.Model), effort: strings.TrimSpace(row.Effort),
+		model: NormalizeModel(row.Message.Model), pricingModel: row.Message.Model, effort: strings.TrimSpace(row.Effort),
 		parts: parts, cacheInput: cacheInput, cacheRead: cacheRead, cacheKnown: cacheKnown, cacheInvalid: cacheInvalid,
 		tier: speedTier(row.Message.Usage.Speed), geo: geoOf(row),
 		toolUse: strings.TrimSpace(row.Message.StopReason) == "tool_use" || bytes.Contains(row.Message.Content, []byte(`"type":"tool_use"`)),

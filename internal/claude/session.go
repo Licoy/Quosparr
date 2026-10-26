@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/licoy/quosparr/internal/export/swiftjson"
+	"github.com/licoy/quosparr/internal/pricing"
 	"github.com/licoy/quosparr/internal/sessions"
 	"github.com/licoy/quosparr/internal/usage"
 	"github.com/licoy/quosparr/internal/usage/decimal"
@@ -22,13 +23,14 @@ const (
 // records. EstimatedUSD is priced in this package. It is nil when nothing
 // in the total had a known price.
 type SessionUsageTotals struct {
-	Input        int64
-	CacheWrite5m int64
-	CacheWrite1h int64
-	CacheRead    int64
-	Output       int64
-	Turns        int64
-	EstimatedUSD *decimal.Decimal
+	Input          int64
+	CacheWrite5m   int64
+	CacheWrite1h   int64
+	CacheRead      int64
+	Output         int64
+	Turns          int64
+	EstimatedUSD   *decimal.Decimal
+	UnpricedTokens int64
 }
 
 // APITotals maps the split onto usage.Totals. Uncached input is the uncached
@@ -57,6 +59,7 @@ func (t *SessionUsageTotals) add(o SessionUsageTotals) {
 	t.CacheRead += o.CacheRead
 	t.Output += o.Output
 	t.Turns += o.Turns
+	t.UnpricedTokens += o.UnpricedTokens
 	switch {
 	case t.EstimatedUSD != nil && o.EstimatedUSD != nil:
 		sum := t.EstimatedUSD.Add(*o.EstimatedUSD)
@@ -71,6 +74,9 @@ func (t SessionUsageTotals) from(parts TokenParts, cost *decimal.Decimal, turn b
 	out := SessionUsageTotals{
 		Input: parts.Input, CacheWrite5m: parts.CacheWrite5m, CacheWrite1h: parts.CacheWrite1h,
 		CacheRead: parts.CacheRead, Output: parts.Output, EstimatedUSD: cost,
+	}
+	if cost == nil {
+		out.UnpricedTokens = max(0, parts.Input) + max(0, parts.CacheWrite5m) + max(0, parts.CacheWrite1h) + max(0, parts.CacheRead) + max(0, parts.Output)
 	}
 	if turn {
 		out.Turns = 1
@@ -95,8 +101,9 @@ func (it SessionItem) SessionsItem() sessions.Item {
 	item := sessions.Item{
 		ID: it.ID, Title: it.Title, ProjectName: it.ProjectName,
 		UpdatedAt: it.UpdatedAt, State: sessions.StateRecent,
-		Totals: toSessionTotals(it.Totals.APITotals()),
-		Model:  it.Model, Cwd: it.CWD,
+		Totals:         toSessionTotals(it.Totals.APITotals()),
+		UnpricedTokens: it.Totals.UnpricedTokens,
+		Model:          it.Model, Cwd: it.CWD,
 	}
 	if it.Totals.EstimatedUSD != nil {
 		if d, err := swiftjson.ParseDecimal(it.Totals.EstimatedUSD.String()); err == nil {
@@ -133,6 +140,8 @@ type SessionScanner struct {
 	Home      string
 	Location  *time.Location
 	Cache     *SessionCache
+	// PricingSnapshot is read once per scan, never per request
+	PricingSnapshot func() pricing.Snapshot
 }
 
 // SessionScanOptions selects what Scan returns. The newest SessionLimit files
@@ -164,6 +173,7 @@ func (s SessionScanner) loc() *time.Location {
 // empty result. Bad lines are counted and skipped. Only a cancelled context
 // fails the scan.
 func (s SessionScanner) Scan(ctx context.Context, opts SessionScanOptions) (SessionUsageSummary, error) {
+	snapshot := s.pricingSnapshot()
 	now := opts.Now
 	if now.IsZero() {
 		now = time.Now()
@@ -179,7 +189,7 @@ func (s SessionScanner) Scan(ctx context.Context, opts SessionScanOptions) (Sess
 	if err != nil {
 		return SessionUsageSummary{}, err
 	}
-	return sink.summary(s.loc(), opts, now), nil
+	return sink.summary(s.loc(), opts, now, snapshot), nil
 }
 
 // ScanCost is Scan limited to the cost summary.
@@ -188,7 +198,11 @@ func (s SessionScanner) ScanCost(ctx context.Context, window usage.Window, now t
 	return res.CostSummary, err
 }
 
-func (sink *scanSink) summary(loc *time.Location, opts SessionScanOptions, now time.Time) SessionUsageSummary {
+func (sink *scanSink) summary(loc *time.Location, opts SessionScanOptions, now time.Time, snapshots ...pricing.Snapshot) SessionUsageSummary {
+	snapshot := pricing.Snapshot{}
+	if len(snapshots) > 0 {
+		snapshot = snapshots[0]
+	}
 	bySession := map[string][]usageRecord{}
 	for _, key := range sink.order {
 		rec := sink.kept[key]
@@ -210,7 +224,11 @@ func (sink *scanSink) summary(loc *time.Location, opts SessionScanOptions, now t
 		var model string
 		var modelAt time.Time
 		for _, rec := range recs {
-			cost, priced := PricingCost(rec.model, rec.parts, rec.geo)
+			pricingModel := rec.pricingModel
+			if pricingModel == "" {
+				pricingModel = rec.model
+			}
+			cost, priced, reason := PricingCostWithSnapshot(snapshot, pricingModel, rec.parts, rec.geo)
 			var costPtr *decimal.Decimal
 			if priced {
 				costPtr = &cost
@@ -225,13 +243,13 @@ func (sink *scanSink) summary(loc *time.Location, opts SessionScanOptions, now t
 				continue
 			}
 			switch {
-			case priced:
+			case priced || one.UnpricedTokens == 0:
 			case rec.parts.Fast:
 				fastMiss[rec.model] = struct{}{}
 			case rec.model != "":
-				unknown[rec.model] = struct{}{}
+				unknown[reason] = struct{}{}
 			default:
-				unknown["unknown"] = struct{}{}
+				unknown["unknown-model:unknown"] = struct{}{}
 			}
 			windowed.add(one)
 			addTotals(byModel, rec.model, one)
@@ -264,7 +282,7 @@ func (sink *scanSink) summary(loc *time.Location, opts SessionScanOptions, now t
 	return SessionUsageSummary{
 		Totals: agg, SessionCount: sessionCount, ModelRows: modelRows(byModel),
 		RecentItems: recent, DailyTokens: dailyTokens, BadLines: sink.bad,
-		CostSummary:  costSummary(agg, byModel, byProject, byDay, unknown, fastMiss, opts.CostWindow, now, sink.bad),
+		CostSummary:  costSummary(agg, byModel, byProject, byDay, unknown, fastMiss, opts.CostWindow, now, sink.bad, snapshotPricingVersion(snapshot)),
 		CalculatedAt: now,
 	}
 }
@@ -290,22 +308,22 @@ func modelRows(byModel map[string]SessionUsageTotals) []usage.BreakdownRow {
 	rows := make([]usage.BreakdownRow, 0, len(names))
 	for _, name := range names {
 		t := byModel[name]
-		rows = append(rows, usage.BreakdownRow{Name: name, Totals: t.APITotals(), EstimatedUSD: t.EstimatedUSD})
+		rows = append(rows, usage.BreakdownRow{Name: name, Totals: t.APITotals(), EstimatedUSD: t.EstimatedUSD, UnpricedTokens: t.UnpricedTokens})
 	}
 	return rows
 }
 
-func costSummary(agg SessionUsageTotals, byModel, byProject, byDay map[string]SessionUsageTotals, unknown, fastMiss map[string]struct{}, w usage.Window, now time.Time, bad int) usage.Summary {
+func costSummary(agg SessionUsageTotals, byModel, byProject, byDay map[string]SessionUsageTotals, unknown, fastMiss map[string]struct{}, w usage.Window, now time.Time, bad int, version string) usage.Summary {
 	days := mapKeys(byDay)
 	sort.Strings(days)
 	daily := make([]usage.DailyRow, 0, len(days))
 	for _, day := range days {
 		t := byDay[day]
-		daily = append(daily, usage.DailyRow{Date: day, Totals: t.APITotals(), EstimatedUSD: t.EstimatedUSD})
+		daily = append(daily, usage.DailyRow{Date: day, Totals: t.APITotals(), EstimatedUSD: t.EstimatedUSD, UnpricedTokens: t.UnpricedTokens})
 	}
 	projects := make([]usage.BreakdownRow, 0, len(byProject))
 	for name, t := range byProject {
-		projects = append(projects, usage.BreakdownRow{Name: name, Totals: t.APITotals(), EstimatedUSD: t.EstimatedUSD})
+		projects = append(projects, usage.BreakdownRow{Name: name, Totals: t.APITotals(), EstimatedUSD: t.EstimatedUSD, UnpricedTokens: t.UnpricedTokens})
 	}
 	sort.Slice(projects, func(i, j int) bool {
 		if projects[i].Totals.TotalTokens != projects[j].Totals.TotalTokens {
@@ -319,23 +337,26 @@ func costSummary(agg SessionUsageTotals, byModel, byProject, byDay map[string]Se
 		source = usage.SourceLocalSessions
 		if agg.EstimatedUSD != nil {
 			confidence = usage.ConfidencePriced
+			if agg.UnpricedTokens > 0 {
+				confidence = usage.ConfidencePartiallyPriced
+			}
 		} else {
 			confidence = usage.ConfidenceTokensOnly
 		}
 	}
 	return usage.Summary{
-		Source: source, Confidence: confidence, Window: w, EstimatedUSD: agg.EstimatedUSD,
+		Source: source, Confidence: confidence, Window: w, EstimatedUSD: agg.EstimatedUSD, UnpricedTokens: agg.UnpricedTokens,
 		Totals: agg.APITotals(), DailyRows: daily, ModelRows: modelRows(byModel),
 		ProjectRows: projects,
-		ClientRows:  []usage.BreakdownRow{{Name: SessionClientName, Totals: agg.APITotals(), EstimatedUSD: agg.EstimatedUSD}},
-		Warnings:    warnings, PricingVersion: PricingVersion, CalculatedAt: now,
+		ClientRows:  []usage.BreakdownRow{{Name: SessionClientName, Totals: agg.APITotals(), EstimatedUSD: agg.EstimatedUSD, UnpricedTokens: agg.UnpricedTokens}},
+		Warnings:    warnings, PricingVersion: version, CalculatedAt: now,
 	}
 }
 
 func warningList(unknown, fastMiss map[string]struct{}, bad int) []string {
 	var warnings []string
 	for _, name := range mapKeysStruct(unknown) {
-		warnings = append(warnings, "unknown-model:"+name)
+		warnings = append(warnings, name)
 	}
 	for _, name := range mapKeysStruct(fastMiss) {
 		warnings = append(warnings, "fast-unpriced:"+name)

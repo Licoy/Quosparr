@@ -32,7 +32,7 @@ const (
 // Scanner builds the recent sessions list from a Codex home (~/.codex).
 type Scanner struct {
 	CodexHome string
-	// Pricer prices a session's tokens; nil leaves EstimatedUSD empty.
+	// Pricer prices each observed request; cumulative-only usage stays unpriced.
 	Pricer Pricer
 }
 
@@ -175,6 +175,7 @@ type parseState struct {
 	currentModel string
 	byModel      map[string]Totals
 	turnCount    int
+	requests     []sessionRequest
 }
 
 func (s Scanner) parseSession(path string) (Item, bool, error) {
@@ -195,6 +196,7 @@ func (s Scanner) parseSession(path string) (Item, bool, error) {
 	if len(st.byModel) == 0 && size <= smallFullScanBytes {
 		st.byModel = map[string]Totals{}
 		st.turnCount = 0
+		st.requests = nil
 		data, err := os.ReadFile(path)
 		if err != nil {
 			return Item{}, false, err
@@ -219,15 +221,21 @@ func (s Scanner) parseSession(path string) (Item, bool, error) {
 	if title == "" {
 		title = untitled
 	}
+	cost, unpriced, err := s.estimatedCost(st.requests, totals)
+	if err != nil {
+		return Item{}, false, err
+	}
 	return Item{
-		ID:           st.id,
-		Title:        title,
-		ProjectName:  ProjectName(st.cwd),
-		Cwd:          st.cwd,
-		UpdatedAt:    st.updatedAt,
-		State:        st.state,
-		Totals:       totals,
-		EstimatedUSD: s.estimatedCost(st.byModel),
+		SourcePath:     path,
+		UnpricedTokens: unpriced,
+		ID:             st.id,
+		Title:          title,
+		ProjectName:    ProjectName(st.cwd),
+		Cwd:            st.cwd,
+		UpdatedAt:      st.updatedAt,
+		State:          st.state,
+		Totals:         totals,
+		EstimatedUSD:   cost,
 	}, true, nil
 }
 
@@ -326,6 +334,14 @@ func (st *parseState) apply(line string, includeLast bool) error {
 		st.turnCount++
 	}
 	info := objectOf(payload["info"])
+	if last, ok := info["last_token_usage"].(map[string]any); ok {
+		t, err := totalsFromUsage(last)
+		if err != nil {
+			return err
+		}
+		st.requests = append(st.requests, sessionRequest{model: model, totals: t})
+	}
+
 	if total, ok := info["total_token_usage"].(map[string]any); ok {
 		t, err := totalsFromUsage(total)
 		if err != nil {
@@ -410,22 +426,45 @@ func stronger(a, b State) State {
 	return StateRecent
 }
 
-// estimatedCost adds up the priced models; with none priced there is no
-// estimate (never a misleading 0).
-func (s Scanner) estimatedCost(byModel map[string]Totals) *swiftjson.Decimal {
-	if s.Pricer == nil {
-		return nil
-	}
+type sessionRequest struct {
+	model  string
+	totals Totals
+}
+
+// estimatedCost never prices a cumulative total as if it were one prompt
+// The bounded recent scan can miss requests in the middle of a large file;
+// any remaining tokens are unpriced until the event index supplies their cost
+func (s Scanner) estimatedCost(requests []sessionRequest, totals Totals) (*swiftjson.Decimal, int64, error) {
 	var sum swiftjson.Decimal
+	var observed Totals
+	var unpriced int64
 	priced := false
-	for model, totals := range byModel {
-		if usd, ok := s.Pricer(model, totals); ok {
-			sum = sum.Add(usd)
-			priced = true
+	for _, request := range requests {
+		t := request.totals
+		var err error
+		if observed, err = observed.Add(t); err != nil {
+			return nil, 0, err
 		}
+		if t.TotalTokens == 0 {
+			continue
+		}
+		if s.Pricer != nil {
+			if usd, ok := s.Pricer(request.model, t); ok {
+				sum = sum.Add(usd)
+				priced = true
+				continue
+			}
+		}
+		unpriced += int64(t.TotalTokens)
 	}
+	// A request sample may duplicate cumulative notifications or exceed the
+	// trusted total; report the total as unpriced rather than double-count it
+	if observed.TotalTokens > totals.TotalTokens {
+		return nil, int64(totals.TotalTokens), nil
+	}
+	unpriced += int64(totals.TotalTokens - observed.TotalTokens)
 	if !priced {
-		return nil
+		return nil, unpriced, nil
 	}
-	return &sum
+	return &sum, unpriced, nil
 }

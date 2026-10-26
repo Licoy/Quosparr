@@ -9,6 +9,7 @@ import (
 	"github.com/licoy/quosparr/internal/export"
 	"github.com/licoy/quosparr/internal/export/swiftjson"
 	"github.com/licoy/quosparr/internal/store"
+	"github.com/licoy/quosparr/internal/usage"
 )
 
 func widgetQuota(m Meter) export.WidgetQuota {
@@ -73,6 +74,7 @@ func codexWidgetProvider(c CodexView) export.ProviderSnapshot {
 	}
 	if c.Cost != nil {
 		p.APIEquivalentCostUSD = swiftDecimal(c.Cost.EstimatedUSD)
+		p.APIEquivalentCostPartial = c.Cost.EstimatedUSD != nil && (c.Cost.UnpricedTokens > 0 || c.Cost.Confidence == usage.ConfidencePartiallyPriced)
 	}
 	tokens := c.Heatmap.Local
 	if len(c.Heatmap.AllDevices) > 0 {

@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/licoy/quosparr/internal/platform"
@@ -34,6 +35,7 @@ type windowDoc struct {
 }
 
 type dailyDoc struct {
+	UnpricedTokens  int64            `json:"unpricedTokens,omitempty"`
 	Date            string           `json:"date"`
 	Totals          Totals           `json:"totals"`
 	EstimatedUSD    *decimal.Decimal `json:"estimatedUSD,omitempty"`
@@ -43,13 +45,15 @@ type dailyDoc struct {
 }
 
 type breakdownDoc struct {
-	Name         string           `json:"name"`
-	Totals       Totals           `json:"totals"`
-	EstimatedUSD *decimal.Decimal `json:"estimatedUSD,omitempty"`
-	RawCredits   float64          `json:"rawCredits"`
+	UnpricedTokens int64            `json:"unpricedTokens,omitempty"`
+	Name           string           `json:"name"`
+	Totals         Totals           `json:"totals"`
+	EstimatedUSD   *decimal.Decimal `json:"estimatedUSD,omitempty"`
+	RawCredits     float64          `json:"rawCredits"`
 }
 
 type summaryDoc struct {
+	UnpricedTokens int64            `json:"unpricedTokens,omitempty"`
 	Source         Source           `json:"source"`
 	Confidence     Confidence       `json:"confidence"`
 	Window         windowDoc        `json:"window"`
@@ -74,7 +78,7 @@ func formatISO8601(t time.Time) string {
 func breakdownDocs(rows []BreakdownRow) []breakdownDoc {
 	out := make([]breakdownDoc, len(rows))
 	for i, r := range rows {
-		out[i] = breakdownDoc{r.Name, r.Totals, r.EstimatedUSD, r.RawCredits}
+		out[i] = breakdownDoc{r.UnpricedTokens, r.Name, r.Totals, r.EstimatedUSD, r.RawCredits}
 	}
 	return out
 }
@@ -85,7 +89,7 @@ func breakdownDocs(rows []BreakdownRow) []breakdownDoc {
 // is not finite or a Decimal overflowed.
 func EncodeSummary(s Summary) ([]byte, error) {
 	doc := summaryDoc{
-		Source: s.Source, Confidence: s.Confidence,
+		Source: s.Source, Confidence: s.Confidence, UnpricedTokens: s.UnpricedTokens,
 		Window:       windowDoc{Start: formatISO8601(s.Window.Start), Duration: unixSeconds(s.Window.End) - unixSeconds(s.Window.Start)},
 		EstimatedUSD: s.EstimatedUSD, Totals: s.Totals,
 		DailyRows:   make([]dailyDoc, len(s.DailyRows)),
@@ -96,7 +100,7 @@ func EncodeSummary(s Summary) ([]byte, error) {
 		PricingVersion: s.PricingVersion, CalculatedAt: formatISO8601(s.CalculatedAt),
 	}
 	for i, r := range s.DailyRows {
-		doc.DailyRows[i] = dailyDoc{r.Date, r.Totals, r.EstimatedUSD, r.RawCredits, r.CreditsReported, r.TotalsReported}
+		doc.DailyRows[i] = dailyDoc{r.UnpricedTokens, r.Date, r.Totals, r.EstimatedUSD, r.RawCredits, r.CreditsReported, r.TotalsReported}
 	}
 	return marshalSwiftJSON(doc)
 }
@@ -113,13 +117,15 @@ type totalsRaw struct {
 }
 
 type breakdownRaw struct {
-	Name         *string         `json:"name"`
-	Totals       *totalsRaw      `json:"totals"`
-	EstimatedUSD json.RawMessage `json:"estimatedUSD"`
-	RawCredits   json.RawMessage `json:"rawCredits"`
+	UnpricedTokens *int64          `json:"unpricedTokens"`
+	Name           *string         `json:"name"`
+	Totals         *totalsRaw      `json:"totals"`
+	EstimatedUSD   json.RawMessage `json:"estimatedUSD"`
+	RawCredits     json.RawMessage `json:"rawCredits"`
 }
 
 type dailyRaw struct {
+	UnpricedTokens  *int64          `json:"unpricedTokens"`
 	Date            *string         `json:"date"`
 	Totals          *totalsRaw      `json:"totals"`
 	EstimatedUSD    json.RawMessage `json:"estimatedUSD"`
@@ -134,6 +140,7 @@ type windowRaw struct {
 }
 
 type summaryRaw struct {
+	UnpricedTokens *int64          `json:"unpricedTokens"`
 	Source         *string         `json:"source"`
 	Confidence     *string         `json:"confidence"`
 	Window         *windowRaw      `json:"window"`
@@ -233,7 +240,11 @@ func decodeBreakdowns(rows []breakdownRaw) ([]BreakdownRow, error) {
 		if err != nil {
 			return nil, err
 		}
-		out[i] = BreakdownRow{Name: *r.Name, Totals: t, EstimatedUSD: usd, RawCredits: credits}
+		unpriced, err := decodeUnpriced(r.UnpricedTokens)
+		if err != nil {
+			return nil, err
+		}
+		out[i] = BreakdownRow{Name: *r.Name, Totals: t, EstimatedUSD: usd, RawCredits: credits, UnpricedTokens: unpriced}
 	}
 	return out, nil
 }
@@ -289,11 +300,14 @@ func DecodeSummary(data []byte) (Summary, error) {
 		return Summary{}, ErrInvalidSummaryJSON
 	}
 	switch s.Confidence {
-	case ConfidencePriced, ConfidenceTokensOnly, ConfidenceUnavailable:
+	case ConfidencePriced, ConfidencePartiallyPriced, ConfidenceTokensOnly, ConfidenceUnavailable:
 	default:
 		return Summary{}, ErrInvalidSummaryJSON
 	}
 	var err error
+	if s.UnpricedTokens, err = decodeUnpriced(r.UnpricedTokens); err != nil {
+		return Summary{}, err
+	}
 	if s.Window, err = r.Window.decode(); err != nil {
 		return Summary{}, err
 	}
@@ -315,6 +329,9 @@ func DecodeSummary(data []byte) (Summary, error) {
 			return Summary{}, ErrInvalidSummaryJSON
 		}
 		row := DailyRow{Date: *d.Date, CreditsReported: d.CreditsReported, TotalsReported: d.TotalsReported}
+		if row.UnpricedTokens, err = decodeUnpriced(d.UnpricedTokens); err != nil {
+			return Summary{}, err
+		}
 		if row.Totals, err = d.Totals.decode(); err != nil {
 			return Summary{}, err
 		}
@@ -386,6 +403,9 @@ func (c CacheStore) Load() CacheLoad {
 	if err != nil {
 		return CacheLoad{State: CacheIncompatible, Reason: "corrupt"}
 	}
+	if legacyCoverageMissing(data, s) {
+		return CacheLoad{State: CacheIncompatible, Reason: "stale-coverage"}
+	}
 	if !IsCompatiblePricingVersion(s.PricingVersion) {
 		return CacheLoad{State: CacheIncompatible, Reason: "stale-pricing"}
 	}
@@ -399,4 +419,34 @@ func (c CacheStore) Save(s Summary) error {
 		return err
 	}
 	return platform.WriteFileAtomic(c.Path, data, 0o600)
+}
+
+func decodeUnpriced(n *int64) (int64, error) {
+	if n == nil {
+		return 0, nil
+	}
+	if *n < 0 {
+		return 0, ErrInvalidSummaryJSON
+	}
+	return *n, nil
+}
+
+// Old local summaries could label mixed known/unknown usage as fully priced.
+// Reject these caches for local recomputation instead of inventing per-day coverage.
+func legacyCoverageMissing(data []byte, s Summary) bool {
+	if s.Source != SourceLocalSessions || s.Confidence != ConfidencePriced {
+		return false
+	}
+	var coverage struct {
+		UnpricedTokens *int64 `json:"unpricedTokens"`
+	}
+	if json.Unmarshal(data, &coverage) != nil || coverage.UnpricedTokens != nil {
+		return false
+	}
+	for _, warning := range s.Warnings {
+		if strings.HasPrefix(warning, "unknown-model:") || strings.HasPrefix(warning, "missing-") || strings.HasPrefix(warning, "ambiguous-tier:") {
+			return true
+		}
+	}
+	return false
 }

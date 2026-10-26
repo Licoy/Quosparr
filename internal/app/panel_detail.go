@@ -1,7 +1,6 @@
 package app
 
 import (
-	"strings"
 	"time"
 
 	"github.com/egoist/mygo/ui"
@@ -39,9 +38,6 @@ func claudeAsCodexView(l l10n.Localizer, g runway.ClaudeState, displayRange stor
 	if g.Cost != nil {
 		d := runway.DisplayCost(l, *g.Cost, displayRange, "", time.Now())
 		v.CostText, v.CostSubtitle, v.CostLines = d.Text, d.Subtitle, d.Lines
-		if claudePartialCost(*g.Cost) {
-			v.CostLines = append(v.CostLines, runway.DetailLine{Value: l.Text(l10n.KeyClaudePartialUnpriced)})
-		}
 	}
 	if g.ResetCredits != nil {
 		v.CreditDetails = runway.CreditDetails(l, *g.ResetCredits)
@@ -56,15 +52,7 @@ func claudeAsCodexView(l l10n.Localizer, g runway.ClaudeState, displayRange stor
 }
 
 func claudePartialCost(sum usage.Summary) bool {
-	if sum.EstimatedUSD != nil && sum.Confidence != usage.ConfidenceTokensOnly && len(sum.Warnings) == 0 {
-		return false
-	}
-	for _, w := range sum.Warnings {
-		if strings.HasPrefix(w, "unknown-model:") || strings.HasPrefix(w, "fast-unpriced:") {
-			return true
-		}
-	}
-	return sum.Confidence == usage.ConfidenceTokensOnly && sum.Totals.TotalTokens > 0
+	return sum.Confidence == usage.ConfidencePartiallyPriced || sum.UnpricedTokens > 0
 }
 
 // withoutTTFT clears time-to-first-token figures and marks the report so

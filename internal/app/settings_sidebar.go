@@ -39,7 +39,7 @@ func (u *settingsUI) shell(c *ui.Context, content func(*ui.Context)) {
 }
 
 // sidebarGroupStarts are the tabs after which the sidebar leaves a gap.
-var sidebarGroupStarts = map[settingsTab]bool{tabSessions: true, tabAdvanced: true}
+var sidebarGroupStarts = map[settingsTab]bool{tabSessions: true, tabModelPricing: true}
 
 func (u *settingsUI) sidebar(c *ui.Context) {
 	t := c.Theme()

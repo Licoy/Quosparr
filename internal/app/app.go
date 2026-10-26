@@ -27,6 +27,7 @@ const panelWidth = 400
 // PanelActions are the panel and accounts controls. A nil func disables
 // that control. The live service installs them; tests leave them nil.
 type PanelActions struct {
+	PricingVersion func(store.Provider) string
 	Refresh        func()
 	RefreshSection func(runway.Section)
 	SwitchAccount  func(id string)
@@ -490,11 +491,17 @@ func (a *App) OpenSettings() {
 		actions.OpenFolder = openFolder
 	}
 	a.setUI = newSettingsUI(a.settings, SettingsOptions{
-		Version:      a.opts.Version,
-		Actions:      actions,
-		Skills:       func() SkillActions { return a.PanelActions().Skills },
-		Sessions:     func() SessionActions { return a.PanelActions().Sessions },
-		MCP:          func() MCPActions { return a.PanelActions().MCP },
+		Version:  a.opts.Version,
+		Actions:  actions,
+		Skills:   func() SkillActions { return a.PanelActions().Skills },
+		Sessions: func() SessionActions { return a.PanelActions().Sessions },
+		MCP:      func() MCPActions { return a.PanelActions().MCP },
+		Pricing: func() PricingActions {
+			if rt := currentRuntime(); rt != nil {
+				return rt.pricingActions()
+			}
+			return PricingActions{}
+		},
 		PanelDisplay: a.panelDisplay,
 	})
 	a.setWin = mygo.NewWindow(mygo.WindowOptions{
@@ -521,6 +528,7 @@ func (a *App) OpenSettings() {
 			a.setUI.cancelAccountTask()
 			a.setUI.cancelSessionTasks()
 			a.setUI.cancelMCPTasks()
+			a.setUI.cancelPricingTasks()
 		}
 		a.setWin = nil
 		a.setUI = nil
@@ -535,6 +543,7 @@ func (a *App) shutdown() {
 		a.setUI.cancelAccountTask()
 		a.setUI.cancelSessionTasks()
 		a.setUI.cancelMCPTasks()
+		a.setUI.cancelPricingTasks()
 	}
 	// A change made just before quitting still reaches the store.
 	a.settings.Flush()

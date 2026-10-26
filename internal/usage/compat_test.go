@@ -152,7 +152,7 @@ func TestOpensSwiftCreatedIndexInPlace(t *testing.T) {
 		}
 	}
 	// The numbers the Swift implementation printed for the same input.
-	if s.Confidence != ConfidenceTokensOnly && s.Confidence != ConfidencePriced {
+	if s.Confidence != ConfidencePartiallyPriced {
 		t.Fatalf("confidence %s", s.Confidence)
 	}
 	if s.Totals.TotalTokens != 4000 || s.Totals.Turns != 2 || s.EstimatedUSD == nil || s.EstimatedUSD.String() != "0.021" {

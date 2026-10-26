@@ -40,6 +40,25 @@ func TestActivityMatchesSwiftEncoding(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	// The frozen Swift fixture priced cumulative-only totals as one request
+	// Such rows now retain tokens without inventing a request-size tier
+	var migrated map[string]any
+	decoder := json.NewDecoder(bytes.NewReader(want))
+	decoder.UseNumber()
+	if err := decoder.Decode(&migrated); err != nil {
+		t.Fatal(err)
+	}
+	for _, raw := range migrated["items"].([]any) {
+		item := raw.(map[string]any)
+		if item["id"] == "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb" {
+			delete(item, "estimatedUSD")
+			item["unpricedTokens"] = int64(123511)
+		}
+	}
+	want, err = swiftjson.Marshal(migrated, false)
+	if err != nil {
+		t.Fatal(err)
+	}
 	got, err := swiftjson.Marshal(f.scan(5), false)
 	if err != nil {
 		t.Fatal(err)

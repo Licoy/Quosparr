@@ -121,7 +121,7 @@ func TestScanSessions(t *testing.T) {
 	if itemByID(t, res, "sess-x").Totals.Output != 3 {
 		t.Fatal("compat projects dir")
 	}
-	if res.CostSummary.PricingVersion != PricingVersion || res.CostSummary.Confidence != usage.ConfidencePriced {
+	if res.CostSummary.PricingVersion != PricingVersion || res.CostSummary.Confidence != usage.ConfidencePartiallyPriced {
 		t.Fatalf("summary %s %s", res.CostSummary.Confidence, res.CostSummary.PricingVersion)
 	}
 	foundUnknown := false

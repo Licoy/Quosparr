@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/licoy/quosparr/internal/pricing"
 	"github.com/licoy/quosparr/internal/sessions"
 )
 
@@ -28,6 +29,7 @@ func (s SessionScanner) ListManaged(ctx context.Context) ([]sessions.ManagedSess
 	if err := ctx.Err(); err != nil {
 		return nil, err
 	}
+	snapshot := s.pricingSnapshot()
 	groups := map[string]*managedClaudeGroup{}
 	for _, root := range ProjectsDirs(s.ConfigDir, s.Home) {
 		st, err := os.Lstat(root)
@@ -96,7 +98,7 @@ func (s SessionScanner) ListManaged(ctx context.Context) ([]sessions.ManagedSess
 
 	result := make([]sessions.ManagedSession, 0, len(groups))
 	for _, group := range groups {
-		item := claudeManagedItem(group)
+		item := claudeManagedItem(group, snapshot)
 		if group.problem != "" {
 			item.State = sessions.StateNeedsAttention
 		}
@@ -146,8 +148,8 @@ func claudeMetaIDs(sink *scanSink) []string {
 	return ids
 }
 
-func claudeManagedItem(group *managedClaudeGroup) sessions.Item {
-	summary := group.sink.summary(time.Local, SessionScanOptions{RecentLimit: 1}, time.Now())
+func claudeManagedItem(group *managedClaudeGroup, snapshots ...pricing.Snapshot) sessions.Item {
+	summary := group.sink.summary(time.Local, SessionScanOptions{RecentLimit: 1}, time.Now(), snapshots...)
 	meta := group.sink.metas[group.id]
 	if len(summary.RecentItems) > 0 {
 		item := summary.RecentItems[0].SessionsItem()

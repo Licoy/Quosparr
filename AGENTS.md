@@ -46,7 +46,7 @@ v1 已正式发布（`v1.0.0`、`v1.0.1`）；macOS 仅保留 Swift WidgetKit �
 ## 代码约定
 
 - Go 入口为 `main.go`，原生 UI 与系统协调放在 `internal/app`，后台协调放在 `internal/runway`，存储 / 平台 / 网络 / 本地化边界分别放在 `internal/store`、`internal/platform`、`internal/netx`、`internal/l10n`
-- Go 业务模块放在 `internal/codex`、`internal/codexapi`、`internal/grok`、`internal/claude`、`internal/usage`、`internal/sessions`、`internal/alerts`、`internal/estimate`、`internal/export`、`internal/resettoday`、`internal/skills`（全局 skill 扫描、来源识别、目录详情与自有回收站，启停写入在各供应商包）、`internal/mcp`（用户级 MCP 配置解析、脱敏摘要、原子删除与启停，供应商包负责路径和共用锁）；UI 经业务 API 读取结果，不直接解析 JSON 或扫描文件
+- Go 业务模块放在 `internal/codex`、`internal/codexapi`、`internal/grok`、`internal/claude`、`internal/usage`、`internal/sessions`、`internal/alerts`、`internal/estimate`、`internal/export`、`internal/resettoday`、`internal/pricing`（models.dev 公开 Token 目录、缓存、同步状态和不可变快照，实际计价由各供应商包保留已核实规则后选择）、`internal/skills`（全局 skill 扫描、来源识别、目录详情与自有回收站，启停写入在各供应商包）、`internal/mcp`（用户级 MCP 配置解析、脱敏摘要、原子删除与启停，供应商包负责路径和共用锁）；UI 经业务 API 读取结果，不直接解析 JSON 或扫描文件
 - 用户可见文案通过 `internal/l10n`（手工维护的 `tables.go`）与现有附加文案入口，新增 key 必须补齐英文、简体中文、繁体中文、韩文、日文、俄文、法文
 - Widget 使用自带的 `Sources/QuosparrWidget/RunwayWidgetL10n.swift` 与快照类型副本，修改共享 key 或快照 schema 时与 Go 侧保持同步，同样遵守七语言完整性
 - 函数保持短小，优先用简单结构体和函数，不做多 provider 抽象。
@@ -157,7 +157,10 @@ V1_DEVELOPMENT_PACKAGE=1 bash Scripts/package-v1-app.sh
 - 非密钥派生数据保存在 `~/.quosparr`，Windows / Linux 偏好在自有目录；代理密码分别保存在 macOS Keychain、Windows Credential Manager、Linux Secret Service
 - API 等价成本默认来自本机会话日志，不上传会话内容；周额度推算只保存 `quota-estimate-history.json` 中的派生 Credits 与占用率，不保存 token 或密钥
 - 图表“官方统计（多端）”属于当前账号，可能延迟或修订；“本机日志（全部本机会话）”可能跨账号，不能视为包含关系或相减；Codex 两种按日统计均按 UTC 日界比较
-- Codex 内置 API 价格表版本为 `openai-builtin-2026-09-27`，在线官方价格表采用 `openai-docs-` 版本，未知模型不报告精确费用；订阅额度推算使用 `credits-usd-2026-08-26`，1000 Credits 约对应 40 美元，属于非官方推算
+- Codex 内置 API 价格表版本为 `openai-builtin-2026-09-27`，共享公开目录采用 models.dev 快照版本，仅完整支持的场景采用其费率，缺失的必要价或不明确的阶梯边界保留为未定价，已核实的内置特殊规则仍优先用于对应场景，未知模型不报告精确费用；订阅额度推算使用 `credits-usd-2026-08-26`，1000 Credits 约对应 40 美元，属于非官方推算
+- 模型价格设置位于高级之前并与其同组，仅展示 models.dev 中 providerID 精确为 `openai`、`anthropic`、`xai` 的三家原始服务商条目及对应内置价格，使用与 Skill / MCP 管理一致的固定 Codex / Claude / Grok tabs，默认 Codex，每页默认显示该商全部模型，切换时清空搜索与筛选、关闭详情并重置分页，不提供其他厂商入口，不展示第三方代理或其他服务商的同名模型；models.dev 是聚合公开目录而非供应商官方实时接口，通用下载与缓存接口保持不变，`modelPricing` 偏好默认 `{autoSync: true, syncIntervalSeconds: 3600}`，自动同步可关闭，频率范围为 15 分钟至 7 天，修改立即保存且失败回滚；同步设置由 tabs 右侧“频率设置”按钮打开原生弹窗，设置共同适用于三家，开关、频率、完整时间与版本状态在弹窗内即时保存，主界面保留简短状态与错误，关闭弹窗不取消同步任务，离开该设置页关闭弹窗；手动同步不依赖自动开关，UI 只经业务 actions 读取不可变目录与同步状态，不扫描文件、不联网
+- 模型价格首版只覆盖 USD / 百万 Token 的参考价，详情须说明目录参考价与实际采用来源、版本和规则差异；已核实的长上下文、缓存写入 TTL、Fast 与地区规则保持结构化并经七语言渲染；missing 与明确免费必须区分，未知或缺少必要规则不得精确估价，不能把 `price-source:*` 来源信息当未定价警告
+- 历史用量按当前价格重新估算，价格变更必须使派生成本缓存失效；总额、每日、项目、模型、会话按 `ConfidencePartiallyPriced` 或未定价 Token 数显示部分成本，完整缺失清单不受摘要表前 8 行限制，扫描不完整与价格缺失分别提示；不改订阅 Credits、quota 或 reset credits 口径，目录网络仅取公开数据，不上传会话内容，离线保留内置价格与最后成功缓存，同步错误必须可见
 - Grok 额度只使用官方 CLI chat-proxy `/v1/billing?format=credits`，不读取浏览器 Cookie、不从本地日志伪造额度、不混入 API 账单；API 等价成本使用本地 `turn_completed` 用量和 `xai-builtin-2026-09-27`，区分输入、缓存、输出及长上下文价格，`costUsdTicks` 不作为 API 等价成本
 - Claude 订阅用量来自非公开的 OAuth usage 端点，界面写作 “Claude Code 订阅用量”，不写成官方额度接口。重置次数取自同一请求附带 `cedar_ember=1` 返回的 `cedar_ember` 块（不加 `skip_spend`，以保留额外用量），只读展示、不代为使用；账号未参与、API 账号或该块缺失、格式异常时面板仍显示该模块并计为 0，Widget 只在有该块时携带重置次数。API 等价成本使用本地会话日志和 `anthropic-builtin-2026-10-14`，按 message id 去重，缓存写入分 5 分钟与 1 小时，Fast 档单独计价，未知模型不给精确费用。日界用本地时区。Claude 日志没有首 token 时间，速率按端到端耗时计算
 
