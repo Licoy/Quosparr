@@ -147,7 +147,7 @@ func (a *App) grokAccountCard(c *ui.Context, l l10n.Localizer, prefs store.Prefe
 		case acc.LastError != "":
 			accountStatusLine(c, acc.LastError, sys(c.Theme(), sysOrange))
 		}
-		grokQuotaBlock(c, l, &quota, accountQuotaOptions{current: current, showUpdated: true})
+		grokQuotaBlock(c, l, &quota, panelQuotaOptions(prefs, current))
 		a.grokManagement(c, l, acc, caps, priv, view, ac)
 	})
 }

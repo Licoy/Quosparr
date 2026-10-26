@@ -130,38 +130,69 @@ func accountCard(c *ui.Context, current bool, body func()) {
 	col.Children(body)
 }
 
-// meterSpec is one AccountMiniMeterRow.
+// meterSpec is one meter of an account card.
 type meterSpec struct {
 	title             string
 	remaining, used   int
-	trailing          string // replaces the "N% left" label when set
+	trailing          string // an amount shown where a reset would be
 	resetsAt          time.Time
 	hasReset, current bool
 }
 
-// accountMeter is AccountMiniMeterRow: title and remaining share, a thin
-// capsule bar and the time to the next reset.
-func accountMeter(c *ui.Context, l l10n.Localizer, m meterSpec) {
+// meterValueWidth keeps the bars of a card the same length beside their
+// percentages.
+const meterValueWidth float32 = 58
+
+// accountMeter is two lines: the title with the reset (or an amount), then
+// the bar with what is left.
+func accountMeter(c *ui.Context, l l10n.Localizer, m meterSpec, view accountQuotaOptions) {
 	t := c.Theme()
 	health := runway.HealthForUsedPercent(m.used)
-	left := l10n.Format("%d%% %s", m.remaining, l.Text(l10n.KeyLeft))
-	ui.Column(c).Gap(3).Children(func() {
-		ui.Row(c).Gap(8).AlignItems(ui.Start).Wrap().Children(func() {
-			ui.Text(c, m.title).FontSize(fsCaption).FontWeight(500).TextColor(inkSecondary(t)).MaxLines(2).Tooltip(m.title).Grow(1).Basis(140).MinWidth(0)
-			value, ink := left, healthInk(t, health)
-			if m.trailing != "" {
-				value, ink = m.trailing, inkSecondary(t)
+	ui.Column(c).Gap(5).MinWidth(0).Children(func() {
+		ui.Row(c).Gap(8).AlignItems(ui.Center).Children(func() {
+			ui.Text(c, m.title).FontSize(11).FontWeight(600).SingleLine().Ellipsis("…").Tooltip(m.title).Grow(1).Basis(0).MinWidth(0)
+			switch {
+			case m.hasReset:
+				now := c.Now()
+				dimText(c, accountResetText(l, m.resetsAt, now, view.resetFormat)).FontFeatures("tnum").NoWrap().Shrink(0).
+					Tooltip(l.Text(l10n.KeyNextResetIn) + m.resetsAt.In(time.Local).Format("2006-01-02 15:04:05 MST"))
+				c.After(time.Second)
+			case m.trailing != "":
+				ui.Text(c, m.trailing).FontSize(fsCaption).FontWeight(600).FontFeatures("tnum").TextColor(inkSecondary(t)).SingleLine().Shrink(0)
 			}
-			ui.Text(c, value).FontSize(fsCaption).FontWeight(600).FontFeatures("tnum").TextColor(ink).SingleLine()
 		})
-		accountMeterBar(c, m, accountBarColor(t, health))
-		if m.trailing != "" {
-			dimText(c, left)
-		}
-		if m.hasReset {
-			dimText(c, resetCountdown(l, m.resetsAt, c.Now())).MaxLines(2).Tooltip(m.resetsAt.In(time.Local).Format("2006-01-02 15:04:05 MST"))
-			c.After(time.Second)
-		}
+		meterBarRow(c, accountBarColor(t, health), m.remaining, m.current, l10n.Format("%d%% %s", m.remaining, l.Text(l10n.KeyLeft)), healthInk(t, health))
+	})
+}
+
+// accountShareRow is a product share of a Grok card on one line: the
+// product, a bar of the used share and the share.
+func accountShareRow(c *ui.Context, l l10n.Localizer, m runway.Meter, current bool) {
+	t := c.Theme()
+	ui.Row(c).Gap(8).AlignItems(ui.Center).Children(func() {
+		ui.Text(c, m.Title).FontSize(fsCaption).FontWeight(500).TextColor(inkSecondary(t)).SingleLine().Ellipsis("…").Tooltip(m.Title).Width(80).Shrink(0)
+		meterBarRow(c, healthFill(t, m.Health), m.UsedPercent, current, l10n.Format("%d%% %s", m.UsedPercent, l.Text(l10n.KeyUsed)), healthInk(t, m.Health))
+	})
+}
+
+// meterBarRow is a capsule bar filled to percent, then its value at a fixed
+// width.
+func meterBarRow(c *ui.Context, fill ui.Color, percent int, current bool, value string, ink ui.Color) {
+	t := c.Theme()
+	track := surfaceSunken(t)
+	if current {
+		track = sys(t, sysGreen).Alpha(0.14)
+	}
+	ui.Row(c).Gap(8).AlignItems(ui.Center).Grow(1).Basis(0).MinWidth(0).Children(func() {
+		ui.Box(c).Height(6).Grow(1).Basis(0).MinWidth(0).Draw(func(p *ui.Painter, r ui.Rect) {
+			p.Fill(r, track, r.H/2)
+			if percent <= 0 {
+				return
+			}
+			w := max(r.H, r.W*float32(min(percent, 100))/100)
+			p.Fill(ui.Rect{X: r.X, Y: r.Y, W: min(w, r.W), H: r.H}, fill, r.H/2)
+		})
+		ui.Text(c, value).FontSize(fsCaption).FontWeight(600).FontFeatures("tnum").TextColor(ink).SingleLine().MinWidth(meterValueWidth).TextAlign(ui.End)
 	})
 }
 
@@ -174,19 +205,6 @@ func accountBarColor(t *ui.Theme, h runway.Health) ui.Color {
 		return sys(t, sysRed)
 	}
 	return sys(t, sysGreen)
-}
-
-func accountMeterBar(c *ui.Context, m meterSpec, fill ui.Color) {
-	t := c.Theme()
-	track := surfaceSunken(t)
-	if m.current {
-		track = sys(t, sysGreen).Alpha(0.12)
-	}
-	ui.Box(c).Height(5).Draw(func(p *ui.Painter, r ui.Rect) {
-		p.Fill(r, track, r.H/2)
-		w := max(3, r.W*float32(m.remaining)/100)
-		p.Fill(ui.Rect{X: r.X, Y: r.Y, W: min(w, r.W), H: r.H}, fill, r.H/2)
-	})
 }
 
 // accountStatusLine is a caption-size message of a card.

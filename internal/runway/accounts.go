@@ -53,7 +53,7 @@ func toQuotaWindow(w codexapi.RateWindow) codex.QuotaWindow {
 
 // quotaSummary reduces a quota reading to what the account row caches.
 func quotaSummary(q codexapi.QuotaSnapshot) codex.QuotaSummary {
-	out := codex.QuotaSummary{Plan: q.Plan, Primary: toQuotaWindow(q.Primary), UpdatedAt: q.UpdatedAt}
+	out := codex.QuotaSummary{Plan: q.Plan, Primary: toQuotaWindow(q.Primary), CreditsBalance: q.CreditsBalance, UpdatedAt: q.UpdatedAt}
 	if q.Secondary != nil {
 		w := toQuotaWindow(*q.Secondary)
 		out.Secondary = &w

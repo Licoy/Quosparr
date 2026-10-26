@@ -100,6 +100,8 @@ const (
 	xShowCreditsBalanceHint       textKey = "showCreditsBalanceDescription"
 	xResetTimeRelative            textKey = "quotaResetTimeRelative"
 	xResetTimeExact               textKey = "quotaResetTimeExact"
+	xAccountResetsIn              textKey = "accountQuotaResetsIn"
+	xAccountResetsAt              textKey = "accountQuotaResetsAt"
 	xProxyTestURL                 textKey = "networkProxyTestURL"
 	xProxyTestURLInvalid          textKey = "networkProxyTestURLInvalid"
 	xSpeedTitle                   textKey = "speedAnalysis"
@@ -382,6 +384,8 @@ var extraTexts = map[textKey][7]string{
 	},
 	xResetTimeRelative: {"Relative time", "相对时间", "相對時間", "상대 시간", "相対時間", "Относительное время", "Temps relatif"},
 	xResetTimeExact:    {"Exact time", "精准时间", "精準時間", "정확한 시간", "正確な時刻", "Точное время", "Heure exacte"},
+	xAccountResetsIn:   {"Resets in %@", "%@后重置", "%@後重置", "%@ 후 리셋", "%@後にリセット", "Сброс через %@", "Réinit. dans %@"},
+	xAccountResetsAt:   {"Resets %@", "%@ 重置", "%@ 重置", "%@ 리셋", "%@ にリセット", "Сброс %@", "Réinit. %@"},
 	xProxyTestURL: {
 		"Test site", "测试站点", "測試站點", "테스트 사이트", "テストサイト", "Тестовый сайт", "Site de test",
 	},

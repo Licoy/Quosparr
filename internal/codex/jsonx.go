@@ -156,6 +156,19 @@ func (r *reader) reqInt(key string) int {
 	return *p
 }
 
+func (r *reader) optFloat(key string) *float64 {
+	v, ok := r.raw(key)
+	if !ok {
+		return nil
+	}
+	var f float64
+	if err := json.Unmarshal(v, &f); err != nil {
+		r.fail(key, "expected a number")
+		return nil
+	}
+	return &f
+}
+
 func (r *reader) optTime(key string) *time.Time {
 	if _, ok := r.raw(key); !ok {
 		return nil
@@ -225,6 +238,11 @@ func (b *builder) str(key, s string) {
 func (b *builder) intPtr(key string, n *int) {
 	if n != nil {
 		b.set(key, *n)
+	}
+}
+func (b *builder) floatPtr(key string, f *float64) {
+	if f != nil {
+		b.set(key, *f)
 	}
 }
 func (b *builder) timePtr(key string, t *time.Time) {

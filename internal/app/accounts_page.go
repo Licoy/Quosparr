@@ -102,7 +102,7 @@ func renderClaudeAccountRow(c *ui.Context, u *settingsUI, f *accountForm, rt *li
 			quota = &q
 		}
 	}
-	accountSettingsRow(c, l, accountIdentityView{account: acc, current: acc.ID == current, privacy: priv, provider: store.ProviderClaude, claudeQuota: quota}, func() {
+	accountSettingsRow(c, l, accountIdentityView{account: acc, current: acc.ID == current, privacy: priv, provider: store.ProviderClaude, claudeQuota: quota, quota: quotaOptionsFor(u.s.Prefs(), false)}, func() {
 		if IconButton(c, icRefresh, l.Text(l10n.KeyRefresh), f.busy || rt == nil).Clicked() {
 			u.accountAct(f, "", func() string { return rt.refreshClaude(context.Background(), l, acc.ID) })
 		}
@@ -406,7 +406,7 @@ func renderCodexSettingsRow(c *ui.Context, u *settingsUI, f *accountForm, rt *li
 	l := u.L()
 	name := maskAccount(priv, acc.ResolvedDisplayName())
 	current := acc.ID == activeID
-	accountSettingsRow(c, l, accountIdentityView{account: acc, current: current, privacy: priv, provider: store.ProviderCodex}, func() {
+	accountSettingsRow(c, l, accountIdentityView{account: acc, current: current, privacy: priv, provider: store.ProviderCodex, quota: quotaOptionsFor(u.s.Prefs(), false)}, func() {
 		if IconButton(c, icRefresh, l.Text(l10n.KeyRefresh), f.busy || rt == nil).Clicked() {
 			id := acc.ID
 			u.accountAct(f, "", func() string { <-rt.svc.RefreshAccountQuota(id); return "" })
@@ -447,7 +447,7 @@ func renderGrokAccountRow(c *ui.Context, u *settingsUI, f *accountForm, rt *live
 			quota = &q
 		}
 	}
-	accountSettingsRow(c, l, accountIdentityView{account: acc, current: acc.ID == current, privacy: priv, provider: store.ProviderGrok, grokQuota: quota}, func() {
+	accountSettingsRow(c, l, accountIdentityView{account: acc, current: acc.ID == current, privacy: priv, provider: store.ProviderGrok, grokQuota: quota, quota: quotaOptionsFor(u.s.Prefs(), false)}, func() {
 		if IconButton(c, icRefresh, l.Text(l10n.KeyRefresh), f.busy || rt == nil).Clicked() {
 			u.accountAct(f, "", func() string { return rt.refreshGrok(acc.ID) })
 		}

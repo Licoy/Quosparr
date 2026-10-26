@@ -87,7 +87,7 @@ func (a *App) codexAccountCard(c *ui.Context, l l10n.Localizer, prefs store.Pref
 		case acc.LastError != "":
 			accountStatusLine(c, accountPrivate(priv, acc.LastError), sys(c.Theme(), sysOrange))
 		}
-		codexQuotaBlock(c, l, acc, accountQuotaOptions{current: current, showUpdated: true})
+		codexQuotaBlock(c, l, acc, panelQuotaOptions(prefs, current))
 	})
 }
 
@@ -230,30 +230,47 @@ func (a *App) codexDeleteConfirm(c *ui.Context, l l10n.Localizer, anchor ui.Elem
 	}
 }
 
-// codexQuotaBlock is the meters of a card, or what stands in for them.
+// panelQuotaOptions shows a panel card's quota in one column with its
+// update time.
+func panelQuotaOptions(prefs store.Preferences, current bool) accountQuotaOptions {
+	o := quotaOptionsFor(prefs, current)
+	o.showUpdated = true
+	return o
+}
+
+// codexQuotaBlock is the meters of a card, or what stands in for them, then
+// the reset credits and the credits balance.
 func codexQuotaBlock(c *ui.Context, l l10n.Localizer, acc codex.ManagedAccount, view accountQuotaOptions) {
 	if acc.IsRelay() {
-		apiBalanceBlock(c, l, acc.APIQuota, view.current)
+		apiBalanceBlock(c, l, acc.APIQuota, view)
 		return
 	}
-	if q := acc.CachedQuota; q != nil {
-		ui.Column(c).Gap(8).Children(func() {
-			for _, row := range q.MeterRows() {
-				accountMeter(c, l, cachedMeter(l, row, view.current))
-			}
-			if view.showUpdated {
-				accountQuotaUpdated(c, l, q.UpdatedAt)
-			}
-		})
-		codexAccountResetCredits(c, l, acc)
-		return
-	}
-	if acc.AuthMode == codex.AuthModeAPIKey {
+	if acc.AuthMode == codex.AuthModeAPIKey && acc.CachedQuota == nil {
 		dimText(c, l.Text(l10n.KeyAccountsAPIKeyHint)).MaxLines(2)
 		return
 	}
-	calloutDim(c, l.Text(l10n.KeyNotLoaded)).FontSize(fsCaption)
-	codexAccountResetCredits(c, l, acc)
+	ui.Column(c).Gap(10).Children(func() {
+		q := acc.CachedQuota
+		if q == nil {
+			calloutDim(c, l.Text(l10n.KeyNotLoaded)).FontSize(fsCaption)
+		} else {
+			rows := q.MeterRows()
+			accountMeters(c, view, len(rows), func(i int) {
+				accountMeter(c, l, cachedMeter(l, rows[i], view.current), view)
+			})
+		}
+		stats := []accountStat{codexResetStat(l, acc, c.Now())}
+		if acc.ResetCredits != nil {
+			redrawAtNext(c, acc.ResetCredits.AvailableExpiries)
+		}
+		if q != nil && q.CreditsBalance != nil && *q.CreditsBalance != 0 && !view.hideCredits {
+			stats = append(stats, accountStat{label: l.Text(l10n.KeyCreditsBalance), value: creditsBalanceAmount(*q.CreditsBalance)})
+		}
+		accountStats(c, view, stats)
+		if q != nil && view.showUpdated {
+			accountQuotaUpdated(c, l, q.UpdatedAt)
+		}
+	})
 }
 
 func cachedMeter(l l10n.Localizer, row codex.CachedQuotaMeterRow, current bool) meterSpec {
@@ -280,24 +297,26 @@ func cachedRowTitle(l l10n.Localizer, row codex.CachedQuotaMeterRow) string {
 	return l.Text(l10n.KeyQuota)
 }
 
-func codexAccountResetCredits(c *ui.Context, l l10n.Localizer, acc codex.ManagedAccount) {
+// codexResetStat is the reset credits tile of a Codex account; a failed
+// check keeps the last count and shows why.
+func codexResetStat(l l10n.Localizer, acc codex.ManagedAccount, now time.Time) accountStat {
 	var count *int
 	var updated, expiry time.Time
+	failure := ""
 	if q := acc.ResetCredits; q != nil {
 		count = q.AvailableCount
-		expiry = q.NextAvailableExpiry(c.Now())
+		expiry = q.NextAvailableExpiry(now)
 		if q.UpdatedAt != nil {
 			updated = *q.UpdatedAt
 		}
 		if q.LastError != "" {
-			failure := q.LastError
+			failure = q.LastError
 			if failure == "reset_credits_unavailable" {
-				failure = l.Text(l10n.KeyStatusError)
+				failure = l.Text(l10n.KeyFailed)
 			}
-			accountStatusLine(c, l.Text(l10n.KeyResetCredits)+": "+failure, sys(c.Theme(), sysOrange))
 		}
 	}
-	accountResetCredits(c, l, count, updated, expiry)
+	return accountResetStat(l, count, updated, expiry, failure)
 }
 
 func accountTierKey(tier codex.Tier) l10n.Key {

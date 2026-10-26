@@ -56,6 +56,20 @@ func TestPolledResetCreditsFailurePreservesQuotaAndUnknown(t *testing.T) {
 	}
 }
 
+func TestPolledQuotaCachesCreditsBalance(t *testing.T) {
+	f := newFake(t)
+	af := newAccountFixture(t, f)
+	s, _ := newService(t, f, af.apply(f))
+	q := f.quota("plus", 23)
+	balance := 7.25
+	q.CreditsBalance = &balance
+	s.applyAccountResults([]codexapi.QuotaRefreshResult{{AccountID: af.b.ID, Generation: af.gens.Begin(af.b.ID), Quota: &q}}, s.Epoch())
+	b := af.account(t, s, af.b.ID)
+	if b.CachedQuota == nil || b.CachedQuota.CreditsBalance == nil || *b.CachedQuota.CreditsBalance != balance {
+		t.Fatalf("credits balance not cached: %+v", b.CachedQuota)
+	}
+}
+
 func TestCurrentResetCreditCacheFailureIsReported(t *testing.T) {
 	f := newFake(t)
 	af := newAccountFixture(t, f)

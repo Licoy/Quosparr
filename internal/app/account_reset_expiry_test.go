@@ -52,7 +52,7 @@ func TestAccountResetExpiryAdvancesToNextAvailableCard(t *testing.T) {
 				if !hasExact(tt, accountResetExpiryText(l, second)) || hasExact(tt, accountResetExpiryText(l, first)) {
 					t.Fatalf("did not advance card expiry: %q", tt.Texts())
 				}
-				if provider != store.ProviderCodex && !tt.HasText("available resets: 1") {
+				if provider != store.ProviderCodex && !hasResetStat(tt, l, "1") {
 					t.Fatalf("expired card still available: %q", tt.Texts())
 				}
 				tt.Advance(time.Minute)
@@ -71,7 +71,9 @@ func TestAccountResetExpiryAdvancesToNextAvailableCard(t *testing.T) {
 func TestAccountResetUnknownExpiryNeverShowsInventedDate(t *testing.T) {
 	l := l10n.New(l10n.English)
 	count := 2
-	tt := ui.NewTester(func(c *ui.Context) { accountResetCredits(c, l, &count, time.Time{}, time.Time{}) }, 320, 150)
+	tt := ui.NewTester(func(c *ui.Context) {
+		accountStats(c, accountQuotaOptions{}, []accountStat{accountResetStat(l, &count, time.Time{}, time.Time{}, "")})
+	}, 320, 150)
 	if !tt.HasText(l.Text(l10n.KeyResetExpiryUnavailable)) {
 		t.Fatal(tt.Texts())
 	}

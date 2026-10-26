@@ -41,7 +41,9 @@ type QuotaSummary struct {
 	Primary    QuotaWindow
 	Secondary  *QuotaWindow
 	Additional []NamedQuotaWindow
-	UpdatedAt  time.Time
+	// CreditsBalance is the ChatGPT credits balance, nil when not reported.
+	CreditsBalance *float64
+	UpdatedAt      time.Time
 }
 
 func clampPercent(n int) int { return max(0, min(100, n)) }
@@ -104,6 +106,7 @@ type CachedAccountQuota struct {
 	SecondaryResetsAt      *time.Time
 	SecondaryWindowMinutes *int
 	AdditionalMeters       []CachedQuotaMeterRow
+	CreditsBalance         *float64
 	UpdatedAt              time.Time
 	extra                  object
 }
@@ -116,6 +119,7 @@ func NewCachedQuota(q QuotaSummary) CachedAccountQuota {
 		PrimaryUsedPercent:   clampPercent(q.Primary.UsedPercent),
 		PrimaryResetsAt:      q.Primary.ResetsAt,
 		PrimaryWindowMinutes: q.Primary.WindowMinutes,
+		CreditsBalance:       q.CreditsBalance,
 		UpdatedAt:            q.UpdatedAt,
 	}
 	if s := q.Secondary; s != nil {
@@ -171,6 +175,7 @@ func (c CachedAccountQuota) MarshalJSON() ([]byte, error) {
 		meters = []CachedQuotaMeterRow{}
 	}
 	b.set("additionalMeters", meters)
+	b.floatPtr("creditsBalance", c.CreditsBalance)
 	b.set("updatedAt", FormatTime(c.UpdatedAt))
 	return encodeValue(b.o)
 }
@@ -191,6 +196,7 @@ func (c *CachedAccountQuota) UnmarshalJSON(data []byte) error {
 		SecondaryUsedPercent:   r.optInt("secondaryUsedPercent"),
 		SecondaryResetsAt:      r.optTime("secondaryResetsAt"),
 		SecondaryWindowMinutes: r.optInt("secondaryWindowMinutes"),
+		CreditsBalance:         r.optFloat("creditsBalance"),
 	}
 	if q.SecondaryUsedPercent != nil {
 		v := clampPercent(*q.SecondaryUsedPercent)

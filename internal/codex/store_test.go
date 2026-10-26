@@ -723,6 +723,29 @@ func TestCachedQuotaMeterRowsAndClamping(t *testing.T) {
 	}
 }
 
+func TestCachedQuotaKeepsCreditsBalance(t *testing.T) {
+	balance := 12.5
+	acc := ManagedAccount{ID: "q"}.ApplyQuota(QuotaSummary{UpdatedAt: testNow, CreditsBalance: &balance})
+	data, err := json.Marshal(acc.CachedQuota)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var back CachedAccountQuota
+	if err := json.Unmarshal(data, &back); err != nil {
+		t.Fatal(err)
+	}
+	if back.CreditsBalance == nil || *back.CreditsBalance != balance {
+		t.Fatalf("balance lost: %s", data)
+	}
+	// Caches written before the balance was kept read as unknown.
+	if err := json.Unmarshal([]byte(`{"primaryUsedPercent":10,"updatedAt":"2026-01-02T03:04:05Z"}`), &back); err != nil || back.CreditsBalance != nil {
+		t.Fatalf("old cache: %+v %v", back, err)
+	}
+	if err := json.Unmarshal([]byte(`{"primaryUsedPercent":10,"creditsBalance":"12"}`), &back); err == nil {
+		t.Fatal("non-number balance accepted")
+	}
+}
+
 func TestErrorMessagesCarryNoSecrets(t *testing.T) {
 	errs := []error{
 		&AccountNotFoundError{ID: "x"}, &CredentialMissingError{ID: "x"},

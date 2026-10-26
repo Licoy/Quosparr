@@ -17,12 +17,13 @@ import (
 
 func quotaAccountFixture(t *testing.T, l l10n.Localizer, now time.Time) (codex.ManagedAccount, runway.ClaudeAccountQuota, runway.GrokAccountQuota) {
 	t.Helper()
-	five, week, custom, weeklyUsed, cards := 300, 10080, 120, 61, 2
+	five, week, custom, weeklyUsed, cards, balance := 300, 10080, 120, 61, 2, 12.5
 	short, long, other := now.Add(2*time.Hour), now.Add(4*24*time.Hour), now.Add(90*time.Minute)
 	acc := codex.ManagedAccount{ID: "one", DisplayName: "Personal", Email: "personal@example.com", CachedQuota: &codex.CachedAccountQuota{
 		Plan: "plus", PrimaryUsedPercent: 49, PrimaryWindowMinutes: &five, PrimaryResetsAt: &short,
 		SecondaryUsedPercent: &weeklyUsed, SecondaryWindowMinutes: &week, SecondaryResetsAt: &long, UpdatedAt: now,
 		AdditionalMeters: []codex.CachedQuotaMeterRow{{ID: "model", Name: "GPT-5.4", WindowMinutes: &custom, UsedPercent: 88, ResetsAt: &other}},
+		CreditsBalance:   &balance,
 	}, ResetCredits: &codex.CachedAccountResetCredits{AvailableCount: &cards, UpdatedAt: &now, AvailableExpiries: []time.Time{short, long}}}
 	raw := json.RawMessage(fmt.Sprintf(`{"five_hour":{"utilization":49,"resets_at":%q},"seven_day":{"utilization":61,"resets_at":%q},"seven_day_sonnet":{"utilization":88,"resets_at":%q},"extra_usage":{"is_enabled":true,"used_credits":1000,"monthly_limit":123400,"currency":"USD"},"cedar_ember":{"eligible":true,"grants":[{"id":"test","resets_total":3,"resets_left":2,"ends_at":%q}]}}`, short.Format(time.RFC3339), long.Format(time.RFC3339), other.Format(time.RFC3339), short.Format(time.RFC3339)))
 	cq := claudeAccountQuotas(l, []claude.ManagedAccount{{ID: "one", SubscriptionType: "pro", CachedQuota: raw, LastQuotaAt: &now}})["one"]
@@ -69,17 +70,18 @@ func TestSettingsAndPanelAccountsShowCompleteQuota(t *testing.T) {
 							}
 						})
 					}, 320, 1100)
-					for _, want := range []string{l.Text(l10n.KeyAvailableResets) + ": 2", "51% " + l.Text(l10n.KeyLeft), l.Text(l10n.KeyNextResetIn)} {
-						if !tt.HasText(want) {
-							t.Fatalf("missing %q in %q", want, tt.Texts())
-						}
+					if !hasResetStat(tt, l, "2") || !tt.HasText("51% "+l.Text(l10n.KeyLeft)) {
+						t.Fatalf("missing resets or remaining share in %q", tt.Texts())
+					}
+					if provider == store.ProviderCodex && !hasStat(tt, l.Text(l10n.KeyCreditsBalance), "12.50") {
+						t.Fatalf("missing credits balance in %q", tt.Texts())
 					}
 					resets := []time.Time{tt.Now().Add(2 * time.Hour), tt.Now().Add(4 * 24 * time.Hour), tt.Now().Add(90 * time.Minute)}
 					if provider == store.ProviderGrok {
 						resets = resets[1:2]
 					}
 					for _, reset := range resets {
-						want := resetCountdown(l, reset, tt.Now())
+						want := accountResetText(l, reset, tt.Now(), store.ResetTimeRelative)
 						if !hasExact(tt, want) {
 							t.Fatalf("missing per-window reset %q: %q", want, tt.Texts())
 						}
@@ -96,7 +98,7 @@ func TestSettingsAndPanelAccountsShowCompleteQuota(t *testing.T) {
 					if !panel && row.X != name.X {
 						t.Fatalf("quota was not aligned with identity: %v %v", name, row)
 					}
-					for _, text := range []string{title, "51% " + l.Text(l10n.KeyLeft), l.Text(l10n.KeyAvailableResets) + ": 2"} {
+					for _, text := range []string{title, "51% " + l.Text(l10n.KeyLeft), l.Text(l10n.KeyResetCredits)} {
 						bounds, ok := tt.Find(text)
 						if !ok || bounds.X < 0 || bounds.X+bounds.W > 320.5 {
 							t.Fatalf("narrow quota text %q exceeds window: %v", text, bounds)
@@ -187,19 +189,19 @@ func TestAccountResetAvailabilityUsesFrameClock(t *testing.T) {
 	at := tt.Now()
 	q.ResetGrants = []runway.AccountResetGrant{{Count: 2, EndsAt: at.Add(time.Minute)}, {Count: 1, StartsAt: at.Add(2 * time.Minute), EndsAt: at.Add(3 * time.Minute)}}
 	tt.Frame()
-	if !tt.HasText("available resets: 2") {
+	if !hasResetStat(tt, l, "2") {
 		t.Fatal(tt.Texts())
 	}
 	tt.Advance(time.Minute)
-	if !tt.HasText("available resets: 0") {
+	if !hasResetStat(tt, l, "0") {
 		t.Fatal(tt.Texts())
 	}
 	tt.Advance(time.Minute)
-	if !tt.HasText("available resets: 1") {
+	if !hasResetStat(tt, l, "1") {
 		t.Fatal(tt.Texts())
 	}
 	tt.Advance(time.Minute)
-	if !tt.HasText("available resets: 0") {
+	if !hasResetStat(tt, l, "0") {
 		t.Fatal(tt.Texts())
 	}
 }
@@ -208,23 +210,28 @@ func TestAccountResetUnknownAndKnownZero(t *testing.T) {
 	l := l10n.New(l10n.English)
 	acc := codex.ManagedAccount{}
 	tt := ui.NewTester(func(c *ui.Context) { codexQuotaBlock(c, l, acc, accountQuotaOptions{}) }, 320, 300)
-	if !tt.HasText("available resets: —") {
+	if !hasResetStat(tt, l, "—") {
 		t.Fatal(tt.Texts())
 	}
 	zero := 0
 	acc.ResetCredits = &codex.CachedAccountResetCredits{AvailableCount: &zero, LastError: "Synthetic reset failure"}
 	tt.Frame()
-	if !tt.HasText("available resets: 0") || !tt.HasText("Synthetic reset failure") {
+	if !hasResetStat(tt, l, "0") || !tt.HasText("Synthetic reset failure") {
+		t.Fatal(tt.Texts())
+	}
+	acc.ResetCredits.LastError = "reset_credits_unavailable"
+	tt.Frame()
+	if !hasResetStat(tt, l, "0") || !hasExact(tt, l.Text(l10n.KeyFailed)) {
 		t.Fatal(tt.Texts())
 	}
 	gq := runway.GrokAccountQuota{}
 	gt := ui.NewTester(func(c *ui.Context) { grokQuotaBlock(c, l, &gq, accountQuotaOptions{}) }, 320, 300)
-	if !gt.HasText("available resets: —") || gt.HasText("100%") {
+	if !hasResetStat(gt, l, "—") || gt.HasText("100%") {
 		t.Fatal(gt.Texts())
 	}
 	gq.ResetCreditsKnown = true
 	gt.Frame()
-	if !gt.HasText("available resets: 0") {
+	if !hasResetStat(gt, l, "0") {
 		t.Fatal(gt.Texts())
 	}
 }
@@ -248,7 +255,7 @@ func TestAccountWindowTitlesKeepNameAndActualPeriod(t *testing.T) {
 	l := l10n.New(l10n.English)
 	custom := 120
 	row := codex.CachedQuotaMeterRow{Name: "GPT-5.4", WindowMinutes: &custom}
-	want := "GPT-5.4 · " + runway.DurationLocalized(120*60, l.Language(), false)
+	want := "GPT-5.4 · " + runway.ShortDuration(120*60, l.Language())
 	if got := cachedRowTitle(l, row); got != want {
 		t.Fatalf("custom model period lost: %q", got)
 	}
@@ -269,5 +276,53 @@ func TestClaudeAccountResetProjectionMatchesExistingGrantSemantics(t *testing.T)
 	want := snap.ResetGrants.CodexSnapshot(now, now).AvailableCount
 	if got := accountResetCount(q.ResetGrants, now); got != want {
 		t.Fatalf("account grants=%d panel grants=%d", got, want)
+	}
+}
+
+// hasStat reports a figure tile showing value under label.
+func hasStat(tt *ui.Tester, label, value string) bool {
+	texts := tt.Texts()
+	for i, text := range texts {
+		if text == label && i+1 < len(texts) && texts[i+1] == value {
+			return true
+		}
+	}
+	return false
+}
+
+// hasResetStat reports the reset credits tile showing value.
+func hasResetStat(tt *ui.Tester, l l10n.Localizer, value string) bool {
+	return hasStat(tt, l.Text(l10n.KeyResetCredits), value)
+}
+
+func TestAccountQuotaFollowsResetFormatAndCreditsSwitch(t *testing.T) {
+	l := l10n.New(l10n.English)
+	var acc codex.ManagedAccount
+	prefs := store.DefaultPreferences()
+	tt := ui.NewTester(func(c *ui.Context) {
+		if acc.ID == "" {
+			acc, _, _ = quotaAccountFixture(t, l, c.Now())
+		}
+		codexQuotaBlock(c, l, acc, panelQuotaOptions(prefs, false))
+	}, 320, 500)
+	short := tt.Now().Add(2 * time.Hour)
+	if !hasExact(tt, "Resets in 2h") || !hasStat(tt, l.Text(l10n.KeyCreditsBalance), "12.50") {
+		t.Fatalf("relative reset or balance missing: %q", tt.Texts())
+	}
+	prefs.QuotaResetTimeFormat = store.ResetTimeExact
+	prefs.ShowsCreditsBalance = false
+	tt.Frame()
+	if !hasExact(tt, "Resets "+runway.ResetExactTime(short, tt.Now(), l.Language(), nil)) {
+		t.Fatalf("exact reset missing: %q", tt.Texts())
+	}
+	if tt.HasText(l.Text(l10n.KeyCreditsBalance)) {
+		t.Fatalf("hidden balance shown: %q", tt.Texts())
+	}
+	zero := 0.0
+	prefs.ShowsCreditsBalance = true
+	acc.CachedQuota.CreditsBalance = &zero
+	tt.Frame()
+	if tt.HasText(l.Text(l10n.KeyCreditsBalance)) {
+		t.Fatalf("zero balance shown: %q", tt.Texts())
 	}
 }

@@ -18,6 +18,17 @@ type accountIdentityView struct {
 	current, privacy bool
 	grokQuota        *runway.GrokAccountQuota
 	claudeQuota      *runway.ClaudeAccountQuota
+	// quota carries the reset format and the credits switch of the
+	// preferences; the zero value keeps the defaults.
+	quota accountQuotaOptions
+}
+
+// quotaOptions lays a settings row's quota out wide; its update time stays
+// in the header.
+func (v accountIdentityView) quotaOptions() accountQuotaOptions {
+	o := v.quota
+	o.current, o.wide = v.current, true
+	return o
 }
 
 func accountSettingsIdentity(c *ui.Context, l l10n.Localizer, v accountIdentityView) {
@@ -77,15 +88,16 @@ func accountSettingsStatus(c *ui.Context, l l10n.Localizer, v accountIdentityVie
 		ui.Text(c, diag).FontSize(11).TextColor(sys(c.Theme(), sysOrange)).MaxLines(2).Tooltip(diag)
 		return
 	}
+	view := v.quotaOptions()
 	switch {
 	case acc.IsRelay():
-		apiBalanceBlock(c, l, acc.APIQuota, v.current)
+		apiBalanceBlock(c, l, acc.APIQuota, view)
 	case v.provider == store.ProviderClaude:
-		claudeQuotaBlock(c, l, v.claudeQuota, accountQuotaOptions{current: v.current})
+		claudeQuotaBlock(c, l, v.claudeQuota, view)
 	case v.provider == store.ProviderGrok:
-		grokQuotaBlock(c, l, v.grokQuota, accountQuotaOptions{current: v.current})
+		grokQuotaBlock(c, l, v.grokQuota, view)
 	default:
-		codexQuotaBlock(c, l, acc, accountQuotaOptions{current: v.current})
+		codexQuotaBlock(c, l, acc, view)
 	}
 }
 

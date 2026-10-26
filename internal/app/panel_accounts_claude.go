@@ -53,9 +53,9 @@ func (a *App) claudeAccountCard(c *ui.Context, l l10n.Localizer, prefs store.Pre
 			accountStatusLine(c, privateSiteText(priv, acc.LastError, acc.APIBaseURL), sys(c.Theme(), sysOrange))
 		}
 		if acc.IsRelay() {
-			apiBalanceBlock(c, l, acc.APIQuota, current)
+			apiBalanceBlock(c, l, acc.APIQuota, panelQuotaOptions(prefs, current))
 		} else {
-			claudeQuotaBlock(c, l, &quota, accountQuotaOptions{current: current, showUpdated: true})
+			claudeQuotaBlock(c, l, &quota, panelQuotaOptions(prefs, current))
 		}
 		a.claudeManagement(c, l, acc, current, priv, view, ac)
 	})

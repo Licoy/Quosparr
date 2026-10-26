@@ -105,10 +105,10 @@ func TestSettingsAccountUpdateControlsStayCentered(t *testing.T) {
 						t.Fatalf("updated time repeated %d times", count)
 					}
 					for _, s := range tt.Texts() {
-						if strings.HasPrefix(s, l.Text(l10n.KeyNextResetIn)) {
+						if strings.HasSuffix(s, " "+l.Text(l10n.KeyLeft)) {
 							r, _ := tt.Find(s)
 							if r.Y < actions.Y+actions.H {
-								t.Fatalf("updated time remains in quota section: %v %v", updated, r)
+								t.Fatalf("quota rises into the header: %v %v", actions, r)
 							}
 						}
 					}
