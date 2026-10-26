@@ -24,6 +24,9 @@ func (u *settingsUI) pricingProviderTabs(c *ui.Context, snap PricingSnapshot, a 
 				part.Children(func() {
 					ProviderIcon(c, provider, 15)
 					ui.Text(c, l.Text(providerKey(provider))).FontSize(13).FontWeight(500).TextColor(color).SingleLine()
+					if n := s.providerCounts[pricingProviderID(provider)]; n > 0 {
+						ui.Text(c, strconv.Itoa(n)).FontSize(11).FontFeatures("tnum").TextColor(t.TextMuted).SingleLine()
+					}
 				})
 			}
 		})
@@ -38,23 +41,36 @@ func (u *settingsUI) pricingProviderTabs(c *ui.Context, snap PricingSnapshot, a 
 	})
 }
 func (u *settingsUI) pricingNotice(c *ui.Context, snap PricingSnapshot) {
-	s, l := u.pricingState(), u.L()
-	message := ""
-	if s.task.Running || snap.Syncing {
+	u.pricingStatus(c, snap, false)
+	u.pricingSyncError(c, snap)
+}
+
+// pricingStatus is the sync state behind a dot, with the time of the last
+// successful sync when at is set.
+func (u *settingsUI) pricingStatus(c *ui.Context, snap PricingSnapshot, at bool) {
+	s, l, t := u.pricingState(), u.L(), c.Theme()
+	busy := s.task.Running || snap.Syncing
+	message, dot := l.Pricing("synced"), t.Success
+	switch {
+	case busy:
 		message = l.Pricing("syncing")
-	} else if snap.LastSuccess.IsZero() {
-		message = l.Pricing("usingBuiltin")
-	} else {
-		message = l.Pricing("synced")
+	case snap.LastSuccess.IsZero():
+		message, dot = l.Pricing("usingBuiltin"), t.TextMuted
+	case at:
+		message += " · " + pricingTime(snap.LastSuccess)
 	}
 	ui.Row(c).Gap(6).AlignItems(ui.Center).Children(func() {
-		if s.task.Running || snap.Syncing {
+		if busy {
 			ui.Spinner(c).Size(14, 14)
+		} else {
+			ui.Box(c).Size(6, 6).Radius(3).Background(dot)
 		}
-		ui.Text(c, message).FontSize(11).TextColor(c.Theme().TextMuted)
+		ui.Text(c, message).FontSize(11).FontFeatures("tnum").TextColor(t.TextMuted)
 	})
-	if err := s.syncError(snap); err != "" {
-		ui.Text(c, l.Pricing("error")+": "+err).FontSize(11).TextColor(c.Theme().Danger)
+}
+func (u *settingsUI) pricingSyncError(c *ui.Context, snap PricingSnapshot) {
+	if err := u.pricingState().syncError(snap); err != "" {
+		ui.Text(c, u.L().Pricing("error")+": "+err).FontSize(11).TextColor(c.Theme().Danger)
 	}
 }
 func (u *settingsUI) pricingDialog(c *ui.Context) {

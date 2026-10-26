@@ -22,7 +22,7 @@ func TestExportPricingDetailReview(t *testing.T) {
 		t.Fatal(err)
 	}
 	in, out, cache, zero := decimal.MustParse("2.5"), decimal.MustParse("15"), decimal.MustParse("0.25"), decimal.Zero
-	for _, lang := range []store.Language{store.LanguageEnglish, store.LanguageSimplifiedChinese, store.LanguageRussian} {
+	for _, lang := range []store.Language{store.LanguageEnglish, store.LanguageSimplifiedChinese, store.LanguageRussian, store.LanguageFrench} {
 		for _, width := range []int{settingsMinWidth, settingsWidth} {
 			for _, dark := range []bool{false, true} {
 				for _, kind := range []string{"standard", "complex", "missing"} {
@@ -31,7 +31,7 @@ func TestExportPricingDetailReview(t *testing.T) {
 					e.s.applyLocale()
 					l := e.s.L()
 					provider := store.ProviderCodex
-					row := PricingRow{ProviderID: "openai", ProviderName: "OpenAI", ID: "gpt-example", Name: "GPT Example", Input: &in, Output: &out, CacheRead: &zero, Source: "models.dev", SourceURL: "https://models.dev", Version: "models-dev-0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef", Available: true, Details: l.Pricing("currentEstimate")}
+					row := PricingRow{ProviderID: "openai", ProviderName: "OpenAI", ID: "gpt-example", Name: "GPT Example", Input: &in, Output: &out, CacheRead: &zero, Source: "models.dev", SourceURL: "https://models.dev", Version: "models-dev-0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef", Available: true}
 					if kind == "complex" {
 						provider = store.ProviderClaude
 						row.ProviderID, row.ProviderName, row.ID, row.Name = "anthropic", "Anthropic", "claude-opus-example", "Claude Opus Example"
@@ -108,7 +108,7 @@ func TestExportPricingBusyReview(t *testing.T) {
 	}
 	for _, surface := range []string{"list", "detail", "modal"} {
 		e := newEnv(t, nil)
-		row := PricingRow{ProviderID: "openai", ID: "gpt-example", Name: "GPT Example", Input: pricingTestDecimal("2.5"), Output: pricingTestDecimal("15"), CacheRead: pricingTestDecimal("0"), Source: "models.dev", SourceURL: "https://models.dev", Version: "models-dev-example", Available: true, Details: e.s.L().Pricing("currentEstimate")}
+		row := PricingRow{ProviderID: "openai", ID: "gpt-example", Name: "GPT Example", Input: pricingTestDecimal("2.5"), Output: pricingTestDecimal("15"), CacheRead: pricingTestDecimal("0"), Source: "models.dev", SourceURL: "https://models.dev", Version: "models-dev-example", Available: true}
 		snap := PricingSnapshot{Rows: []PricingRow{row}, Version: row.Version, Syncing: true}
 		u := newSettingsUI(e.s, SettingsOptions{Version: "dev", Pricing: func() PricingActions {
 			return PricingActions{Snapshot: func() PricingSnapshot { return snap }, Refresh: func(context.Context) error { return nil }}

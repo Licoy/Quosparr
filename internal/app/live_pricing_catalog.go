@@ -101,7 +101,7 @@ func pricingRows(catalog pricing.Snapshot, l l10n.Localizer) []PricingRow {
 				available = false
 			}
 		}
-		details := []string{l.Pricing("currentEstimate")}
+		var details []string
 		if !builtin[key] {
 			details = append(details, l.Pricing("catalogLimitations"), l.Pricing("catalog")+" · models.dev · "+version+"\n"+l.Pricing("ruleStandard")+": "+pricingRateText(l, m.Rate))
 		}

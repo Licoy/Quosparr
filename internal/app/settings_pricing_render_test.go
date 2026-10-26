@@ -23,7 +23,7 @@ func TestExportPricingSettingsReview(t *testing.T) {
 		t.Fatal(err)
 	}
 	in, out, cache := decimal.MustParse("2.5"), decimal.MustParse("15"), decimal.MustParse("0.25")
-	for _, lang := range []store.Language{store.LanguageEnglish, store.LanguageSimplifiedChinese, store.LanguageRussian} {
+	for _, lang := range []store.Language{store.LanguageEnglish, store.LanguageSimplifiedChinese, store.LanguageRussian, store.LanguageFrench} {
 		for _, width := range []int{settingsMinWidth, settingsWidth} {
 			for _, dark := range []bool{false, true} {
 				e := newEnv(t, nil)

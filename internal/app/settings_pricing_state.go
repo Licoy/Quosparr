@@ -20,6 +20,8 @@ type settingsPricing struct {
 	cacheSource                                    *PricingRow
 	cacheKey                                       string
 	cacheLength                                    int
+	counts                                         [len(pricingFilters)]int
+	providerCounts                                 map[string]int
 	search, filter, sort, open, custom, validation string
 	page                                           int
 	task                                           Task
@@ -54,35 +56,46 @@ func pricingLess(a, b *decimal.Decimal) bool {
 	}
 	return a.Cmp(*b) < 0
 }
+
+// pricingFilters are the state filters in their order, "" showing all.
+var pricingFilters = [...]string{"", "available", "reference", "incomplete", "builtin"}
+
+func pricingMatches(r PricingRow, filter string) bool {
+	switch filter {
+	case "available":
+		return r.Available
+	case "reference":
+		return !r.Available
+	case "incomplete":
+		return r.Input == nil || r.Output == nil
+	case "builtin":
+		return r.Builtin
+	}
+	return true
+}
+
+// filtered also counts the rows of each state filter under the search.
 func (s *settingsPricing) filtered(rows []PricingRow) []PricingRow {
 	out := make([]PricingRow, 0, len(rows))
 	search := strings.ToLower(strings.TrimSpace(s.search))
+	s.counts = [len(pricingFilters)]int{}
+	s.providerCounts = map[string]int{}
 	for _, r := range rows {
+		s.providerCounts[r.ProviderID]++
 		if r.ProviderID != pricingProviderID(s.provider) {
 			continue
 		}
 		if search != "" && !strings.Contains(strings.ToLower(r.ID+" "+r.Name), search) {
 			continue
 		}
-		switch s.filter {
-		case "available":
-			if !r.Available {
-				continue
-			}
-		case "reference":
-			if r.Available {
-				continue
-			}
-		case "incomplete":
-			if r.Input != nil && r.Output != nil {
-				continue
-			}
-		case "builtin":
-			if !r.Builtin {
-				continue
+		for i, f := range pricingFilters {
+			if pricingMatches(r, f) {
+				s.counts[i]++
 			}
 		}
-		out = append(out, r)
+		if pricingMatches(r, s.filter) {
+			out = append(out, r)
+		}
 	}
 	sort.SliceStable(out, func(i, j int) bool {
 		a, b := out[i], out[j]

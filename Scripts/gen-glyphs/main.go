@@ -69,6 +69,12 @@ var glyphs = map[string]string{
 	"icLink":     "links-line",
 	"icFile":     "file-text-line",
 	"icCopy":     "file-copy-line",
+	"icCpu":      "cpu-line",
+	"icTokenIn":  "login-circle-line",
+	"icTokenOut": "logout-circle-r-line",
+	"icDatabase": "database-2-line",
+	"icSave":     "save-3-line",
+	"icPriceTag": "price-tag-3-line",
 }
 
 func main() {

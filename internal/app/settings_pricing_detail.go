@@ -3,6 +3,7 @@ package app
 import (
 	"github.com/egoist/mygo/ui"
 	"github.com/licoy/quosparr/internal/l10n"
+	"github.com/licoy/quosparr/internal/usage/decimal"
 )
 
 func (u *settingsUI) pricingBreadcrumb(c *ui.Context, r PricingRow) {
@@ -19,25 +20,46 @@ func (u *settingsUI) pricingBreadcrumb(c *ui.Context, r PricingRow) {
 	})
 }
 func (u *settingsUI) pricingDetail(c *ui.Context, r PricingRow, snap PricingSnapshot, a PricingActions) {
-	l := u.L()
+	l, t := u.L(), c.Theme()
 	u.pricingModelOverview(c, r, snap, a)
-	settingsSection(c, l.Pricing("tokenPrices"), l.Pricing("shortUnit"), nil, func() {
-		for i, f := range []struct{ key, value string }{{"input", pricingValue(r.Input)}, {"cacheRead", pricingValue(r.CacheRead)}, {"output", pricingValue(r.Output)}, {"cacheWrite", pricingValue(r.CacheWrite)}} {
-			settingsRule(c, i)
-			pricingFact(c, l.Pricing(f.key), f.value, "")
-		}
-		ui.Text(c, l.Pricing("missing")).FontSize(11).TextColor(c.Theme().TextMuted).Padding(8, 0, 0, 0)
+	settingsSection(c, l.Pricing("tokenPrices"), l.Pricing("unit"), nil, func() {
+		pricingPriceStrip(c, l, r)
+		ui.Box(c).Height(1).Background(pal(t).Line)
+		ui.Text(c, l.Pricing("missing")).FontSize(11).TextColor(t.TextMuted).Padding(8, 0)
 	})
 	settingsSection(c, l.Pricing("pricingOrigin"), "", nil, func() {
-		pricingFact(c, l.Pricing("source"), pricingSource(u, r), "")
+		pricingFact(c, icLink, l.Pricing("source"), pricingSource(u, r), "")
 		settingsRule(c, 1)
-		pricingFact(c, l.Pricing("version"), pricingShortVersion(r.Version), r.Version)
+		pricingFact(c, icPriceTag, l.Pricing("version"), pricingShortVersion(r.Version), r.Version)
 	})
-	settingsSection(c, l.Pricing("pricingRules"), l.Pricing("unit"), nil, func() {
-		if r.Details != "" {
-			ui.Text(c, r.Details).FontSize(12).LineHeight(1.45).Selectable()
-		} else {
-			ui.Text(c, l.Pricing("currentEstimate")).FontSize(12).TextColor(c.Theme().TextMuted)
+	if r.Details != "" {
+		settingsSection(c, l.Pricing("pricingRules"), "", nil, func() {
+			ui.Text(c, r.Details).FontSize(12).LineHeight(1.45).Padding(8, 0).Selectable()
+		})
+	}
+}
+
+// pricingPriceStrip is the four token prices side by side, each under its
+// column's icon.
+func pricingPriceStrip(c *ui.Context, l l10n.Localizer, r PricingRow) {
+	t := c.Theme()
+	cols := append(pricingColumns(t), pricingColumn{"cacheWrite", icSave, sys(t, sysPurple)})
+	values := []*decimal.Decimal{r.Input, r.CacheRead, r.Output, r.CacheWrite}
+	ui.Row(c).Padding(10, 0).AlignItems(ui.Center).Children(func() {
+		for i, col := range cols {
+			if i > 0 {
+				ui.Box(c).Size(1, 34).Margin(0, 12).Background(pal(t).Line)
+			}
+			ui.Column(c).Gap(6).Grow(1).Basis(0).Children(func() {
+				ui.Row(c).Gap(5).AlignItems(ui.Center).Children(func() {
+					ui.Icon(c, col.icon).Size(13, 13).TextColor(col.color)
+					ui.Text(c, l.Pricing(col.key)).FontSize(11).TextColor(t.TextMuted).SingleLine().Ellipsis("…").Shrink(1)
+				})
+				value := ui.Text(c, pricingValue(values[i])).FontSize(17).FontWeight(650).FontFeatures("tnum").SingleLine().Selectable()
+				if values[i] == nil {
+					value.TextColor(t.TextMuted)
+				}
+			})
 		}
 	})
 }
@@ -50,11 +72,11 @@ func (u *settingsUI) pricingModelOverview(c *ui.Context, r PricingRow, snap Pric
 				ui.Text(c, r.Name).FontSize(18).FontWeight(700).Selectable()
 				ui.Text(c, r.ID).FontSize(12).Font("monospace").TextColor(t.TextMuted).SingleLine().Ellipsis("…").Tooltip(r.ID).Selectable()
 				ui.Row(c).Gap(6).Wrap().Children(func() {
-					state, col := l.Pricing("reference"), t.TextMuted
+					state, col, icon := l.Pricing("reference"), t.TextMuted, (*ui.SVG)(nil)
 					if r.Available {
-						state, col = l.Pricing("available"), t.Success
+						state, col, icon = l.Pricing("available"), t.Success, icCheckCircle
 					}
-					settingsBadge(c, nil, state, col)
+					settingsBadge(c, icon, state, col)
 					if r.Input == nil || r.Output == nil {
 						settingsBadge(c, icWarnCircle, l.Pricing("incomplete"), t.Warning)
 					}
@@ -78,9 +100,13 @@ func (u *settingsUI) pricingModelOverview(c *ui.Context, r PricingRow, snap Pric
 		})
 	})
 }
-func pricingFact(c *ui.Context, label, value, tooltip string) {
+func pricingFact(c *ui.Context, icon *ui.SVG, label, value, tooltip string) {
+	t := c.Theme()
 	ui.Row(c).Gap(14).Padding(8, 0).MinHeight(34).AlignItems(ui.Center).Children(func() {
-		ui.Text(c, label).Width(118).Shrink(0).FontSize(12).TextColor(c.Theme().TextMuted)
+		ui.Row(c).Gap(6).Width(118).Shrink(0).AlignItems(ui.Center).Children(func() {
+			ui.Icon(c, icon).Size(13, 13).TextColor(t.TextMuted)
+			ui.Text(c, label).FontSize(12).TextColor(t.TextMuted).SingleLine().Ellipsis("…").Shrink(1)
+		})
 		ui.Text(c, pricingOrDash(value)).Tooltip(tooltip).FontSize(12).Grow(1).Basis(0).Selectable()
 	})
 }

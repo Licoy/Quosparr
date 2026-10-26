@@ -291,3 +291,40 @@ func TestPricingDelayedManualFailureDoesNotHideLaterSuccess(t *testing.T) {
 		t.Fatal("delayed manual error overrode later automatic success")
 	}
 }
+func TestPricingStateCountsFollowSearch(t *testing.T) {
+	zero := decimal.Zero
+	rows := []PricingRow{{ProviderID: "openai", ID: "a", Name: "Alpha", Input: &zero, Output: &zero, Available: true}, {ProviderID: "openai", ID: "b", Name: "Beta", Builtin: true}, {ProviderID: "anthropic", ID: "c", Name: "Alpha C"}}
+	s := settingsPricing{provider: store.ProviderCodex, filter: "builtin"}
+	if got := s.filtered(rows); len(got) != 1 || got[0].ID != "b" {
+		t.Fatalf("builtin %v", got)
+	}
+	if s.counts != [len(pricingFilters)]int{2, 1, 1, 1, 1} || s.providerCounts["openai"] != 2 || s.providerCounts["anthropic"] != 1 {
+		t.Fatalf("counts %v %v", s.counts, s.providerCounts)
+	}
+	s.search = "alpha"
+	s.filtered(rows)
+	if s.counts != [len(pricingFilters)]int{1, 1, 0, 0, 0} || s.providerCounts["openai"] != 2 {
+		t.Fatalf("search counts %v %v", s.counts, s.providerCounts)
+	}
+}
+func TestPricingStateChipFiltersList(t *testing.T) {
+	e := newEnv(t, nil)
+	paid := decimal.MustParse("1.25")
+	rows := []PricingRow{{ProviderID: "openai", ID: "paid", Name: "Paid Model", Input: &paid, Output: &paid, Available: true}, {ProviderID: "openai", ID: "missing", Name: "Missing Model"}}
+	u := newSettingsUI(e.s, SettingsOptions{Pricing: func() PricingActions {
+		return PricingActions{Snapshot: func() PricingSnapshot { return PricingSnapshot{Rows: rows} }}
+	}})
+	u.tab = tabModelPricing
+	tt := ui.NewTester(u.view, settingsMinWidth, settingsMinHeight)
+	tt.Frame()
+	if !hasExact(tt, "Paid Model") || !hasExact(tt, "Missing Model") || !hasExact(tt, u.L().Pricing("incomplete")) {
+		t.Fatalf("list %q", tt.Texts())
+	}
+	if err := tt.Click(u.L().Pricing("available")); err != nil {
+		t.Fatal(err)
+	}
+	tt.Frame()
+	if u.pricing.filter != "available" || !hasExact(tt, "Paid Model") || hasExact(tt, "Missing Model") {
+		t.Fatalf("filter %q: %q", u.pricing.filter, tt.Texts())
+	}
+}
