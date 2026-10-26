@@ -15,6 +15,7 @@ import (
 	"github.com/egoist/mygo"
 	"github.com/licoy/quosparr/internal/alerts"
 	"github.com/licoy/quosparr/internal/claude"
+	"github.com/licoy/quosparr/internal/claudedesktop"
 	"github.com/licoy/quosparr/internal/codex"
 	"github.com/licoy/quosparr/internal/codexapi"
 	"github.com/licoy/quosparr/internal/estimate"
@@ -176,6 +177,7 @@ type liveApp struct {
 	grokMod        *grok.Module
 	grok           *grokBridge
 	claudeMod      *claude.Module
+	claudeDesktop  *claudedesktop.Manager
 	claudeB        *claudeBridge
 	codexCache     usage.CacheScanCache
 	grokCache      grok.CacheScanCache
@@ -286,6 +288,7 @@ func newRuntime(opts BackgroundOptions) *liveApp {
 		host: opts.Host, pricing: prices, svc: svc, codex: codexStore, grokMod: mod, grok: bridge, claudeMod: cmod, claudeB: cbridge, reset: reset,
 		repo: repo, widgets: widgets, dispatch: dispatch, widgetDispatch: widgetUI, alertDispatch: alertUI, version: opts.Version, langs: langs,
 	}
+	rt.claudeDesktop = newClaudeDesktopManager(home, cmod)
 	bridge.pricingSnapshot = prices.manager.Snapshot
 	cbridge.pricingSnapshot = prices.manager.Snapshot
 	prices.changed = rt.pricesChanged

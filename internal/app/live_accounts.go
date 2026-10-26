@@ -36,6 +36,9 @@ func installClaudeAccountActions(rt *liveApp, loc func() l10n.Localizer, a *Acco
 	a.ClaudeRefreshAll = func() string { return rt.refreshClaudeAll(context.Background()) }
 	a.ClaudeRefresh = func(id string) string { return rt.refreshClaude(context.Background(), loc(), id) }
 	a.ClaudeSwitch = func(id string) string { return rt.switchClaude(loc(), id) }
+	a.ClaudeSwitchDesktop = func(id string, desktop bool) string {
+		return rt.switchClaudeWithDesktop(context.Background(), loc(), id, desktop)
+	}
 	a.ClaudeDelete = func(id string) string { return rt.removeClaude(loc(), id) }
 }
 

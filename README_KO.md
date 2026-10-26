@@ -34,6 +34,9 @@ Quosparr는 macOS, Windows, Linux용 네이티브 메뉴 막대 / 시스템 트�
 - macOS에서 공식 자격 증명은 키체인에 있고 `/usr/bin/security`로 읽고 씁니다. Windows와 Linux는 `<config>/.credentials.json`입니다. 전환은 `claudeAiOauth`만 바꾸고 MCP 토큰은 유지하며, `.claude.json`의 `oauthAccount`만 갱신합니다. 실행 중인 Claude Code는 종료하지 않으며 이전 로그인을 다시 쓸 수 있어 전환 전에 경고합니다.
 - API 계정: Base URL + API 키이며, 사이트에서 모델 목록을 가져와 Opus / Sonnet / Haiku / Fable 모델을 각각 매핑할 수 있습니다. 전환 시 `ANTHROPIC_BASE_URL`, `ANTHROPIC_AUTH_TOKEN`과 매핑만 `settings.json`에 기록하고(먼저 백업) 구독 로그인은 그대로 둡니다. 구독 계정으로 돌아가면 이 키들을 제거합니다. 중계 사이트 잔액은 Claude 사용량이 표시되는 모든 곳에 나타납니다. `settings.json`에 이미 설정된 중계 구성은 자동으로 가져옵니다. 사용 중인 계정을 편집할 때 키를 교체할 수 있고(비우면 유지) `settings.json`을 바로 다시 쓸지 묻습니다. 다시 쓴 뒤에는 Claude Code를 재시작해야 합니다.
 
+- **Claude Desktop 구독**: 두 계정 목록에서 연결할 수 있습니다. 처음에는 표시된 계정과 조직에 직접 로그인한 뒤 Quosparr에서 명시적으로 확인하세요. 매번 작업을 저장하고 Desktop 종료와 로그인·설정·로컬 상태를 포함한 전체 구성의 저장/복원에 동의해야 합니다. 연결을 완료하거나 취소하면 이전 구성을 복원합니다. 연동 전환은 기본적으로 꺼져 있으며 현재 CLI 계정도 연결된 Desktop을 별도로 열 수 있습니다. CLI와 Desktop 결과는 따로 표시하며 시작 성공을 신원 확인으로 간주하지 않습니다.
+- Desktop 자체의 기본 암호화 로그인 데이터가 포함된 프로필은 `~/.quosparr/claude-desktop`에 비공개 저장합니다(Windows는 현재 사용자 전용 protected ACL). 공식 데이터 경로를 유지하고 Quosparr가 복호화하지 않으며 계정 내보내기에 포함하지 않습니다. 원래 구성은 계정을 가져오지 않고 따로 보존하며 브라우저나 다른 앱 데이터는 읽지 않습니다. 프로필과 Desktop 데이터는 같은 볼륨에 있어야 하고 중단 후 명시적으로 복원할 수 있습니다. API 계정은 제외되며 macOS, Windows, Linux 실기기 및 Desktop 버전 호환성 검증은 아직 완료하지 않았습니다.
+
 **Grok**
 
 - 공식 CLI chat-proxy 결제 API로 포함 할당량, Build / Imagine / Chat 분해, 주간 / 월간 주기, 선불 잔액, 온디맨드 사용량을 봅니다.
@@ -145,7 +148,7 @@ Linux에는 GTK3, AppIndicator, 트레이를 지원하는 데스크톱, 프록�
 ## 개인정보
 
 - Quosparr는 자체 데이터를 `~/.quosparr`에 보관하며 앱 캐시를 `~/.codex`에 쓰지 않습니다. 기본적으로 비밀이 아닌 파생 데이터만 저장합니다.
-- 공급자 계정 자격 증명이 유일한 예외입니다. `~/.quosparr/accounts/<id>/auth.json`에 저장되며(디렉터리 `0700`, 파일 `0600`, 원자적 쓰기, Windows는 현재 사용자만 접근할 수 있는 ACL 사용) 계정 인덱스에는 토큰이 없습니다.
+- 공급자 계정 자격 증명과 위에서 명시적으로 확인한 Desktop 프로필은 통제된 예외입니다. `~/.quosparr/accounts/<id>/auth.json`에 저장되며(디렉터리 `0700`, 파일 `0600`, 원자적 쓰기, Windows는 현재 사용자만 접근할 수 있는 ACL 사용) 계정 인덱스에는 토큰이 없습니다.
 - 공식 `~/.codex/auth.json`은 OAuth 새로고침 때, 또는 사용자가 계정 전환을 확인했을 때만 씁니다. 현재가 아닌 계정을 새로고침하면 라이브러리 사본만 업데이트합니다.
 - Claude 자격 증명은 macOS에서 `/usr/bin/security`로 키체인을 읽고, Windows와 Linux에서는 `<config>/.credentials.json`을 읽습니다. 관리 사본은 `~/.quosparr/accounts/claude-<stable-id>/auth.json`이며 `claudeAiOauth`만 담습니다. 인덱스 `claude-index.json`에는 토큰이 없습니다. 전환은 MCP 토큰을 유지하고 `.claude.json`의 `oauthAccount`만 바꿉니다. Quosparr는 현재 계정을 새로고침하지 않습니다.
 - API 계정 키는 관리 사본(`~/.quosparr/accounts/<id>/auth.json` 또는 `claude-api-<id>/auth.json`)에만 저장되고, 인덱스에는 Base URL, 모델, 잔액 캐시만 남습니다. 잔액과 모델 요청은 입력한 사이트로만 프록시 설정을 따라 전송됩니다. 수정되는 `config.toml`과 `settings.json`은 먼저 `~/.quosparr/backups`에 백업되며, `settings.json`에 처음 기록할 때 키 순서가 정렬됩니다.
@@ -161,7 +164,7 @@ Linux에는 GTK3, AppIndicator, 트레이를 지원하는 데스크톱, 프록�
 - **Codex 할당량 / reset credits / 공식 사용량**: 로컬 자격 증명을 사용하는 공식 ChatGPT / Codex 백엔드 API. 공식 사용량은 현재 계정에 속하며 지연되거나 수정될 수 있습니다.
 - **주간 할당량 추정**: 비공식이며 주간 사용률과 일별 Credits로 외삽합니다(1000 Credits ≈ $40, 버전 `credits-usd-2026-08-26`). 파생 Credits와 사용률만 `quota-estimate-history.json`에 저장합니다.
 - **Codex API 환산 비용**: 내장 가격표 `openai-builtin-2026-09-27`로 계산한 로컬 세션 로그 기반 비용이며, 지원되는 현재 요금은 models.dev에서 가져오고 검증된 내장 규칙을 유지합니다. 알 수 없는 모델은 정확한 비용으로 보고하지 않습니다.
-- **Claude Code 구독 사용량**: 문서화되지 않은 OAuth usage 엔드포인트이며, 현재 Claude Code 구독만 나타냅니다. 공식 결제 API로 쓰지 않습니다. 브라우저 쿠키, Claude Desktop 데이터, Console API 청구서는 읽지 않습니다.
+- **Claude Code 구독 사용량**: 문서화되지 않은 OAuth usage 엔드포인트이며, 현재 Claude Code 구독만 나타냅니다. 공식 결제 API로 쓰지 않습니다. 브라우저 쿠키나 Console API 청구서는 읽지 않습니다. Desktop 프로필은 위의 별도로 명시적 확인을 받은 기능에서만 관리합니다.
 - **Claude API 환산 비용**: Claude Code 로컬 세션 로그와 가격표 `anthropic-builtin-2026-10-14`로 계산합니다. 같은 답변은 메시지 ID로 한 번만 셉니다. 캐시 쓰기는 5분과 1시간으로 나누고 Fast 요금은 따로 둡니다. 알 수 없는 모델은 정확한 비용을 보고하지 않습니다. 일 경계는 로컬 시간대입니다.
 - **Grok 할당량**: 공식 CLI chat-proxy `/v1/billing?format=credits` 엔드포인트만 사용합니다. 브라우저 쿠키, 로컬 로그에서 추정한 할당량, API 결제는 섞지 않습니다.
 - **Grok API 환산 비용**: 로컬 `turn_completed` 사용량을 `xai-builtin-2026-09-27`로 계산하며 입력, 캐시, 출력, 긴 컨텍스트 요금을 포함합니다. `costUsdTicks`는 구독 회계이므로 API 환산 비용으로 쓰지 않습니다.

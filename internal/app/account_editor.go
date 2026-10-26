@@ -1,6 +1,7 @@
 package app
 
 import (
+	"context"
 	"strings"
 
 	"github.com/egoist/mygo/ui"
@@ -11,6 +12,7 @@ func (f *accountForm) closeEditor() {
 	f.mode, f.editID, f.paste = "", "", ""
 	f.alias, f.note, f.switchName, f.editorError = "", "", "", ""
 	f.selection, f.api, f.switchRelay = nil, apiDraft{}, false
+	f.desktopSwitch = false
 }
 
 func accountEditorTitle(l l10n.Localizer, f *accountForm) string {
@@ -122,6 +124,13 @@ func accountEditorFields(c *ui.Context, u *settingsUI, f *accountForm) {
 			risk = tx(l, xAPIClaudeSwitchNote)
 		}
 		ui.Text(c, risk).FontSize(12).TextColor(c.Theme().TextMuted)
+		if !f.switchRelay {
+			desktopSwitchOption(c, l, currentRuntime(), f.editID, &f.desktopSwitch, f.busy, func() {
+				id := f.editID
+				f.closeEditor()
+				f.desktop = newDesktopDialog(currentRuntime(), id, u.s.Prefs().AccountPrivacyModeEnabled)
+			})
+		}
 	case "paste":
 		hint := l.Text(l10n.KeyAccountsPasteHint)
 		if f.kind == accountKindGrok {
@@ -152,6 +161,7 @@ func (u *settingsUI) submitAccountEdit(f *accountForm, apply apiApply) {
 	mode, id, kind := f.mode, f.editID, f.kind
 	paste, alias, note, restart := f.paste, f.alias, f.note, f.restartAfterSwitch
 	draft := f.api
+	desktop := f.desktopSwitch
 	u.accountEditAct(f, func() (string, bool) {
 		if isAPIMode(mode) {
 			return submitAPIAccount(l, mode, id, alias, draft, apply)
@@ -166,8 +176,7 @@ func (u *settingsUI) submitAccountEdit(f *accountForm, apply apiApply) {
 			if rt == nil {
 				return tx(l, xDetailUnavailable), false
 			}
-			msg := rt.switchClaude(l, id)
-			return msg, msg == ""
+			return rt.switchClaudeDesktopResult(context.Background(), l, id, desktop)
 		default:
 			msg := saveAccountMeta(l, kind, mode, id, alias, note)
 			return msg, msg == ""

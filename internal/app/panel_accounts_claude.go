@@ -25,6 +25,8 @@ func (a *App) claudeAccountsPage(c *ui.Context, l l10n.Localizer, prefs store.Pr
 				a.openAccountsSettings(accountKindClaude)
 			}
 		})
+		desktopRecoveryButton(c, l, &st.desktop, currentRuntime())
+		renderDesktopDialog(c, l, &st.desktop, currentRuntime(), func(fn func()) { runOnMain(func() { fn(); a.redrawPanel() }) })
 		a.accountsList(c, func() {
 			if len(view.Sidebar) == 0 {
 				accountEmpty(c, l.Text(l10n.KeyClaudeAccountsEmpty))
@@ -109,13 +111,30 @@ func (a *App) claudeCardActions(c *ui.Context, l l10n.Localizer, acc codex.Manag
 		tick := accountIconButton(c, icon, title, current || st.busy || refreshing || ac.ClaudeSwitch == nil, false, current)
 		if tick.Clicked() {
 			st.switchID = acc.ID
+			st.desktopSwitch = false
 		}
 		open := st.switchID == acc.ID
 		id := acc.ID
 		confirmPopover(c, l, tick, &open, l.Text(l10n.KeyAccountsSwitchConfirmTitle),
 			l.Textf(l10n.KeyClaudeSwitchConfirmMessage, name)+"\n\n"+claudeSwitchNote(l, acc),
-			l.Text(l10n.KeyAccountsMakeCurrent), nil, func() {
-				a.accountsRun("", func() string { return ac.ClaudeSwitch(id) })
+			l.Text(l10n.KeyAccountsMakeCurrent), func() {
+				if acc.AuthMode != codex.AuthModeAPIKey {
+					desktopSwitchOption(c, l, currentRuntime(), id, &st.desktopSwitch, st.busy || ac.ClaudeSwitchDesktop == nil, func() {
+						st.switchID = ""
+						st.desktop = newDesktopDialog(currentRuntime(), id, priv)
+					})
+				}
+			}, func() {
+				desktop := st.desktopSwitch
+				a.accountsRun("", func() string {
+					if ac.ClaudeSwitchDesktop != nil {
+						return ac.ClaudeSwitchDesktop(id, desktop)
+					}
+					if desktop {
+						return tx(l, xDesktopFailed)
+					}
+					return ac.ClaudeSwitch(id)
+				})
 			})
 		if !open && st.switchID == acc.ID {
 			st.switchID = ""
@@ -133,6 +152,15 @@ func (a *App) claudeManagement(c *ui.Context, l l10n.Localizer, acc codex.Manage
 	refreshing := accountRefreshing(view.RefreshingIDs, acc.ID) || st.refreshing == acc.ID || st.refreshing == allRefreshing
 	name := accountPrivate(priv, acc.ResolvedDisplayName())
 	ui.Row(c).Gap(2).AlignItems(ui.Center).Children(func() {
+		if acc.AuthMode != codex.AuthModeAPIKey {
+			if PillButton(c, nil, tx(l, xDesktopBind), st.busy).Clicked() {
+				st.desktop = newDesktopDialog(currentRuntime(), acc.ID, priv)
+			}
+			if PillButton(c, nil, tx(l, xDesktopOpen), st.busy || !desktopBound(currentRuntime(), acc.ID)).Clicked() {
+				st.desktop = newDesktopDialog(currentRuntime(), acc.ID, priv)
+				st.desktop.openOnly = true
+			}
+		}
 		ui.Spacer(c).Grow(1)
 		title := l.Text(l10n.KeyAccountsDelete)
 		if current {

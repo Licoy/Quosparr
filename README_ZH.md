@@ -34,6 +34,9 @@ Quosparr 是面向 macOS、Windows、Linux 的原生菜单栏 / 系统托盘应�
 - macOS 上官方凭据留在钥匙串，经 `/usr/bin/security` 读写。Windows 与 Linux 使用 `<config>/.credentials.json`。切号只替换 `claudeAiOauth`，保留 MCP 令牌，并只更新 `.claude.json` 里的 `oauthAccount`。正在运行的 Claude Code 不会被结束，可能写回旧登录，切换前会提示
 - API 账号：Base URL + API Key，可从站点获取模型列表并分别映射 Opus / Sonnet / Haiku / Fable 模型。切换时只把 `ANTHROPIC_BASE_URL`、`ANTHROPIC_AUTH_TOKEN` 与模型映射写入 `settings.json`（写入前备份），订阅登录保持不变；切回订阅账号时移除这些键。中转站余额显示在所有展示 Claude 额度的位置。已写在 `settings.json` 中的中转配置会自动导入。编辑当前账号时可替换 Key（留空保留），并选择是否立即改写 `settings.json`，改写后需重启 Claude Code
 
+- **Claude Desktop 订阅账号**：两个账号列表均可绑定，首次须在 Desktop 手动登录所示账号及组织后回到 Quosparr 明确确认；每次操作均须先保存任务并同意退出 Desktop，保存或恢复其完整本地配置，包括登录、设置及本地状态；完成或取消绑定均恢复之前的配置；联动切号默认关闭，当前 CLI 账号也能单独打开已绑定 Desktop；CLI 与 Desktop 结果分别报告，启动成功不代表已验证账号
+- Desktop 配置档及其本机原生加密登录数据私有保存在 `~/.quosparr/claude-desktop`，Windows 使用仅当前用户可访问的 protected ACL，保留官方数据路径，Quosparr 不解密且不纳入账号导出；原配置单独保留，不导入其中账号，不读取浏览器或其他应用数据；配置档与 Desktop 数据须在同一卷，中断后可主动恢复；不支持 API 账号，macOS、Windows、Linux 真机与 Desktop 版本兼容验收仍待完成
+
 **Grok**
 
 - 通过官方 CLI chat-proxy 计费接口查看包含额度、Build / Imagine / Chat 拆分、周 / 月周期、预付余额和按需用量
@@ -145,7 +148,7 @@ Linux 需要 GTK3、AppIndicator、支持托盘的桌面，以及可用的 Secre
 ## 隐私
 
 - Quosparr 的自有数据保存在 `~/.quosparr`，不向 `~/.codex` 写入应用缓存，默认只保存非密钥的派生数据
-- 服务商账号凭据是唯一例外，保存在 `~/.quosparr/accounts/<id>/auth.json`（目录 `0700`、文件 `0600`，原子写入；Windows 使用仅当前用户可访问的 ACL），账号索引不包含 token
+- 服务商账号凭据与上文明确确认的 Desktop 配置档为受控例外，账号凭据保存在 `~/.quosparr/accounts/<id>/auth.json`（目录 `0700`、文件 `0600`，原子写入；Windows 使用仅当前用户可访问的 ACL），账号索引不包含 token
 - 官方 `~/.codex/auth.json` 仅在 OAuth 刷新回写或你确认切号时写入；刷新非当前账号只更新账号库副本
 - Claude 凭据在 macOS 上经 `/usr/bin/security` 读取钥匙串，在 Windows 与 Linux 上读取 `<config>/.credentials.json`。托管副本位于 `~/.quosparr/accounts/claude-<stable-id>/auth.json`，只含 `claudeAiOauth`。索引 `claude-index.json` 不含 token。切号保留 MCP 令牌，并只替换 `.claude.json` 的 `oauthAccount`。Quosparr 不刷新当前账号
 - API 账号的 Key 只保存在托管副本（`~/.quosparr/accounts/<id>/auth.json` 或 `claude-api-<id>/auth.json`），索引只保存 Base URL、模型与余额缓存。余额与模型请求只发往你填写的站点，并遵循代理设置。被修改的 `config.toml` 与 `settings.json` 会先备份到 `~/.quosparr/backups`；首次写入 `settings.json` 时会按键名重新排序
@@ -161,7 +164,7 @@ Linux 需要 GTK3、AppIndicator、支持托盘的桌面，以及可用的 Secre
 - **Codex 额度 / reset credits / 官方用量**：使用本机凭据请求 ChatGPT / Codex 官方后端接口；官方用量属于当前账号，可能延迟或修订
 - **周额度推算**：非官方，根据周用量百分比与每日 Credits 推算（1000 Credits ≈ 40 美元，版本 `credits-usd-2026-08-26`），`quota-estimate-history.json` 只保存派生的 Credits 与占用率
 - **Codex API 等价成本**：基于本机会话日志，使用内置价格表 `openai-builtin-2026-09-27`，支持的当前费率来自 models.dev，并保留已核实的内置规则；未知模型不报告精确费用
-- **Claude Code 订阅用量**：来自未公开的 OAuth usage 端点，只表示当前 Claude Code 订阅，不写成官方计费接口。不读取浏览器 Cookie、Claude Desktop 数据或 Console API 账单
+- **Claude Code 订阅用量**：来自未公开的 OAuth usage 端点，只表示当前 Claude Code 订阅，不写成官方计费接口。不读取浏览器 Cookie 或 Console API 账单，Desktop 配置档仅由上述独立且明确确认的功能管理
 - **Claude API 等价成本**：基于 Claude Code 本机会话日志和价格表 `anthropic-builtin-2026-10-14`。同一条回复按消息 ID 只计一次。缓存写入分为 5 分钟和 1 小时，Fast 档单独计价。未知模型不报告精确费用。按日统计使用本地时区
 - **Grok 额度**：只使用官方 CLI chat-proxy `/v1/billing?format=credits` 接口；不读取浏览器 Cookie、不从本地日志伪造额度，也不混入 API 账单
 - **Grok API 等价成本**：基于本地 `turn_completed` 用量和价格表 `xai-builtin-2026-09-27`，区分输入、缓存、输出及长上下文价格；`costUsdTicks` 属于订阅额度记账，不作为 API 等价成本

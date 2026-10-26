@@ -34,6 +34,9 @@ Quosparr は macOS、Windows、Linux 向けのネイティブなメニューバ�
 - macOS では公式資格情報はキーチェーンにあり、`/usr/bin/security` で読み書きします。Windows と Linux では `<config>/.credentials.json` です。切り替えは `claudeAiOauth` だけを置き換え、MCP トークンは残し、`.claude.json` の `oauthAccount` だけを更新します。実行中の Claude Code は終了せず、以前のログインを書き戻すことがあるため、切り替え前に警告します。
 - API アカウント: Base URL + API キーで、サイトからモデル一覧を取得して Opus / Sonnet / Haiku / Fable のモデルを個別に割り当てられます。切り替え時は `ANTHROPIC_BASE_URL`、`ANTHROPIC_AUTH_TOKEN` と割り当てだけを `settings.json` に書き込み（事前にバックアップ）、サブスクリプションのログインはそのままです。サブスクリプションアカウントに戻すとこれらのキーを削除します。中継サイトの残高は Claude の使用量を表示するすべての場所に出ます。 `settings.json` に既に設定された中継構成は自動で取り込みます。 使用中のアカウントを編集するとキーを差し替えられ（空欄で維持）、`settings.json` をすぐ書き換えるか確認します。書き換えた後は Claude Code を再起動してください。
 
+- **Claude Desktop のサブスクリプション**：両方のアカウント一覧から紐付けできます、初回は表示されたアカウントと組織に手動でログインして Quosparr で明示的に確認します、毎回作業を保存し、Desktop を終了してログイン・設定・ローカル状態を含む構成全体を保存・復元することへの同意が必要です、完了またはキャンセルで以前の構成に戻ります、連動切り替えは既定でオフで、現在の CLI アカウントも紐付け済み Desktop を単独で開けます、CLI と Desktop の結果は別々に表示し、起動成功は本人確認を意味しません。
+- Desktop のネイティブ暗号化ログインを含むプロファイルは `~/.quosparr/claude-desktop` に非公開保存します、Windows は現在のユーザーだけの protected ACL を使用します、公式データパスを保持し、Quosparr は復号せずアカウントのエクスポートにも含めません、元の構成はアカウントを取り込まず別に保持し、ブラウザや他アプリのデータは読みません、プロファイルと Desktop データは同一ボリュームが必要で、中断後は明示的に復元できます、API アカウントは対象外で、macOS・Windows・Linux の実機および Desktop バージョン互換性の検証は未完了です。
+
 **Grok**
 
 - 公式 CLI の chat-proxy 課金 API から、含まれるクォータ、Build / Imagine / Chat の内訳、週 / 月の周期、プリペイド残高、オンデマンド使用量を表示します。
@@ -145,7 +148,7 @@ Linux には GTK3、AppIndicator、トレイに対応したデスクトップ、
 ## プライバシー
 
 - Quosparr は独自のデータを `~/.quosparr` に保存し、アプリのキャッシュを `~/.codex` に書き込みません。既定で保存されるのは、秘密情報を含まない派生データのみです。
-- プロバイダーアカウントの資格情報は唯一の例外で、`~/.quosparr/accounts/<id>/auth.json` に保存されます（ディレクトリは `0700`、ファイルは `0600`、原子的に書き込み。Windows では現在のユーザーのみがアクセスできる ACL を使用）。アカウントインデックスには token は含まれません。
+- プロバイダーアカウントの資格情報と上記の明示確認済み Desktop プロファイルは管理された例外です、資格情報は`~/.quosparr/accounts/<id>/auth.json` に保存されます（ディレクトリは `0700`、ファイルは `0600`、原子的に書き込み。Windows では現在のユーザーのみがアクセスできる ACL を使用）。アカウントインデックスには token は含まれません。
 - 公式の `~/.codex/auth.json` に書き込まれるのは、OAuth のリフレッシュ時か、アカウント切り替えを確認したときだけです。現在のアカウント以外をリフレッシュした場合は、ライブラリ内のコピーだけが更新されます。
 - Claude の資格情報は、macOS では `/usr/bin/security` でキーチェーンを読み、Windows と Linux では `<config>/.credentials.json` を読みます。管理コピーは `~/.quosparr/accounts/claude-<stable-id>/auth.json` にあり、`claudeAiOauth` だけを含みます。索引 `claude-index.json` にトークンはありません。切り替えは MCP トークンを残し、`.claude.json` の `oauthAccount` だけを置き換えます。Quosparr は現在のアカウントを更新しません。
 - API アカウントのキーは管理コピー（`~/.quosparr/accounts/<id>/auth.json` または `claude-api-<id>/auth.json`）にのみ保存され、インデックスには Base URL、モデル、残高キャッシュだけが残ります。残高とモデルの取得は入力したサイトにのみ、プロキシ設定に従って送られます。変更する `config.toml` と `settings.json` は先に `~/.quosparr/backups` にバックアップされ、`settings.json` への初回書き込みではキーが名前順に並び替えられます。
@@ -161,7 +164,7 @@ Linux には GTK3、AppIndicator、トレイに対応したデスクトップ、
 - **Codex のクォータ / reset credits / 公式使用量**: ローカルの資格情報を使って、公式の ChatGPT / Codex バックエンド API から取得します。公式の使用量は現在のアカウントに属し、遅延や改訂が生じることがあります。
 - **週次クォータの推定**: 非公式で、週次使用率と日次 Credits から外挿します（1000 Credits ≈ $40、バージョン `credits-usd-2026-08-26`）。`quota-estimate-history.json` には、派生した Credits と使用率のみが保存されます。
 - **Codex の API 換算コスト**: ローカルのセッションログを、組み込みの価格表 `openai-builtin-2026-09-27` で計算します。対応する現在の料金は models.dev から取得し、検証済みの内蔵ルールを保持します。未知のモデルは正確なコストとして報告されません。
-- **Claude Code のサブスクリプション使用量**: 文書化されていない OAuth usage エンドポイントで、現在の Claude Code サブスクリプションだけを表します。公式の課金 API とは書きません。ブラウザの Cookie、Claude Desktop のデータ、Console の API 請求は読みません。
+- **Claude Code のサブスクリプション使用量**: 文書化されていない OAuth usage エンドポイントで、現在の Claude Code サブスクリプションだけを表します。公式の課金 API とは書きません。ブラウザの Cookie や Console の API 請求は読みません、Desktop プロファイルは上記の独立した明示確認付き機能でのみ管理します。
 - **Claude の API 換算コスト**: Claude Code のローカルセッションログと価格表 `anthropic-builtin-2026-10-14` で計算します。同じ応答はメッセージ ID で一度だけ数えます。キャッシュ書き込みは 5 分と 1 時間に分け、Fast 料金は別です。未知のモデルに正確な費用は出しません。日界はローカルタイムゾーンです。
 - **Grok のクォータ**: 公式 CLI の chat-proxy `/v1/billing?format=credits` エンドポイントのみを使います。ブラウザの Cookie は使わず、ローカルログからクォータを推測せず、API 課金も混ぜません。
 - **Grok の API 換算コスト**: ローカルの `turn_completed` 使用量を `xai-builtin-2026-09-27` で計算し、入力、キャッシュ、出力、長いコンテキストの料金を区別します。`costUsdTicks` はサブスクリプションの会計値であり、API 換算コストには使いません。

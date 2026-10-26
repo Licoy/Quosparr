@@ -115,6 +115,9 @@ func codexLoginFailure(l l10n.Localizer, err error) string {
 }
 
 func (u *settingsUI) cancelAccountTask() {
+	if u.accounts != nil && u.accounts.desktop != nil {
+		u.accounts.desktop.close()
+	}
 	if u.accounts != nil && u.accounts.cancel != nil {
 		u.accounts.cancel()
 	}

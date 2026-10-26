@@ -32,10 +32,11 @@ type AccountActions struct {
 
 	// Claude accounts. ClaudeSwitch always proceeds; the confirmation
 	// carries the running-process warning.
-	ClaudeRefreshAll func() string
-	ClaudeRefresh    func(id string) string
-	ClaudeSwitch     func(id string) string
-	ClaudeDelete     func(id string) string
+	ClaudeRefreshAll    func() string
+	ClaudeRefresh       func(id string) string
+	ClaudeSwitch        func(id string) string
+	ClaudeSwitchDesktop func(id string, desktop bool) string
+	ClaudeDelete        func(id string) string
 }
 
 // allRefreshing marks "every account" as the refresh in flight.
@@ -57,10 +58,12 @@ type accountsState struct {
 	page           store.Provider
 
 	// Pending confirmations, by account id.
-	switchID  string
-	restart   bool
-	deleteID  string
-	runningID string
+	desktop       *desktopDialog
+	desktopSwitch bool
+	switchID      string
+	restart       bool
+	deleteID      string
+	runningID     string
 
 	// Grok alias editor and paste import.
 	aliasID, alias string
@@ -73,6 +76,10 @@ type accountsState struct {
 
 // closePage drops the pending confirmations and editors of the page.
 func (s *accountsState) closePage() {
+	if s.desktop != nil {
+		s.desktop.close()
+	}
+	s.desktopSwitch = false
 	s.switchID, s.deleteID, s.runningID, s.aliasID = "", "", "", ""
 	s.pasteOpen, s.paste, s.pasteErr, s.notice, s.noticeOpen = false, "", "", "", false
 }
