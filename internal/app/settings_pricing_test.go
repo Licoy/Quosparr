@@ -172,15 +172,23 @@ func TestPricingManualFailureSupersededBySnapshotResult(t *testing.T) {
 			e := newEnv(t, nil)
 			queue := detailMainQueue(t)
 			snap := PricingSnapshot{}
-			actions := PricingActions{Snapshot: func() PricingSnapshot { return snap }, Refresh: func(context.Context) error { return errors.New("manual action error") }}
+			release := make(chan struct{})
+			actions := PricingActions{Snapshot: func() PricingSnapshot { return snap }, Refresh: func(context.Context) error {
+				<-release
+				return errors.New("manual action error")
+			}}
 			u := newSettingsUI(e.s, SettingsOptions{Pricing: func() PricingActions { return actions }})
 			u.tab = tabModelPricing
 			tt := ui.NewTester(u.view, settingsWidth, settingsHeight)
 			snap.LastAttempt = tt.Now()
 			snap.LastSuccess = tt.Now()
 			tt.Frame()
+			// Another UI callback may run before the refresh completion.
+			queue <- func() { close(release) }
 			u.refreshPricing(actions)
-			finishDetail(t, queue)
+			for u.pricing.task.Running {
+				finishDetail(t, queue)
+			}
 			tt.Frame()
 			old := u.L().Pricing("error") + ": manual action error"
 			if !hasExact(tt, old) {
