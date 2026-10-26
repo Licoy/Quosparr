@@ -120,6 +120,48 @@ func codexOrderFixture(t *testing.T) (*env, *accountForm, *ui.Tester, *codex.Sto
 	return e, f, tt, st
 }
 
+func shownOrder(t *testing.T, tt *ui.Tester, names ...string) []string {
+	t.Helper()
+	out := slices.Clone(names)
+	slices.SortFunc(out, func(a, b string) int {
+		ra, oka := tt.Find(a)
+		rb, okb := tt.Find(b)
+		if !oka || !okb {
+			t.Fatalf("missing %q or %q: %q", a, b, tt.Texts())
+		}
+		return int(ra.Y - rb.Y)
+	})
+	return out
+}
+
+func TestCodexSettingsRowsKeepStoredOrderSoMovesShow(t *testing.T) {
+	e, f, tt, st := codexOrderFixture(t)
+	l := e.s.L()
+	if got := shownOrder(t, tt, "Charlie", "Bravo", "Alpha"); !slices.Equal(got, []string{"Alpha", "Bravo", "Charlie"}) {
+		t.Fatalf("settings pinned the current account: %v", got)
+	}
+	// The first match is the first row's: its move up does nothing.
+	if err := tt.Click(l.Text(l10n.KeyAccountsMoveUp)); err != nil || f.busy {
+		t.Fatalf("first row moved up: %v", err)
+	}
+	if err := tt.Click(l.Text(l10n.KeyAccountsMoveDown)); err != nil {
+		t.Fatal(err)
+	}
+	deadline := time.Now().Add(5 * time.Second)
+	for f.busy && time.Now().Before(deadline) {
+		e.q.drain()
+		time.Sleep(5 * time.Millisecond)
+	}
+	tt.Frame()
+	if got := shownOrder(t, tt, "Alpha", "Bravo", "Charlie"); !slices.Equal(got, []string{"Bravo", "Alpha", "Charlie"}) {
+		t.Fatalf("move down did not show: %v", got)
+	}
+	idx, err := st.LoadIndex()
+	if err != nil || idx.ActiveAccountID != "b" {
+		t.Fatalf("move changed the current account: %v %q", err, idx.ActiveAccountID)
+	}
+}
+
 func TestAccountToolbarPrivacyFollowsRefresh(t *testing.T) {
 	e, _, tt, _ := codexOrderFixture(t)
 	l := e.s.L()

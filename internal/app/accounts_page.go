@@ -228,7 +228,9 @@ func renderCodexAccounts(c *ui.Context, u *settingsUI, f *accountForm, rt *liveA
 	l := u.L()
 	view := rt.svc.Snapshot().Accounts
 	panelAccountStatus(c, l, view)
-	rows := view.Sidebar
+	// Settings keep the stored order, as for Claude and Grok, so that moves
+	// show; the panel pins the current account first.
+	rows := sortedCodex(view.Sidebar)
 	folder := accountFolder{l.Text(l10n.KeyCodexFolder), rt.codexFolder()}
 	accountToolbar(c, u, f, accountCountTitle(l, len(rows)), folder, func(m *ui.Menu) {
 		if m.Item(l.Text(l10n.KeyAccountsAddOAuth)).Chosen() {
@@ -420,8 +422,8 @@ func maskAccount(on bool, value string) string {
 	return codex.MaskAccountText(value)
 }
 
-func sortedCodex(idx codex.AccountIndex) []codex.ManagedAccount {
-	out := append([]codex.ManagedAccount(nil), idx.Accounts...)
+func sortedCodex(accounts []codex.ManagedAccount) []codex.ManagedAccount {
+	out := append([]codex.ManagedAccount(nil), accounts...)
 	sort.SliceStable(out, func(i, j int) bool {
 		if out[i].SortIndex != out[j].SortIndex {
 			return out[i].SortIndex < out[j].SortIndex
@@ -548,7 +550,7 @@ func (rt *liveApp) moveCodex(id string, dir int) string {
 	if err != nil {
 		return accountError(rt, err)
 	}
-	next := moveIDs(accountIDs(sortedCodex(idx), func(a codex.ManagedAccount) string { return a.ID }), id, dir)
+	next := moveIDs(accountIDs(sortedCodex(idx.Accounts), func(a codex.ManagedAccount) string { return a.ID }), id, dir)
 	if next == nil {
 		return ""
 	}
