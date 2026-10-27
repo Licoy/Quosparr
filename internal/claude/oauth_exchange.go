@@ -92,12 +92,19 @@ func (c OAuthClient) loginIdentity(ctx context.Context, client *http.Client, tok
 	if (token.Account.UUID != "" && token.Account.UUID != identity.AccountUUID) || (token.Organization.UUID != "" && token.Organization.UUID != identity.OrganizationUUID) {
 		return LoginResult{}, classifiedError(StageOAuthIdentity, KindInvalidData, ErrLoginIdentity)
 	}
+	subscription, tier, err := subscriptionFromProfile(raw)
+	if err != nil {
+		return LoginResult{}, classifiedError(StageOAuthIdentity, KindInvalidData, ErrLoginIdentity)
+	}
+	if subscription == "" {
+		tier = ""
+	}
 	scopes := strings.Fields(token.Scope)
 	if len(scopes) == 0 {
 		scopes = strings.Fields(loginScopes)
 	}
 	expiry := now.Add(time.Duration(token.ExpiresIn) * time.Second)
-	credential, err := json.Marshal(map[string]any{oauthKey: map[string]any{"accessToken": token.AccessToken, "refreshToken": token.RefreshToken, "expiresAt": expiry.UnixMilli(), "scopes": scopes}})
+	credential, err := json.Marshal(map[string]any{oauthKey: map[string]any{"accessToken": token.AccessToken, "refreshToken": token.RefreshToken, "expiresAt": expiry.UnixMilli(), "scopes": scopes, "subscriptionType": subscription, "rateLimitTier": tier}})
 	if err != nil {
 		return LoginResult{}, ErrLoginExchange
 	}

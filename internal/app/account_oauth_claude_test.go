@@ -220,7 +220,7 @@ func TestClaudeBrowserOAuthImportsAndReportsQuotaSeparately(t *testing.T) {
 			defer server.Close()
 			store := claude.NewStoreAt(filepath.Join(dir, "quosparr", "accounts"), config, dir)
 			module := claude.NewModule(store)
-			module.Usage = &claude.UsageClient{HTTP: server.Client(), Endpoint: server.URL + "/usage"}
+			module.Usage = &claude.UsageClient{HTTP: server.Client(), Endpoint: server.URL + "/usage", ProfileEndpoint: server.URL + "/profile"}
 			flow := claudeLoginFlow{module: module, port: oauthTestPort(t), client: claude.OAuthClient{HTTP: server.Client(), TokenURL: server.URL + "/token", ProfileURL: server.URL + "/profile"}}
 			flow.openBrowser = func(_ context.Context, raw string) error {
 				auth, _ := url.Parse(raw)

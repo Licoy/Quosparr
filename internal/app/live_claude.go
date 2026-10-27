@@ -393,6 +393,8 @@ func claudeAccountQuotas(lc l10n.Localizer, accounts []claude.ManagedAccount) ma
 			}
 			continue
 		}
+		q := runway.ClaudeAccountQuota{Plan: account.Tier().DisplayName()}
+		out[account.ID] = q
 		if len(account.CachedQuota) == 0 {
 			continue
 		}
@@ -400,7 +402,7 @@ func claudeAccountQuotas(lc l10n.Localizer, accounts []claude.ManagedAccount) ma
 		if err != nil {
 			continue
 		}
-		q := runway.ClaudeAccountQuota{Plan: account.Tier().DisplayName(), ExtraUsage: claudeExtraLine(snap.Extra)}
+		q.ExtraUsage = claudeExtraLine(snap.Extra)
 		if account.LastQuotaAt != nil {
 			q.UpdatedAt = *account.LastQuotaAt
 		}

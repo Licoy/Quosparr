@@ -123,7 +123,23 @@ func (m *Module) fetchUsage(ctx context.Context, id string, doc AuthDocument, fo
 	if err != nil {
 		return err
 	}
-	return m.Store.UpdateMetadata(acc.ApplyQuota(raw, fetched))
+	if err := m.Store.UpdateMetadata(acc.ApplyQuota(raw, fetched)); err != nil {
+		return err
+	}
+	if err := m.completeSubscription(ctx, id, doc); err != nil {
+		code := ErrorCodeUsage
+		var limited *RateLimitedError
+		if errors.As(err, &limited) {
+			m.throttle().ObserveRateLimit(token, m.now(), limited.RetryAfter, limited.HasRetryAfter)
+			code = ErrorCodeRateLimited
+		}
+		acc, reloadErr := m.reload(id)
+		if reloadErr != nil {
+			return errors.Join(err, reloadErr)
+		}
+		return errors.Join(err, m.Store.UpdateMetadata(acc.ApplyError(code, false)))
+	}
+	return nil
 }
 
 func (m *Module) noteUsageError(id, token string, err error) error {

@@ -289,8 +289,22 @@ func (s *Store) upsert(data []byte, identity CredentialIdentity, opt UpsertOptio
 	if existing, found := idx.Account(id); found {
 		acc = existing
 		acc.Identity = identity
-		acc.SubscriptionType = doc.OAuth().SubscriptionType
-		acc.RateLimitTier = doc.OAuth().RateLimitTier
+		var raw struct {
+			OAuth map[string]json.RawMessage `json:"claudeAiOauth"`
+		}
+		if err := json.Unmarshal(data, &raw); err != nil {
+			return ManagedAccount{}, ErrAuthInvalidRoot
+		}
+		if _, present := raw.OAuth["subscriptionType"]; present {
+			sub := doc.OAuth().SubscriptionType
+			if sub != acc.SubscriptionType {
+				acc.RateLimitTier = ""
+			}
+			acc.SubscriptionType = sub
+		}
+		if _, present := raw.OAuth["rateLimitTier"]; present {
+			acc.RateLimitTier = doc.OAuth().RateLimitTier
+		}
 	}
 	reauth := doc.RequiresReauthentication(now)
 	if opt.PreserveRefreshFailure {
