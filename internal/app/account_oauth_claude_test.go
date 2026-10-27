@@ -170,8 +170,17 @@ func TestClaudeBrowserLoginFailureMessagesAreLocalizedAndRedacted(t *testing.T) 
 }
 
 func TestClaudeBrowserOAuthImportsAndReportsQuotaSeparately(t *testing.T) {
-	for _, quotaFails := range []bool{false, true} {
-		t.Run(fmt.Sprint(quotaFails), func(t *testing.T) {
+	for _, scenario := range []struct {
+		name       string
+		quotaFails bool
+		official   string
+	}{
+		{"added", false, ""}, {"quota-failed", true, ""},
+		{"missing-oauth", false, `{"mcpOAuth":{"preserve":true}}`},
+		{"null-oauth", false, `{"claudeAiOauth":null,"mcpOAuth":{"preserve":true}}`},
+	} {
+		t.Run(scenario.name, func(t *testing.T) {
+			quotaFails := scenario.quotaFails
 			dir := t.TempDir()
 			config := filepath.Join(dir, "claude")
 			if err := os.MkdirAll(config, 0700); err != nil {
@@ -179,10 +188,16 @@ func TestClaudeBrowserOAuthImportsAndReportsQuotaSeparately(t *testing.T) {
 			}
 			official := filepath.Join(config, ".credentials.json")
 			original := []byte(`{"claudeAiOauth":{"accessToken":"old-test-token","refreshToken":"old-refresh","expiresAt":2000000000000},"mcpOAuth":{"preserve":true}}`)
+			if scenario.official != "" {
+				original = []byte(scenario.official)
+			}
 			if err := os.WriteFile(official, original, 0600); err != nil {
 				t.Fatal(err)
 			}
 			global := []byte(`{"oauthAccount":{"accountUuid":"old","organizationUuid":"org","emailAddress":"old@example.com"}}`)
+			if scenario.official != "" {
+				global = []byte(`{"oauthAccount":{"accountUuid":"new","organizationUuid":"org"}}`)
+			}
 			if err := os.WriteFile(filepath.Join(dir, ".claude.json"), global, 0600); err != nil {
 				t.Fatal(err)
 			}

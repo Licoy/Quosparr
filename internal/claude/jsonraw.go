@@ -52,6 +52,26 @@ func oauthObject(data []byte) (json.RawMessage, error) {
 	return bytes.TrimSpace(raw), nil
 }
 
+// officialHasOAuth distinguishes a signed-out container from malformed data.
+// Keep the original container available to callers for rechecks and switching.
+func officialHasOAuth(data []byte) (bool, error) {
+	if len(bytes.TrimSpace(data)) == 0 {
+		return false, classifiedError(StageReadOfficial, KindInvalidData, ErrAuthInvalidRoot)
+	}
+	root, err := rawObject(data)
+	if err != nil {
+		return false, classifiedError(StageReadOfficial, KindInvalidData, err)
+	}
+	raw, present := root[oauthKey]
+	if !present || bytes.Equal(bytes.TrimSpace(raw), []byte("null")) {
+		return false, nil
+	}
+	if !isJSONObject(raw) {
+		return false, classifiedError(StageReadOfficial, KindInvalidData, ErrAuthNoOAuth)
+	}
+	return true, nil
+}
+
 func decodeOAuthMap(raw json.RawMessage) (map[string]json.RawMessage, error) {
 	var fields map[string]json.RawMessage
 	if err := json.Unmarshal(raw, &fields); err != nil || fields == nil {

@@ -132,6 +132,10 @@ func (m *Module) browserOfficialProof(ctx context.Context) (browserOfficialProof
 		return proof, operationError(StageReadOfficial, err)
 	}
 	proof.data, proof.present = data, true
+	hasOAuth, err := officialHasOAuth(data)
+	if err != nil || !hasOAuth {
+		return proof, err
+	}
 	api, source, err := readBrowserAPISettings(m.Store.SettingsPath())
 	if err != nil {
 		return proof, err

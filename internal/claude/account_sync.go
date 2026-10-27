@@ -61,6 +61,13 @@ func (m *Module) syncOfficial(ctx context.Context) (officialLogin, error) {
 // is only stored.
 func (m *Module) syncOAuth(ctx context.Context, idx AccountIndex, follow bool) (officialLogin, error) {
 	data, err := m.Store.LoadOfficial(ctx)
+	if err == nil {
+		var hasOAuth bool
+		hasOAuth, err = officialHasOAuth(data)
+		if err == nil && !hasOAuth {
+			err = ErrNotLoggedIn
+		}
+	}
 	if errors.Is(err, ErrNotLoggedIn) {
 		if follow && idx.CurrentAccountID != "" {
 			if err := m.Store.SetCurrentAccountID("", m.now()); err != nil {
