@@ -1,7 +1,7 @@
 {
   "name": "Quosparr",
   "identifier": "com.quosparr.app",
-  "version": "1.9.3",
+  "version": "1.9.4",
   "copyright": "Copyright (c) 2026 Licoy",
   "icon": "Resources/AppIcon.png",
   "out": "build",
@@ -18,7 +18,7 @@
     "infoPlist": {
       "LSUIElement": true,
       "SUPublicEDKey": "6Mmv1BwimF7c+lSHsaV/rDGH1oFNzYMjXYfWHMdARTk=",
-      "CFBundleVersion": "137",
+      "CFBundleVersion": "138",
       "CFBundleURLTypes": [
         {
           "CFBundleURLName": "Quosparr Widget",
