@@ -5,6 +5,7 @@ package mcp
 import (
 	"bufio"
 	"context"
+	"io"
 	"net"
 	"os"
 	"os/exec"
@@ -16,6 +17,24 @@ import (
 )
 
 func probeTestDetach(cmd *exec.Cmd) { cmd.SysProcAttr = &syscall.SysProcAttr{Setsid: true} }
+
+func probeTestChildExit(t *testing.T, conn net.Conn) func() {
+	t.Helper()
+	reader := bufio.NewReader(conn)
+	if _, err := reader.ReadString('\n'); err != nil {
+		t.Fatal("missing child identity", err)
+	}
+	return func() {
+		t.Helper()
+		if err := conn.SetReadDeadline(time.Now().Add(time.Second)); err != nil {
+			t.Fatal(err)
+		}
+		var b [1]byte
+		if _, err := reader.Read(b[:]); err != io.EOF {
+			t.Fatalf("descendant remained alive: %v", err)
+		}
+	}
+}
 
 // POSIX process groups cover descendants that remain in that group, not a
 // server deliberately creating a new session. This verifies bounded cleanup

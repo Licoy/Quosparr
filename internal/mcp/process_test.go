@@ -148,6 +148,7 @@ func TestProbeProcessTreeCleanup(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
+			defer wire.close()
 			var conn net.Conn
 			select {
 			case conn = <-accepted:
@@ -156,22 +157,13 @@ func TestProbeProcessTreeCleanup(t *testing.T) {
 				t.Fatal("descendant did not start")
 			}
 			defer conn.Close()
-			reader := bufio.NewReader(conn)
-			if _, err := reader.ReadString('\n'); err != nil {
-				wire.close()
-				t.Fatal("missing child identity")
-			}
+			assertChildExit := probeTestChildExit(t, conn)
 			if cancelled {
 				cancel()
 			} else {
 				wire.close()
 			}
-			conn.SetReadDeadline(time.Now().Add(time.Second))
-			var b [1]byte
-			_, err = reader.Read(b[:])
-			if err != io.EOF {
-				t.Fatalf("descendant remained alive: %v", err)
-			}
+			assertChildExit()
 			wire.close()
 		})
 	}
