@@ -2,116 +2,163 @@ package app
 
 import (
 	"context"
+	"fmt"
+	"slices"
+
 	"github.com/egoist/mygo/ui"
-	"github.com/licoy/quosparr/internal/l10n"
 	"github.com/licoy/quosparr/internal/mcp"
 	"github.com/licoy/quosparr/internal/store"
-	"slices"
 )
 
-func (u *settingsUI) mcpAddTargets(c *ui.Context, actions MCPActions) {
-	w, l := u.mcp.add, u.L()
-	for _, p := range store.Providers() {
-		checked := w.targets[p]
-		if ui.Checkbox(c.Key("mcp-target-"+string(p)), &checked, l.Text(providerKey(p))).Disabled(w.task.Running).Changed() {
-			w.targets[p] = checked
-			acknowledged := w.unverified
-			w.invalidate(nil)
-			w.unverified = acknowledged
-		}
-	}
-	ui.Text(c, tx(l, xMCPOAuthHint)).FontSize(11).TextColor(c.Theme().TextMuted)
-	for _, p := range w.plans {
-		if p.err != nil {
-			ui.Text(c, l.Text(providerKey(p.provider))+": "+u.mcpAddError(p.err)).FontSize(12).TextColor(c.Theme().Danger)
-		}
-	}
-	any := false
-	for _, v := range w.targets {
-		any = any || v
-	}
-	u.mcpAddNavigation(c, func() {
-		if w.cancel != nil {
-			w.cancel()
-			w.cancel = nil
-		}
-		w.generation++
-		w.task = Task{}
-		w.step = 1
-	}, func() { u.prepareMCPDrafts(actions, false) }, !any || w.task.Running)
-}
+// mcpAddReview is the last step: a card per provider whose box adds it as
+// a target and checks its configuration at once, showing the file it
+// writes and, per server, whether it is added or already there.
 func (u *settingsUI) mcpAddReview(c *ui.Context, actions MCPActions) {
-	w, l := u.mcp.add, u.L()
-	if w.needsVerification() {
-		ui.Text(c, tx(l, xMCPUnverifiedStatus)).FontSize(12).TextColor(c.Theme().Warning)
+	w, l, t := u.mcp.add, u.L(), c.Theme()
+	retrying := slices.ContainsFunc(w.plans, func(p mcpAddTarget) bool { return p.done })
+	ui.Column(c).Gap(2).Padding(0, 12).Children(func() {
+		ui.Text(c, tx(l, xMCPTargets)).FontSize(13).FontWeight(600)
+		ui.Text(c, tx(l, xMCPTargetsHint)).FontSize(11).TextColor(t.TextMuted)
+	})
+	for _, p := range store.Providers() {
+		u.mcpTargetCard(c, p, actions, retrying)
 	}
-	for _, p := range w.plans {
-		Panel(c).Gap(6).Children(func() {
-			ui.Text(c, l.Text(providerKey(p.provider))).FontSize(14).FontWeight(600)
-			for _, item := range p.plan.Items {
-				status := tx(l, xMCPWillAdd)
-				if item.Status == "exists" {
-					status = tx(l, xMCPAlreadyExists)
-				}
-				ui.Text(c, item.Name+" · "+status).FontSize(12)
-				ui.Text(c, item.Details).FontSize(11).Selectable()
+	if w.err != nil && !slices.ContainsFunc(w.plans, func(p mcpAddTarget) bool { return p.err != nil }) {
+		listNotice(c, "", u.mcpAddError(w.err), true, "", nil)
+	}
+	ui.Column(c).Gap(4).Children(func() {
+		if w.needsVerification() {
+			mcpInfoLine(c, icWarnCircle, tx(l, xMCPUnverifiedStatus), t.Warning)
+		}
+		mcpInfoLine(c, icInfo, tx(l, xMCPReloadHint), t.TextMuted)
+	})
+}
+
+func (u *settingsUI) mcpTargetCard(c *ui.Context, p store.Provider, actions MCPActions, retrying bool) {
+	w, l, t := u.mcp.add, u.L(), c.Theme()
+	name := l.Text(providerKey(p))
+	checked := w.targets[p]
+	plan := w.plan(p)
+	Panel(c.Key("mcp-target-"+string(p))).Padding(10, 14).Gap(10).Children(func() {
+		ui.Row(c).Gap(10).AlignItems(ui.Center).MinHeight(26).Children(func() {
+			box := ui.Checkbox(c.Key("mcp-target-check-"+string(p)), &checked, "").Label(name).Size(18, 18).Disabled(w.writing || retrying)
+			if !w.writing && !retrying {
+				box.Cursor(ui.CursorPointer)
+			}
+			if box.Changed() {
+				w.targets[p] = checked
+				acknowledged := w.unverified
+				w.invalidate(nil)
+				w.unverified = acknowledged
+				u.prepareMCPDrafts(actions, false)
+			}
+			ProviderIcon(c, p, 18)
+			ui.Text(c, name).FontSize(13).FontWeight(600).SingleLine().Shrink(0)
+			if plan != nil && plan.plan.Path() != "" {
+				ui.Text(c, plan.plan.Path()).FontSize(11).Font("monospace").TextColor(t.TextMuted).SingleLine().Ellipsis("…").Shrink(1)
+			}
+			ui.Spacer(c).Grow(1)
+			switch {
+			case plan != nil && plan.done:
+				settingsBadge(c, icCheckCircle, tx(l, xMCPTargetDone), t.Success)
+			case !checked:
+			case w.task.Running:
+				ui.Spinner(c).Size(12, 12)
+			case plan != nil && plan.err != nil:
+				settingsBadge(c, icWarnCircle, tx(l, xMCPTargetBlocked), t.Danger)
+			case plan != nil:
+				added, existing := mcpPlanCounts(plan.plan)
+				ui.Text(c, tx(l, xMCPPlanCounts, added, existing)).FontSize(11).TextColor(t.TextMuted).SingleLine()
 			}
 		})
-	}
-	ui.Text(c, tx(l, xMCPReloadHint)).FontSize(11).TextColor(c.Theme().TextMuted)
-	ui.Row(c).Gap(8).Children(func() {
-		if ui.Button(c, u.text(l10n.KeyBack)).Clicked() {
-			w.step = 2
+		if !checked || plan == nil || plan.done || w.task.Running {
+			return
 		}
-		if ui.Button(c.Key("mcp-add-submit"), tx(l, xMCPSubmit, mcpPendingTargets(w.plans))).Disabled(w.writing).Clicked() {
-			u.submitMCPDrafts(actions)
+		if plan.err != nil {
+			listNotice(c, "", u.mcpAddError(plan.err), true, "", nil)
+			return
+		}
+		for _, item := range plan.plan.Items {
+			ui.Column(c.Key(fmt.Sprint("mcp-plan-", p, "-", item.Name))).Gap(6).Children(func() {
+				ui.Row(c).Gap(6).AlignItems(ui.Center).Children(func() {
+					ui.Text(c, item.Name).FontSize(12).FontWeight(600).Font("monospace").SingleLine().Ellipsis("…").Shrink(1)
+					if item.Status == "exists" {
+						settingsBadge(c, nil, tx(l, xMCPAlreadyExists), t.TextMuted)
+					} else {
+						settingsBadge(c, icPlus, tx(l, xMCPWillAdd), t.Success)
+					}
+				})
+				ui.Column(c).Padding(8, 10).Radius(7).Background(pal(t).Inset).Border(1, pal(t).Line).Children(func() {
+					ui.Text(c, item.Details).FontSize(10.5).Font("monospace").TextColor(t.TextMuted).Selectable()
+				})
+			})
 		}
 	})
 }
-func (u *settingsUI) mcpAddResults(c *ui.Context, actions MCPActions) {
-	w, l := u.mcp.add, u.L()
+
+func mcpPlanCounts(plan mcp.AddPlan) (added, existing int) {
+	for _, item := range plan.Items {
+		if item.Status == "exists" {
+			existing++
+		} else {
+			added++
+		}
+	}
+	return added, existing
+}
+
+// mcpAddResults reports each provider's write: what it added, or why it
+// failed and whether its file needs a look.
+func (u *settingsUI) mcpAddResults(c *ui.Context) {
+	w, l, t := u.mcp.add, u.L(), c.Theme()
 	if w.writing {
-		ui.Text(c, tx(l, xMCPWriting)).FontSize(12)
+		ui.Column(c).Gap(10).Padding(40, 0).AlignItems(ui.Center).Children(func() {
+			ui.Spinner(c).Size(18, 18)
+			ui.Text(c, tx(l, xMCPWriting)).FontSize(12).TextColor(t.TextMuted)
+		})
 		return
 	}
+	failed := mcpAddFailed(w.plans)
+	icon, ink, title := icCheckCircle, t.Success, tx(l, xMCPResultsDone)
+	if failed {
+		icon, ink, title = icWarnCircle, t.Danger, tx(l, xMCPResultsFailed)
+	}
+	ui.Row(c).Gap(8).Padding(0, 12).AlignItems(ui.Center).Children(func() {
+		ui.Icon(c, icon).Size(16, 16).TextColor(ink)
+		ui.Text(c, title).FontSize(14).FontWeight(600)
+	})
 	if w.wasUnverified {
-		ui.Text(c, tx(l, xMCPUnverifiedStatus)).FontSize(12).TextColor(c.Theme().Warning)
+		mcpInfoLine(c, icWarnCircle, tx(l, xMCPUnverifiedStatus), t.Warning)
 	}
-	failed := false
-	for _, p := range w.plans {
-		message := tx(l, xMCPAdded, len(p.result.Added), len(p.result.Existing))
-		if p.err != nil {
-			failed = true
-			message = u.mcpAddError(p.err)
-			if mcpWriteNeedsReview(p.err) {
-				message = tx(l, xMCPNeedsReview) + ": " + message
-			}
-		}
-		ui.Text(c, l.Text(providerKey(p.provider))+": "+message).FontSize(12)
-	}
-	ui.Text(c, tx(l, xMCPReloadHint)).FontSize(11).TextColor(c.Theme().TextMuted)
-	if failed && len(w.entries) > 0 {
-		if ui.Button(c.Key("mcp-add-retry"), tx(l, xMCPRetry)).Disabled(w.task.Running).Clicked() {
-			u.prepareMCPDrafts(actions, true)
-		}
-	}
-	if ui.Button(c.Key("mcp-add-done"), u.text(l10n.KeyOk)).Clicked() {
-		w.completed = false
-		u.closeMCPAdd()
-		if actions.Query != nil {
-			u.startMCPScan(actions)
-		}
-	}
-}
-func (u *settingsUI) mcpAddNavigation(c *ui.Context, back, next func(), disabled bool) {
-	ui.Row(c).Gap(8).Children(func() {
-		if ui.Button(c, u.text(l10n.KeyBack)).Clicked() {
-			back()
-		}
-		if ui.Button(c, tx(u.L(), xMCPNext)).Disabled(disabled).Clicked() {
-			next()
+	Panel(c).Children(func() {
+		for i, p := range w.plans {
+			settingsRule(c, i)
+			ui.Row(c).Gap(10).Padding(9, 0).AlignItems(ui.Start).Children(func() {
+				ProviderIcon(c, p.provider, 18)
+				ui.Column(c).Gap(2).Grow(1).Basis(0).Children(func() {
+					ui.Text(c, l.Text(providerKey(p.provider))).FontSize(13).FontWeight(600)
+					message, ink := tx(l, xMCPAdded, len(p.result.Added), len(p.result.Existing)), t.TextMuted
+					if p.err != nil {
+						message, ink = u.mcpAddError(p.err), t.Danger
+						if mcpWriteNeedsReview(p.err) {
+							message, ink = tx(l, xMCPNeedsReview)+" · "+message, t.Warning
+						}
+					}
+					ui.Text(c, message).FontSize(11).TextColor(ink)
+				})
+				if p.err == nil {
+					ui.Icon(c, icCheckCircle).Size(14, 14).TextColor(t.Success)
+				} else {
+					ui.Icon(c, icWarnCircle).Size(14, 14).TextColor(t.Danger)
+				}
+			})
 		}
 	})
+	mcpInfoLine(c, icInfo, tx(l, xMCPReloadHint), t.TextMuted)
+}
+
+func mcpAddFailed(plans []mcpAddTarget) bool {
+	return slices.ContainsFunc(plans, func(p mcpAddTarget) bool { return p.err != nil })
 }
 
 func mcpPendingTargets(plans []mcpAddTarget) int {
@@ -131,7 +178,7 @@ func (u *settingsUI) submitMCPDrafts(actions MCPActions) {
 	}
 	w.wasUnverified = w.needsVerification()
 	w.writing = true
-	w.step = 4
+	w.step = mcpStepResults
 	plans := slices.Clone(w.plans)
 	go func() {
 		for i := range plans {

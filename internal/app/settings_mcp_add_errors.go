@@ -13,7 +13,10 @@ func (u *settingsUI) mcpAddError(err error) string {
 	}
 	var d *mcp.DraftError
 	if errors.As(err, &d) {
-		message := tx(u.L(), mcpErrorTextKey(d.Code)) + " · " + u.mcpErrorField(d.Field)
+		message := tx(u.L(), mcpErrorTextKey(d.Code))
+		if field := u.mcpErrorField(d.Field); field != "" {
+			message += " · " + field
+		}
 		if d.Line > 0 {
 			message += " · " + tx(u.L(), xMCPJSONPosition, d.Line, d.Column)
 		}
@@ -78,12 +81,18 @@ func mcpErrorTextKey(code string) textKey {
 	}
 	return xMCPAddFailed
 }
+
+// mcpErrorField names the field an error is about, or nothing for one the
+// page has no name for.
 func (u *settingsUI) mcpErrorField(field string) string {
-	fields := map[string]textKey{"json": xMCPJSON, "name": xMCPName, "transport": xMCPTransport, "type": xMCPTransport, "url": xMCPURL, "command": xMCPCommand, "args": xMCPArgs, "env": xMCPEnv, "headers": xMCPHeaders, "http_headers": xMCPHeaders, "cwd": xMCPCwd, "env_http_headers": xMCPEnvHeaders, "bearer_token_env_var": xMCPBearerEnv}
+	fields := map[string]textKey{"json": xMCPJSON, "name": xMCPName, "transport": xMCPTransport, "type": xMCPTransport, "url": xMCPURL,
+		"command": xMCPCommand, "args": xMCPArgs, "env": xMCPEnv, "headers": xMCPHeaders, "http_headers": xMCPHeaders, "cwd": xMCPCwd,
+		"env_headers": xMCPEnvHeaders, "env_http_headers": xMCPEnvHeaders, "bearer_token_env": xMCPBearerEnv, "bearer_token_env_var": xMCPBearerEnv,
+		"disabled_mcp_servers": xMCPDisabledList}
 	if key, ok := fields[field]; ok {
 		return tx(u.L(), key)
 	}
-	return tx(u.L(), xMCPFill)
+	return ""
 }
 
 func mcpWriteNeedsReview(err error) bool {

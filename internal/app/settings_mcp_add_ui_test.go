@@ -14,46 +14,58 @@ import (
 	"testing"
 )
 
-func TestMCPAddMapRowsKeepFocusAndSecretValues(t *testing.T) {
+func TestMCPAddPairRowsKeepFocusAndSecretValues(t *testing.T) {
 	actions := mcpAddTestActions()
 	u, _, _ := settingsMCPView(t, actions)
 	e := mcpAddFixture(u)
-	e.draft.Headers = map[string]string{"Z": "fixture-secret"}
-	u.mcp.add.showSecrets = true
+	e.headers = []mcpPair{{id: e.newID(), key: "Z", value: "fixture-secret"}}
+	l := u.L()
+	headers := mcpPairsText{title: tx(l, xMCPHeaders), key: tx(l, xMCPHeaderName), value: tx(l, xMCPValue), add: tx(l, xMCPAddHeader)}
 	tt := ui.NewTester(func(c *ui.Context) {
-		ui.Column(c).Padding(20).Gap(10).Children(func() { u.mcpDraftMap(c, e, "headers", xMCPHeaders, &e.draft.Headers) })
+		ui.Column(c).Padding(20).Gap(10).Children(func() { u.mcpPairs(c, e, "headers", &e.headers, headers, true, "") })
 	}, 600, 400)
 	tt.Frame()
-	if err := tt.Click(tx(u.L(), xMCPKey)); err != nil {
+	if tt.HasText("fixture-secret") {
+		t.Fatal("secret value shown before asking")
+	}
+	if err := tt.Click(tx(l, xMCPShowSecrets)); err != nil || !u.mcp.add.showSecrets {
+		t.Fatal("show values toggle missing", err)
+	}
+	if err := tt.Click(headers.key); err != nil {
 		t.Fatal(err)
 	}
 	tt.Command("selectAll")
 	tt.Type("Authorization")
 	tt.Type("-Fixture")
-	if e.draft.Headers["Authorization-Fixture"] != "fixture-secret" || len(e.draft.Headers) != 1 {
-		t.Fatalf("renaming lost stable row or value; keys=%d", len(e.draft.Headers))
+	if d, err := e.draft(); err != nil || d.Headers["Authorization-Fixture"] != "fixture-secret" || len(d.Headers) != 1 {
+		t.Fatalf("renaming lost stable row or value; err=%v", err)
 	}
-	if err := tt.Click(tx(u.L(), xMCPValue)); err != nil {
+	if err := tt.Click(headers.value); err != nil {
 		t.Fatal(err)
 	}
 	tt.Command("selectAll")
 	tt.Type("new-fixture")
-	if e.draft.Headers["Authorization-Fixture"] != "new-fixture" {
+	if d, _ := e.draft(); d.Headers["Authorization-Fixture"] != "new-fixture" {
 		t.Fatal("value edit failed")
 	}
-	e.draft.Env = map[string]string{}
+	e.transport = "stdio"
+	env := mcpPairsText{title: tx(l, xMCPEnv), key: tx(l, xMCPVariable), value: tx(l, xMCPValue), add: tx(l, xMCPAddVariable)}
 	tt = ui.NewTester(func(c *ui.Context) {
-		ui.Column(c).Children(func() { u.mcpDraftMap(c, e, "env", xMCPEnv, &e.draft.Env) })
+		ui.Column(c).Children(func() { u.mcpPairs(c, e, "env", &e.env, env, true, "") })
 	}, 600, 400)
 	tt.Frame()
-	if err := tt.Click(tx(u.L(), xMCPAddPair)); err != nil {
+	if err := tt.Click(env.add); err != nil {
 		t.Fatal(err)
 	}
-	if err := tt.Click(tx(u.L(), xMCPKey)); err != nil {
+	if err := tt.Click(env.key); err != nil {
 		t.Fatal(err)
 	}
 	tt.Type("FIXTURE_ENV")
-	if _, ok := e.draft.Env["FIXTURE_ENV"]; !ok {
+	if err := tt.Click(env.value); err != nil {
+		t.Fatal(err)
+	}
+	tt.Type("x")
+	if d, _ := e.draft(); d.Env["FIXTURE_ENV"] != "x" {
 		t.Fatal("env row typing failed")
 	}
 }
@@ -113,12 +125,31 @@ func TestMCPAddNarrowWindowAndFixtureScreenshot(t *testing.T) {
 	}
 }
 
+func TestMCPAddBackLinkLeavesFromEveryStep(t *testing.T) {
+	for _, step := range []int{mcpStepConfigure, mcpStepTools, mcpStepReview, mcpStepResults} {
+		t.Run(fmt.Sprint(step), func(t *testing.T) {
+			u, tt, _ := settingsMCPView(t, mcpAddTestActions())
+			mcpAddFixture(u)
+			u.mcp.add.step = step
+			u.mcp.add.completed = step == mcpStepResults
+			tt.Frame()
+			if err := tt.Click(u.L().Text(l10n.KeyBack)); err != nil {
+				t.Fatal(err)
+			}
+			tt.Frame()
+			if (u.mcp.add != nil && u.mcp.add.open) || !tt.HasText("alpha") {
+				t.Fatal("back link did not return to the server list")
+			}
+		})
+	}
+}
+
 func TestMCPAddUnverifiedTargetChangesRemainActionable(t *testing.T) {
 	actions := mcpAddTestActions()
 	u, tt, queue := settingsMCPView(t, actions)
 	mcpAddFixture(u)
 	w := u.mcp.add
-	w.step = 1
+	w.step = mcpStepTools
 	tt.Frame()
 	if err := tt.Click(tx(u.L(), xMCPUnverified)); err != nil {
 		t.Fatal(err)
@@ -126,52 +157,59 @@ func TestMCPAddUnverifiedTargetChangesRemainActionable(t *testing.T) {
 	if err := tt.Click(tx(u.L(), xMCPNext)); err != nil {
 		t.Fatal(err)
 	}
-	if w.step != 2 || !w.unverified {
-		t.Fatal("unverified acknowledgement was lost")
+	finishDetail(t, queue)
+	if w.step != mcpStepReview || !w.unverified || len(w.plans) != 1 {
+		t.Fatal("unverified acknowledgement was lost or the target was not checked")
 	}
+	tt.Frame()
 	for _, p := range []store.Provider{store.ProviderClaude, store.ProviderGrok} {
 		if err := tt.Click(u.L().Text(providerKey(p))); err != nil {
 			t.Fatal(err)
 		}
 	}
+	finishDetail(t, queue)
+	finishDetail(t, queue)
 	if !w.unverified {
 		t.Fatal("provider change erased draft acknowledgement")
 	}
-	if err := tt.Click(tx(u.L(), xMCPNext)); err != nil {
-		t.Fatal(err)
-	}
-	finishDetail(t, queue)
-	if w.step != 3 || len(w.plans) != 3 {
+	if w.step != mcpStepReview || len(w.plans) != 3 || w.task.Running {
 		t.Fatal("unverified three-provider path was silently blocked")
 	}
+	tt.Frame()
+	if err := tt.Click(tx(u.L(), xMCPSubmit, 3)); err != nil {
+		t.Fatal(err)
+	}
+	if !w.writing || w.step != mcpStepResults {
+		t.Fatal("submit did not start the confirmed write")
+	}
+	finishDetail(t, queue)
 }
-func TestMCPAddTransportSwitchConfirmsClearingAndArgsDelete(t *testing.T) {
+func TestMCPAddTransportSwitchKeepsFieldsAndArgsDelete(t *testing.T) {
 	u, _, _ := settingsMCPView(t, mcpAddTestActions())
 	e := mcpAddFixture(u)
+	l := u.L()
 	tt := ui.NewTester(func(c *ui.Context) { ui.Column(c).Padding(20).Gap(10).Children(func() { u.mcpDraftForm(c, e) }) }, 650, 900)
 	tt.Frame()
-	if err := tt.Click(tx(u.L(), xMCPTransport)); err != nil {
+	if err := tt.Click(tx(l, xMCPTransportStdio)); err != nil {
 		t.Fatal(err)
 	}
-	if err := tt.Click("stdio"); err != nil {
-		t.Fatal(err)
+	if d, _ := e.draft(); e.transport != "stdio" || d.URL != "" {
+		t.Fatal("switched draft kept the URL")
 	}
-	if e.draft.Transport != "http" || e.draft.URL == "" {
-		t.Fatal("transport cleared fields before confirmation")
-	}
-	if err := tt.Click(u.text(l10n.KeyOk)); err != nil {
-		t.Fatal(err)
-	}
-	if e.draft.Transport != "stdio" || e.draft.URL != "" {
-		t.Fatal("confirmed transport did not clear incompatible URL")
-	}
-	e.draft.Command = "fixture"
-	e.draft.Args = []string{"one", "two", "three"}
 	tt.Frame()
-	if err := tt.Click("−"); err != nil {
+	if err := tt.Click("HTTP"); err != nil {
 		t.Fatal(err)
 	}
-	if len(e.draft.Args) != 2 || e.draft.Args[0] != "two" {
+	if d, _ := e.draft(); d.URL != "https://mcp.example.test" {
+		t.Fatal("switching back lost the URL")
+	}
+	e.transport, e.command = "stdio", "fixture"
+	e.args = []mcpArg{{id: e.newID(), value: "one"}, {id: e.newID(), value: "two"}, {id: e.newID(), value: "three"}}
+	tt.Frame()
+	if err := tt.Click(tx(l, xMCPRemove)); err != nil {
+		t.Fatal(err)
+	}
+	if d, _ := e.draft(); len(d.Args) != 2 || d.Args[0] != "two" {
 		t.Fatal("argument removal failed")
 	}
 }
@@ -180,7 +218,7 @@ func TestMCPAddSevenLanguageWorkflowLayouts(t *testing.T) {
 	u, tt, _ := settingsMCPView(t, mcpAddTestActions())
 	e := mcpAddFixture(u)
 	w := u.mcp.add
-	e.draft.Headers = map[string]string{"Authorization": "fixture-hidden-value"}
+	e.headers = []mcpPair{{id: e.newID(), key: "Authorization", value: "fixture-hidden-value"}}
 	e.probed = true
 	e.probe = mcp.ProbeResult{ServerName: "Fixture MCP", ServerVersion: "1.0", ProtocolVersion: "2025-11-25", Tools: []mcp.Tool{{Name: "search", Title: "Search fixtures", Description: "Read-only fixture search; never invoked by this preview", InputSchema: `{"type":"object","properties":{"query":{"type":"string"}},"required":["query"]}`, Parameters: []mcp.ToolParameter{{Name: "query", Type: "string", Required: true, Description: "Fixture query"}}}}}
 	e.expanded[0] = true
@@ -190,16 +228,16 @@ func TestMCPAddSevenLanguageWorkflowLayouts(t *testing.T) {
 			for _, dark := range []bool{false, true} {
 				tt.SetSize(width, 720)
 				tt.SetDark(dark)
-				for _, step := range []int{0, 1, 3} {
+				for _, step := range []int{mcpStepConfigure, mcpStepTools, mcpStepReview} {
 					w.step = step
-					if step == 3 {
+					if step == mcpStepReview {
 						w.plans = []mcpAddTarget{{provider: store.ProviderCodex, plan: mcp.AddPlan{Items: []mcp.AddItem{{Name: "fixture", Status: "add", Details: `http · https://mcp.example.test · headers: Authorization=[hidden]`}}}}}
 					}
 					tt.Frame()
 					if !tt.HasText(tx(u.L(), xMCPAdd)) {
 						t.Fatalf("missing wizard locale=%s step=%d", language, step)
 					}
-					if step == 0 && tt.HasText("fixture-hidden-value") {
+					if step == mcpStepConfigure && tt.HasText("fixture-hidden-value") {
 						t.Fatal("password value appeared in form text")
 					}
 					if language == l10n.English || language == l10n.SimplifiedChinese {
@@ -229,7 +267,7 @@ func TestMCPAddSevenLanguageWorkflowLayouts(t *testing.T) {
 func TestMCPAddPreviewFailureAlsoShowsCleanupWarning(t *testing.T) {
 	u, tt, _ := settingsMCPView(t, mcpAddTestActions())
 	e := mcpAddFixture(u)
-	u.mcp.add.step = 1
+	u.mcp.add.step = mcpStepTools
 	e.task = Task{Err: errors.New("fixture-private-server-error")}
 	e.probe = mcp.ProbeResult{CleanupFailed: true}
 	tt.Frame()

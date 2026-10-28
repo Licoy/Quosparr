@@ -249,26 +249,42 @@ func Panel(c *ui.Context) ui.Element {
 // PillButton is a capsule button with an optional icon. A disabled one
 // reports no clicks.
 func PillButton(c *ui.Context, icon *ui.SVG, label string, disabled bool) ui.Element {
-	return pillButton(c, icon, label, disabled, false, false)
+	return pillButton(c, icon, label, disabled, pillPlain, false)
 }
 
 // SmallPillButton is a PillButton for dense toolbars, such as filters.
 func SmallPillButton(c *ui.Context, icon *ui.SVG, label string, disabled bool) ui.Element {
-	return pillButton(c, icon, label, disabled, false, true)
+	return pillButton(c, icon, label, disabled, pillPlain, true)
 }
 
 // WarningPillButton is a PillButton filled with the warning color, for an
 // action that has work waiting, such as unsaved changes.
 func WarningPillButton(c *ui.Context, label string) ui.Element {
-	return pillButton(c, nil, label, false, true, false)
+	return pillButton(c, nil, label, false, pillWarn, false)
 }
 
 // SmallWarningPillButton is a WarningPillButton for dense toolbars.
 func SmallWarningPillButton(c *ui.Context, label string) ui.Element {
-	return pillButton(c, nil, label, false, true, true)
+	return pillButton(c, nil, label, false, pillWarn, true)
 }
 
-func pillButton(c *ui.Context, icon *ui.SVG, label string, disabled, warn, small bool) ui.Element {
+// AccentPillButton is a PillButton filled with the theme color, for the one
+// action a page leads to, such as the next step of a form. Disabled, it
+// turns plain.
+func AccentPillButton(c *ui.Context, icon *ui.SVG, label string, disabled bool) ui.Element {
+	return pillButton(c, icon, label, disabled, pillAccent, false)
+}
+
+// pillTone is the fill of a pill button.
+type pillTone int
+
+const (
+	pillPlain pillTone = iota
+	pillWarn
+	pillAccent
+)
+
+func pillButton(c *ui.Context, icon *ui.SVG, label string, disabled bool, tone pillTone, small bool) ui.Element {
 	t := c.Theme()
 	padY, padX, gap, size := float32(6), float32(12), float32(6), float32(13)
 	if small {
@@ -279,16 +295,26 @@ func pillButton(c *ui.Context, icon *ui.SVG, label string, disabled, warn, small
 		b.Padding(padY, padY+2) // an icon alone: name it with Label
 	}
 	bg, col := t.Text.Alpha(0.06), t.Text
-	if warn {
+	switch tone {
+	case pillWarn:
 		bg, col = t.Warning, ui.RGB(255, 255, 255)
+	case pillAccent:
+		bg, col = t.Accent, t.AccentText
 	}
 	switch {
 	case disabled:
 		col = t.TextMuted
-	case b.Pressed() && warn:
+		if tone == pillAccent {
+			bg = t.Text.Alpha(0.06)
+		}
+	case b.Pressed() && tone == pillWarn:
 		bg = t.Warning.Alpha(0.8)
-	case b.Hovered() && warn:
+	case b.Hovered() && tone == pillWarn:
 		bg = t.Warning.Alpha(0.9)
+	case b.Pressed() && tone == pillAccent:
+		bg = t.AccentPressed
+	case b.Hovered() && tone == pillAccent:
+		bg = t.AccentHover
 	case b.Pressed():
 		bg = t.Text.Alpha(0.14)
 	case b.Hovered():

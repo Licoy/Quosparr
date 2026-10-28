@@ -27,6 +27,9 @@ type AddPlan struct {
 }
 type AddResult struct{ Added, Existing []string }
 
+// Path is the configuration file the plan writes.
+func (p AddPlan) Path() string { return p.source.Path }
+
 func PrepareAdd(ctx context.Context, source Source, drafts []Draft) (AddPlan, error) {
 	var plan AddPlan
 	if err := ctx.Err(); err != nil {

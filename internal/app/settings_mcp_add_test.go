@@ -23,8 +23,8 @@ func mcpAddTestActions() MCPActions {
 func mcpAddFixture(u *settingsUI) *mcpDraftEntry {
 	u.openMCPAdd()
 	w := u.mcp.add
-	w.entries = []*mcpDraftEntry{newMCPDraft(mcp.Draft{Name: "fixture", Transport: "http", URL: "https://mcp.example.test"})}
-	return w.entries[0]
+	w.entries = nil
+	return w.addEntry(mcp.Draft{Name: "fixture", Transport: "http", URL: "https://mcp.example.test"})
 }
 func TestMCPAddJSONBatchSharesEditedDraft(t *testing.T) {
 	actions := mcpAddTestActions()
@@ -33,14 +33,19 @@ func TestMCPAddJSONBatchSharesEditedDraft(t *testing.T) {
 	w := u.mcp.add
 	w.paste = `{"mcpServers":{"alpha":{"url":"https://a.test"},"beta":{"command":"fixture","args":["one","two"],"env":{"FIXTURE":"value"}}}}`
 	w.importDrafts(actions)
-	if len(w.entries) != 2 || w.paste != "" || w.importJSON {
+	if len(w.entries) != 2 || w.paste != "" || w.jsonMode || w.imported != 2 {
 		t.Fatal("JSON import did not replace placeholder and clear source")
 	}
-	w.entries[0].draft.Name = "renamed"
+	if d, err := w.entries[1].draft(); err != nil || d.Command != "fixture" || len(d.Args) != 2 || d.Env["FIXTURE"] != "value" {
+		t.Fatal("JSON import changed the server")
+	}
+	w.entries[0].name = "renamed"
 	w.invalidate(w.entries[0])
-	w.importJSON = true
+	w.jsonMode = true
 	tt.Frame()
-	if !tt.HasText("renamed") || w.entries[0].draft.Name != "renamed" {
+	w.jsonMode = false
+	tt.Frame()
+	if !tt.HasText("renamed") || w.entries[0].name != "renamed" {
 		t.Fatal("form edit lost when reopening JSON import")
 	}
 	if len(w.drafts()) != 2 {
@@ -65,8 +70,8 @@ func TestMCPAddPreviewRequiresClickAndDropsCancelledAndStale(t *testing.T) {
 	}
 	u, tt, queue := settingsMCPView(t, actions)
 	e := mcpAddFixture(u)
-	e.draft = mcp.Draft{Name: "fixture", Transport: "stdio", Command: "fixture"}
-	u.mcp.add.step = 1
+	e.transport, e.command = "stdio", "fixture"
+	u.mcp.add.step = mcpStepTools
 	tt.Frame()
 	if calls.Load() != 0 {
 		t.Fatal("render started subprocess")
@@ -78,7 +83,7 @@ func TestMCPAddPreviewRequiresClickAndDropsCancelledAndStale(t *testing.T) {
 		t.Fatal(err)
 	}
 	<-started
-	e.draft.Command = "other"
+	e.command = "other"
 	u.mcp.add.invalidate(e)
 	close(release)
 	finishDetail(t, queue)
@@ -108,7 +113,7 @@ func TestMCPAddPreflightAllTargetsBlocksOnAnyFailure(t *testing.T) {
 	u, tt, queue := settingsMCPView(t, actions)
 	mcpAddFixture(u)
 	w := u.mcp.add
-	w.step = 2
+	w.step = mcpStepReview
 	for _, p := range store.Providers() {
 		w.targets[p] = true
 	}
@@ -120,7 +125,7 @@ func TestMCPAddPreflightAllTargetsBlocksOnAnyFailure(t *testing.T) {
 	u.prepareMCPDrafts(actions, false)
 	finishDetail(t, queue)
 	tt.Frame()
-	if calls.Load() != 3 || w.step != 2 || w.err == nil {
+	if calls.Load() != 3 || w.step != mcpStepReview || w.err == nil {
 		t.Fatal("all target preflight must complete and block on any failure")
 	}
 	var writes atomic.Int32
@@ -166,7 +171,7 @@ func TestMCPAddPartialRetryAndDuplicateSubmit(t *testing.T) {
 	}
 	u.prepareMCPDrafts(actions, true)
 	finishDetail(t, queue)
-	if w.step != 3 {
+	if retried := w.plan(store.ProviderClaude); len(w.plans) != 2 || retried == nil || retried.done || retried.err != nil || !w.plan(store.ProviderCodex).done {
 		t.Fatal("retry skipped fresh preflight")
 	}
 	u.submitMCPDrafts(actions)
@@ -250,4 +255,101 @@ func TestMCPAddSharedSessionSurvivesWholeWindowRecreation(t *testing.T) {
 	if session.wizard != nil || next.mcp.add != nil {
 		t.Fatal("unconfirmed secret draft survived whole-window close")
 	}
+}
+
+func TestMCPAddFormBuildsDraftAndRejectsBadRows(t *testing.T) {
+	e := newMCPDraft(mcp.Draft{Name: " fixture ", Transport: "http", URL: " https://mcp.example.test ", Headers: map[string]string{"B": "2", "A": "1"}})
+	if e.headers[0].key != "A" || e.headers[1].key != "B" {
+		t.Fatal("headers not listed in order")
+	}
+	e.headers = append(e.headers, mcpPair{id: e.newID()})
+	d, err := e.draft()
+	if err != nil || d.Name != "fixture" || d.URL != "https://mcp.example.test" || len(d.Headers) != 2 || d.Command != "" {
+		t.Fatal("blank row or spaces reached the draft")
+	}
+	e.command, e.args = "stale", []mcpArg{{id: e.newID(), value: "x"}}
+	if d, _ = e.draft(); d.Command != "" || len(d.Args) != 0 {
+		t.Fatal("other transport's fields reached the draft")
+	}
+	e.headers[2].value = "orphan"
+	if _, err = e.draft(); !mcpErrorIs(err, "invalid", "headers") {
+		t.Fatal("value without a name accepted")
+	}
+	e.headers[2].key = " A"
+	if _, err = e.draft(); !mcpErrorIs(err, "duplicate", "headers") {
+		t.Fatal("repeated header accepted")
+	}
+}
+
+func TestMCPAddContinueShowsFirstInvalidServer(t *testing.T) {
+	u, tt, _ := settingsMCPView(t, mcpAddTestActions())
+	first := mcpAddFixture(u)
+	w := u.mcp.add
+	second := w.addEntry(mcp.Draft{Name: "fixture", Transport: "stdio", Command: "fixture"})
+	third := w.addEntry(mcp.Draft{Name: "third", Transport: "http", URL: "https://third.test", BearerTokenEnv: "bad name"})
+	third.advanced = false
+	w.edit = 0
+	w.continueToTools()
+	if w.step != mcpStepConfigure || w.edit != 1 || !w.attempted {
+		t.Fatal("duplicate name passed or was not shown")
+	}
+	tt.Frame()
+	if !tt.HasText(tx(u.L(), xMCPErrorDuplicate)) || !tt.HasText(tx(u.L(), xMCPNeedsFix)) {
+		t.Fatal("field error or list badge missing")
+	}
+	second.name = "second"
+	w.continueToTools()
+	if w.edit != 2 || !third.advanced {
+		t.Fatal("folded field error stayed hidden")
+	}
+	third.selected = false
+	w.continueToTools()
+	if w.step != mcpStepTools || len(w.drafts()) != 2 || first.name != "fixture" {
+		t.Fatal("valid servers did not continue")
+	}
+}
+
+func TestMCPAddImportRejectsWhatTheFormCannotShow(t *testing.T) {
+	actions := mcpAddTestActions()
+	u, _, _ := settingsMCPView(t, actions)
+	mcpAddFixture(u)
+	w := u.mcp.add
+	for _, paste := range []string{`{"command":"fixture","url":"https://a.test"}`, `{"type":"websocket","url":"https://a.test"}`} {
+		w.paste = paste
+		w.importDrafts(actions)
+		if w.jsonErr == nil || len(w.entries) != 1 || w.entries[0].name != "fixture" || w.paste == "" {
+			t.Fatalf("unrepresentable JSON accepted: %s", paste)
+		}
+	}
+	w.paste = `{"mcpServers":{"beta":{"url":"https://b.test"}}}`
+	w.importDrafts(actions)
+	if w.jsonErr != nil || len(w.entries) != 2 || w.edit != 1 {
+		t.Fatal("JSON did not append to a typed form")
+	}
+	w.replace = true
+	w.paste = `{"mcpServers":{"gamma":{"url":"https://c.test"}}}`
+	w.importDrafts(actions)
+	if len(w.entries) != 1 || w.entries[0].name != "gamma" {
+		t.Fatal("replace kept old servers")
+	}
+}
+
+func TestMCPAddRemoveLastServerLeavesEmptyForm(t *testing.T) {
+	u, _, _ := settingsMCPView(t, mcpAddTestActions())
+	mcpAddFixture(u)
+	w := u.mcp.add
+	w.addEntry(mcp.Draft{Name: "second", Transport: "stdio"})
+	w.removeEntry(1)
+	if len(w.entries) != 1 || w.edit != 0 {
+		t.Fatal("edit index out of range after removal")
+	}
+	w.removeEntry(0)
+	if len(w.entries) != 1 || !w.entries[0].blank() || w.edit != 0 {
+		t.Fatal("removing the last server left no form")
+	}
+}
+
+func mcpErrorIs(err error, code, field string) bool {
+	var d *mcp.DraftError
+	return errors.As(err, &d) && d.Code == code && d.Field == field
 }
