@@ -1,5 +1,5 @@
-// Package mcp reads and removes user-scoped MCP server declarations without
-// starting servers or exposing credentials from their configuration.
+// Package mcp manages user-scoped MCP declarations and explicitly requested
+// connection previews without exposing credentials in summaries or errors.
 package mcp
 
 import (

@@ -45,14 +45,15 @@ type Actions struct {
 
 // SettingsOptions configures the settings window.
 type SettingsOptions struct {
-	Version string
-	Actions Actions
+	mcpAddSession *mcpAddSession
+	Version       string
+	Actions       Actions
 	// Skills returns the skills actions of the running app; nil or an
 	// empty result leaves the skills tab read-only.
 	Skills func() SkillActions
 	// Sessions returns read and delete operations for local CLI sessions.
 	Sessions func() SessionActions
-	// MCP returns read and delete operations for global native MCP entries.
+	// MCP returns management and explicit tool-preview operations for global native MCP entries.
 	MCP     func() MCPActions
 	Pricing func() PricingActions
 	// PanelDisplay returns the display used by the main panel.
@@ -171,7 +172,11 @@ type settingsUI struct {
 }
 
 func newSettingsUI(s *Settings, opts SettingsOptions) *settingsUI {
-	return &settingsUI{s: s, opts: opts}
+	u := &settingsUI{s: s, opts: opts}
+	if opts.mcpAddSession != nil {
+		opts.mcpAddSession.owner = u
+	}
+	return u
 }
 
 // post runs fn on the main thread and draws a new frame.
@@ -189,6 +194,9 @@ func (u *settingsUI) text(k l10n.Key) string { return u.L().Text(k) }
 
 // view builds one frame of the settings window.
 func (u *settingsUI) view(c *ui.Context) {
+	if u.tab != tabMCP {
+		u.closeMCPAdd()
+	}
 	applyThemeColor(c, u.s.prefs.ThemeColor, u.s.prefs.FontFamily)
 	if !u.draftReady {
 		u.draft, u.draftReady = NewProxyDraft(u.s.Proxy()), true

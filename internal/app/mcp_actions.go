@@ -14,4 +14,8 @@ type MCPActions struct {
 	Delete     func(context.Context, store.Provider, []mcp.Server) ([]mcp.DeleteResult, error)
 	SetEnabled func(context.Context, store.Provider, mcp.Server, bool) error
 	Reveal     func(string) error
+	Parse      func([]byte) ([]mcp.Draft, error)
+	Probe      func(context.Context, mcp.Draft) (mcp.ProbeResult, error)
+	PrepareAdd func(context.Context, store.Provider, []mcp.Draft) (mcp.AddPlan, error)
+	Add        func(context.Context, store.Provider, mcp.AddPlan) (mcp.AddResult, error)
 }

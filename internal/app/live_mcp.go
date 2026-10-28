@@ -13,6 +13,10 @@ import (
 var errMCPUnavailable = errors.New("MCP service unavailable")
 
 func installMCPActions(rt *liveApp, actions *MCPActions) {
+	actions.Parse = mcp.ParseDrafts
+	actions.Probe = mcp.Probe
+	actions.PrepareAdd = rt.prepareMCPAdd
+	actions.Add = rt.addMCP
 	actions.Query = rt.queryMCP
 	actions.Delete = rt.deleteMCP
 	actions.SetEnabled = rt.setMCPEnabled
@@ -80,4 +84,40 @@ func (rt *liveApp) setMCPEnabled(ctx context.Context, provider store.Provider, s
 		return errors.New("unsupported MCP provider")
 	}
 	return errMCPUnavailable
+}
+
+func (rt *liveApp) prepareMCPAdd(ctx context.Context, provider store.Provider, drafts []mcp.Draft) (mcp.AddPlan, error) {
+	switch provider {
+	case store.ProviderCodex:
+		if rt.codex != nil {
+			return rt.codex.PrepareMCPAdd(ctx, drafts)
+		}
+	case store.ProviderClaude:
+		if rt.claudeMod != nil && rt.claudeMod.Store != nil {
+			return rt.claudeMod.Store.PrepareMCPAdd(ctx, drafts)
+		}
+	case store.ProviderGrok:
+		if rt.grokMod != nil && rt.grokMod.Store != nil {
+			return rt.grokMod.Store.PrepareMCPAdd(ctx, drafts)
+		}
+	}
+	return mcp.AddPlan{}, errMCPUnavailable
+}
+func (rt *liveApp) addMCP(ctx context.Context, provider store.Provider, plan mcp.AddPlan) (mcp.AddResult, error) {
+	now := time.Now()
+	switch provider {
+	case store.ProviderCodex:
+		if rt.codex != nil {
+			return rt.codex.AddMCP(ctx, plan, now)
+		}
+	case store.ProviderClaude:
+		if rt.claudeMod != nil && rt.claudeMod.Store != nil {
+			return rt.claudeMod.Store.AddMCP(ctx, plan, now)
+		}
+	case store.ProviderGrok:
+		if rt.grokMod != nil && rt.grokMod.Store != nil {
+			return rt.grokMod.Store.AddMCP(ctx, plan, now)
+		}
+	}
+	return mcp.AddResult{}, errMCPUnavailable
 }

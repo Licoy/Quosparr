@@ -13,6 +13,10 @@ import (
 // and selection bar; an open server is a page of its own, without the tabs.
 func (u *settingsUI) mcpPage(c *ui.Context) {
 	s, actions := u.mcpState(), u.mcpActions()
+	if s.add != nil && s.add.open {
+		u.mcpAddPage(c, actions)
+		return
+	}
 	if !s.loaded && !s.task.Running && s.task.Err == nil {
 		u.startMCPScan(actions)
 	}
@@ -68,6 +72,9 @@ func (u *settingsUI) mcpProviderTabs(c *ui.Context, actions MCPActions) {
 			u.startMCPScan(actions)
 		}
 		ui.Spacer(c).Grow(1)
+		if SmallPillButton(c, icPlus, tx(l, xMCPAdd), s.work.Running || actions.PrepareAdd == nil || actions.Add == nil).Clicked() {
+			u.openMCPAdd()
+		}
 		if s.task.Running || s.work.Running {
 			ui.Spinner(c).Size(14, 14)
 		}

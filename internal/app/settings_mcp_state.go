@@ -11,6 +11,7 @@ import (
 )
 
 type settingsMCP struct {
+	add        *mcpAddWizard
 	provider   store.Provider
 	search     string
 	task       Task
@@ -36,6 +37,9 @@ type settingsMCP struct {
 func (u *settingsUI) mcpState() *settingsMCP {
 	if u.mcp == nil {
 		u.mcp = &settingsMCP{provider: store.ProviderCodex, selected: map[string]bool{}}
+		if u.opts.mcpAddSession != nil {
+			u.mcp.add = u.opts.mcpAddSession.wizard
+		}
 	}
 	return u.mcp
 }
@@ -144,4 +148,5 @@ func (u *settingsUI) cancelMCPTasks() {
 		u.mcp.cancel = nil
 	}
 	u.mcp.generation++
+	u.closeMCPAdd()
 }

@@ -34,17 +34,23 @@ const (
 // original file is left untouched. A symlinked path is edited through to its
 // target so the link survives.
 func EditFileWithBackup(path string, backup BackupPolicy, now time.Time, edit func(old []byte) ([]byte, error)) error {
-	return editFileWithBackup(path, backup, now, edit, nil)
+	return editFileWithBackup(path, backup, now, edit, nil, false)
 }
 
 // EditFileWithBackupChecked is EditFileWithBackup with a final caller check
 // after the backup and temporary replacement are ready, immediately before
 // the atomic replacement. A failed check leaves the destination untouched.
 func EditFileWithBackupChecked(path string, backup BackupPolicy, now time.Time, edit func(old []byte) ([]byte, error), beforeReplace func() error) error {
-	return editFileWithBackup(path, backup, now, edit, beforeReplace)
+	return editFileWithBackup(path, backup, now, edit, beforeReplace, false)
 }
 
-func editFileWithBackup(path string, backup BackupPolicy, now time.Time, edit func(old []byte) ([]byte, error), beforeReplace func() error) error {
+// EditPrivateFileWithBackupChecked writes a secret-bearing configuration with
+// private permissions, including the temporary replacement and Windows ACL.
+func EditPrivateFileWithBackupChecked(path string, backup BackupPolicy, now time.Time, edit func(old []byte) ([]byte, error), beforeReplace func() error) error {
+	return editFileWithBackup(path, backup, now, edit, beforeReplace, true)
+}
+
+func editFileWithBackup(path string, backup BackupPolicy, now time.Time, edit func(old []byte) ([]byte, error), beforeReplace func() error, private bool) error {
 	target := path
 	if resolved, err := filepath.EvalSymlinks(path); err == nil {
 		target = resolved
@@ -64,6 +70,9 @@ func editFileWithBackup(path string, backup BackupPolicy, now time.Time, edit fu
 		if err := writeBackup(backup, old, now); err != nil {
 			return err
 		}
+	}
+	if private {
+		mode = editedFileDefaultPerm
 	}
 	return writeFileAtomic(target, out, mode, beforeReplace)
 }

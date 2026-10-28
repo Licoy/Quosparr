@@ -54,3 +54,25 @@ func (s *Store) mcpSource() (mcp.Source, error) {
 		BackupDir: backup,
 	}, err
 }
+
+// PrepareMCPAdd captures a user-reviewed addition under the shared Store lock.
+func (s *Store) PrepareMCPAdd(ctx context.Context, drafts []mcp.Draft) (mcp.AddPlan, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	source, err := s.mcpSource()
+	if err != nil {
+		return mcp.AddPlan{}, err
+	}
+	return mcp.PrepareAdd(ctx, source, drafts)
+}
+
+// AddMCP commits exactly the prepared addition under the shared Store lock.
+func (s *Store) AddMCP(ctx context.Context, plan mcp.AddPlan, now time.Time) (mcp.AddResult, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	source, err := s.mcpSource()
+	if err != nil {
+		return mcp.AddResult{}, err
+	}
+	return mcp.Add(ctx, source, plan, now)
+}
