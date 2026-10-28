@@ -186,9 +186,13 @@ func TestAddUnsafeInsertAndBackupFailureWriteNothing(t *testing.T) {
 }
 
 func TestAddMissingTargetAndParentIdentityRechecked(t *testing.T) {
-	for _, change := range []string{"target", "parent", "symlink"} {
+	for _, change := range []string{"target", "parent", "ancestor", "symlink"} {
 		t.Run(change, func(t *testing.T) {
 			source := testSource(t, ProviderClaude, "config.json")
+			parent := filepath.Dir(source.Path)
+			if change == "ancestor" {
+				source.Path = filepath.Join(parent, "missing", "config.json")
+			}
 			plan, err := PrepareAdd(context.Background(), source, []Draft{{Name: "new", Transport: "stdio", Command: "server"}})
 			if err != nil {
 				t.Fatal(err)
@@ -198,8 +202,7 @@ func TestAddMissingTargetAndParentIdentityRechecked(t *testing.T) {
 				if err := os.WriteFile(source.Path, []byte(`{"external":true}`), 0600); err != nil {
 					t.Fatal(err)
 				}
-			case "parent":
-				parent := filepath.Dir(source.Path)
+			case "parent", "ancestor":
 				if err := os.Rename(parent, parent+"-old"); err != nil {
 					t.Fatal(err)
 				}
@@ -215,8 +218,18 @@ func TestAddMissingTargetAndParentIdentityRechecked(t *testing.T) {
 					t.Skip("symlinks unavailable")
 				}
 			}
-			if _, err := Add(context.Background(), source, plan, time.Now()); err == nil {
+			_, err = Add(context.Background(), source, plan, time.Now())
+			if err == nil {
 				t.Fatal("changed target accepted")
+			}
+			if change == "parent" || change == "ancestor" {
+				var detail *DraftError
+				if !errors.As(err, &detail) || detail.Code != "changed" || detail.Field != "parent" {
+					t.Fatalf("parent replacement was not detected: %v", err)
+				}
+				if _, err := os.Lstat(source.Path); !errors.Is(err, os.ErrNotExist) {
+					t.Fatalf("configuration written after parent replacement: %v", err)
+				}
 			}
 		})
 	}

@@ -188,6 +188,11 @@ func addAncestor(path string) (string, fs.FileInfo, error) {
 			if !info.IsDir() || info.Mode()&os.ModeSymlink != 0 {
 				return "", nil, draftError("unsafe", "parent")
 			}
+			// Windows Lstat loads the file ID lazily; capture it before the
+			// directory can be replaced while the user reviews the plan.
+			if !os.SameFile(info, info) {
+				return "", nil, draftError("unsafe", "parent")
+			}
 			return current, info, nil
 		}
 		if !errors.Is(err, os.ErrNotExist) || filepath.Dir(current) == current {
@@ -218,7 +223,8 @@ func createAddParents(path, ancestor string, identity fs.FileInfo) (fs.FileInfo,
 		}
 		current = missing[i]
 		info, err = os.Lstat(current)
-		if err != nil || !info.IsDir() || info.Mode()&os.ModeSymlink != 0 {
+		// Freeze newly created directory identities for the next recheck too.
+		if err != nil || !info.IsDir() || info.Mode()&os.ModeSymlink != 0 || !os.SameFile(info, info) {
 			return nil, draftError("changed", "parent")
 		}
 	}
