@@ -855,9 +855,7 @@ func buildGrokState(mod *grok.Module, lc l10n.Localizer) runway.GrokState {
 	if snap == nil {
 		return st
 	}
-	if snap.Plan != nil {
-		st.Plan = *snap.Plan
-	}
+	st.Plan, st.PlanBillingSystem, st.PlanError = grokPlanProjection(*snap)
 	if !snap.UpdatedAt.IsZero() {
 		st.UpdatedAt = snap.UpdatedAt
 	}
@@ -981,8 +979,7 @@ func grokWidget(st runway.GrokState) *export.ProviderSnapshot {
 		Provider: export.ProviderGrok, Availability: widgetAvailability(st.Availability),
 		TokenSource: export.TokensThisMac,
 	}
-	if st.Plan != "" {
-		plan := st.Plan
+	if plan, ok := grok.SafeTierDisplayName(st.Plan); ok {
 		p.Plan = &plan
 	}
 	if !st.UpdatedAt.IsZero() {

@@ -187,13 +187,13 @@ func codexTierLook(t *ui.Theme, tier codex.Tier) tierLook {
 func grokTierLook(t *ui.Theme, tier grok.TierKind) tierLook {
 	light := !t.Dark
 	switch tier {
-	case grok.TierSuperGrokLite:
+	case grok.TierSuperGrokLite, grok.TierXSubscriptionPlus:
 		return steelLite.look(light)
-	case grok.TierSuperGrok:
+	case grok.TierSuperGrok, grok.TierXSubscriptionPremium:
 		return silverLook(light)
-	case grok.TierSuperGrokPlus:
+	case grok.TierSuperGrokPlus, grok.TierXSubscriptionSuper:
 		return goldLook(light)
-	case grok.TierSuperGrokHeavy:
+	case grok.TierSuperGrokHeavy, grok.TierXSubscriptionUltra:
 		return blackGoldLook(light)
 	case grok.TierXBasic:
 		return steelXBasic.look(light)
@@ -253,9 +253,9 @@ func tierBadge(c *ui.Context, look tierLook, label string) { tierBadgePadded(c, 
 
 // tierBadgePadded is tierBadge with its own padding; the account cards use
 // the tighter 1pt by 5pt of SubscriptionTierTag.
-func tierBadgePadded(c *ui.Context, look tierLook, label string, vertical, horizontal float32) {
+func tierBadgePadded(c *ui.Context, look tierLook, label string, vertical, horizontal float32) ui.Element {
 	reduceMotion := c.Preferences().ReduceMotion
-	ui.Row(c).Shrink(0).Padding(vertical, horizontal).Radius(999).AlignItems(ui.Center).Label(label).Draw(func(p *ui.Painter, r ui.Rect) {
+	return ui.Row(c).Shrink(0).Padding(vertical, horizontal).Radius(999).AlignItems(ui.Center).Label(label).Draw(func(p *ui.Painter, r ui.Rect) {
 		fillStops(p, r, look.fill, r.H/2)
 		if look.sheen.A > 0 && !reduceMotion {
 			drawTierSheen(p, r, look.sheen)
@@ -263,7 +263,7 @@ func tierBadgePadded(c *ui.Context, look tierLook, label string, vertical, horiz
 	}).DrawOver(func(p *ui.Painter, r ui.Rect) {
 		p.Stroke(r, look.stroke, r.H/2, 1)
 	}).Children(func() {
-		ui.Text(c, label).FontSize(fsCaption).FontWeight(600).TextColor(look.foreground).SingleLine()
+		ui.Text(c, label).FontSize(fsCaption).FontWeight(600).TextColor(look.foreground).SingleLine().MinWidth(0).Shrink(1).Ellipsis("…")
 	})
 }
 

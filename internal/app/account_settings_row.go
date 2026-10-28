@@ -6,7 +6,6 @@ import (
 	"github.com/egoist/mygo/ui"
 	"github.com/licoy/quosparr/internal/claude"
 	"github.com/licoy/quosparr/internal/codex"
-	"github.com/licoy/quosparr/internal/grok"
 	"github.com/licoy/quosparr/internal/l10n"
 	"github.com/licoy/quosparr/internal/runway"
 	"github.com/licoy/quosparr/internal/store"
@@ -52,8 +51,7 @@ func accountSettingsIdentityInfo(c *ui.Context, l l10n.Localizer, v accountIdent
 			} else if acc.IsRelay() {
 				apiTierBadge(c, l)
 			} else if v.grokQuota != nil && v.grokQuota.Plan != "" {
-				kind := grok.TierResolve(v.grokQuota.Plan)
-				tierBadgePadded(c, grokTierLook(c.Theme(), kind), kind.DisplayName(), 1, 5)
+				grokPlanBadgeInfo(c, l, grokPlanInfo{plan: v.grokQuota.Plan, billingSystem: v.grokQuota.PlanBillingSystem, compact: true})
 			} else if v.claudeQuota != nil && v.claudeQuota.Plan != "" {
 				tierBadgePadded(c, claudeTierLook(c.Theme(), claude.TierResolve(v.claudeQuota.Plan)), v.claudeQuota.Plan, 1, 5)
 			}

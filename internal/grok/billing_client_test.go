@@ -66,7 +66,7 @@ func TestBillingFetchMergesPlanMoneyAndReset(t *testing.T) {
 	home := t.TempDir()
 	writeAuth(t, home, token)
 	client := &BillingClient{
-		HTTP: srv.Client(), BaseURL: srv.URL + "/v1", ResetCreditsURL: srv.URL + "/reset",
+		HTTP: srv.Client(), BaseURL: srv.URL + "/v1", ResetCreditsURL: srv.URL + "/reset", SubscriptionsURL: srv.URL + "/subscriptions",
 		Version: func() string { return "9.9.9" },
 	}
 	raw, when, err := client.Fetch(context.Background(), home)
@@ -109,7 +109,7 @@ func TestBillingFetchUsesJWTWhenSettingsOmitPlan(t *testing.T) {
 	home := t.TempDir()
 	writeAuth(t, home, token)
 	client := &BillingClient{
-		HTTP: srv.Client(), BaseURL: srv.URL + "/v1", ResetCreditsURL: srv.URL + "/reset",
+		HTTP: srv.Client(), BaseURL: srv.URL + "/v1", ResetCreditsURL: srv.URL + "/reset", SubscriptionsURL: srv.URL + "/subscriptions",
 		Version: func() string { return "0.2.93" },
 	}
 	raw, _, err := client.Fetch(context.Background(), home)
@@ -136,7 +136,7 @@ func TestBillingFetchAuthStatusOmitsBody(t *testing.T) {
 	home := t.TempDir()
 	writeAuth(t, home, token)
 	client := &BillingClient{
-		HTTP: srv.Client(), BaseURL: srv.URL + "/v1", ResetCreditsURL: srv.URL + "/reset",
+		HTTP: srv.Client(), BaseURL: srv.URL + "/v1", ResetCreditsURL: srv.URL + "/reset", SubscriptionsURL: srv.URL + "/subscriptions",
 		Version: func() string { return "9.9.9" },
 	}
 	_, _, err := client.Fetch(context.Background(), home)

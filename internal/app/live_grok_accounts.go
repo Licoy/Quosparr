@@ -58,9 +58,7 @@ func grokAccountQuota(lc l10n.Localizer, account grok.ManagedAccount) (runway.Gr
 		IncludedUSD: grokIncludedUSD(snap),
 		UpdatedAt:   snap.UpdatedAt,
 	}
-	if snap.Plan != nil {
-		q.Plan = *snap.Plan
-	}
+	q.Plan, q.PlanBillingSystem, q.PlanError = grokPlanProjection(snap)
 	if snap.Period != nil {
 		q.Title = periodTitle(lc, snap.Period.Kind)
 		if snap.Period.ResetsAt != nil {

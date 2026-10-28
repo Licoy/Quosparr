@@ -72,6 +72,7 @@ func grokQuotaBlock(c *ui.Context, l l10n.Localizer, q *runway.GrokAccountQuota,
 			accountStats(c, view, []accountStat{accountResetStat(l, nil, time.Time{}, time.Time{}, "")})
 			return
 		}
+		grokPlanNotice(c, l, q.PlanError)
 		if len(q.Meters) > 0 {
 			grokAccountMeters(c, l, q.Meters, view)
 		}

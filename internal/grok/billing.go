@@ -51,6 +51,8 @@ type BillingProductUsage struct {
 // values are pointers: nil means the server did not report them.
 type BillingSnapshot struct {
 	Plan                 *string
+	Subscription         *SubscriptionInfo
+	SubscriptionError    string
 	IncludedUsagePercent float64
 	Period               *BillingPeriod
 	// Included allowance in USD cents (config.monthlyLimit / config.used).
@@ -678,6 +680,14 @@ func (s BillingSnapshot) MarshalJSON() ([]byte, error) {
 	if s.Plan != nil {
 		m = append(m, billingMember{"plan", billingQuote(*s.Plan)})
 	}
+	if s.Subscription != nil {
+		m = append(m, billingMember{"subscription", billingObject([]billingMember{
+			{"tier", billingQuote(s.Subscription.Tier)}, {"billingSystem", billingQuote(s.Subscription.BillingSystem)},
+		})})
+	}
+	if s.SubscriptionError != "" {
+		m = append(m, billingMember{"subscriptionError", billingQuote(s.SubscriptionError)})
+	}
 	if s.Period != nil {
 		p := []billingMember{{"kind", billingQuote(string(s.Period.Kind))}}
 		billingOptDate(&p, "startsAt", s.Period.StartsAt)
@@ -742,6 +752,16 @@ func ParseBillingSnapshot(data []byte) (BillingSnapshot, error) {
 	d := snapshotDecoder{}
 	var s BillingSnapshot
 	s.Plan = d.optString(root, "plan")
+	if n := root.get("subscription"); n.present() {
+		if n.kind != jsonObject {
+			d.fail()
+		} else {
+			s.Subscription = &SubscriptionInfo{Tier: d.requiredString(n, "tier"), BillingSystem: d.requiredString(n, "billingSystem")}
+		}
+	}
+	if value := d.optString(root, "subscriptionError"); value != nil {
+		s.SubscriptionError = *value
+	}
 	s.IncludedUsagePercent = d.requiredDouble(root, "includedUsagePercent")
 	if n := root.get("period"); n.present() {
 		s.Period = d.period(n)

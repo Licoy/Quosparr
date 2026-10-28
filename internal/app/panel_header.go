@@ -6,7 +6,6 @@ import (
 	"github.com/egoist/mygo/ui"
 	"github.com/licoy/quosparr/internal/claude"
 	"github.com/licoy/quosparr/internal/codex"
-	"github.com/licoy/quosparr/internal/grok"
 	"github.com/licoy/quosparr/internal/l10n"
 	"github.com/licoy/quosparr/internal/runway"
 	"github.com/licoy/quosparr/internal/store"
@@ -294,22 +293,18 @@ func claudePlanBadge(c *ui.Context, l l10n.Localizer, plan string) {
 func grokIdentityRow(c *ui.Context, a *App, l l10n.Localizer, prefs store.Preferences, snap runway.Snapshot) {
 	row := identityPill(c, l.Text(l10n.KeyGrokAccountsTitle))
 	row.Children(func() {
-		grokPlanBadge(c, l, snap.Grok.Plan)
+		grokPlanBadgeInfo(c, l, grokPlanInfo{plan: snap.Grok.Plan, billingSystem: snap.Grok.PlanBillingSystem})
 		ui.Text(c, headerIdentity(l, prefs, snap)).FontSize(fsCallout).FontWeight(600).SingleLine().Ellipsis("…").MaxWidth(220)
 		identityChevron(c)
 	})
 	if row.Clicked() {
 		a.panelState.detail = detailAccounts
 	}
+	grokPlanNotice(c, l, snap.Grok.PlanError)
 }
 
 // grokPlanBadge is the tier plate of a Grok plan, or the neutral provider
 // tag while the plan is unknown.
 func grokPlanBadge(c *ui.Context, l l10n.Localizer, plan string) {
-	if plan == "" {
-		tierBadge(c, plainLook(c.Theme()), l.Text(l10n.KeyProviderGrok))
-		return
-	}
-	kind := grok.TierResolve(plan)
-	tierBadge(c, grokTierLook(c.Theme(), kind), kind.DisplayName())
+	grokPlanBadgeInfo(c, l, grokPlanInfo{plan: plan})
 }

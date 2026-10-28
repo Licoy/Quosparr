@@ -5,7 +5,7 @@ import (
 	"testing"
 )
 
-func TestMergePlanFallsBackToMonthlyLimit(t *testing.T) {
+func TestMergePlanDoesNotInferTierFromMonthlyLimit(t *testing.T) {
 	noSettings := billingPart{err: errors.New("offline")}
 	limit := func(v int64) BillingSnapshot { return BillingSnapshot{IncludedLimitCents: &v} }
 	plan := func(s BillingSnapshot) string {
@@ -20,10 +20,10 @@ func TestMergePlanFallsBackToMonthlyLimit(t *testing.T) {
 		token string
 		want  string
 	}{
-		{"heavy limit", limit(150_000), "", "SuperGrok Heavy"},
-		{"supergrok limit", limit(15_000), "", "SuperGrok"},
+		{"heavy limit", limit(150_000), "", ""},
+		{"supergrok limit", limit(15_000), "", ""},
 		{"known claim beats limit", limit(150_000), syntheticTierToken(7), "SuperGrok Plus"},
-		{"limit beats unmapped claim", limit(15_000), syntheticTierToken(42), "SuperGrok"},
+		{"limit cannot replace unmapped claim", limit(15_000), syntheticTierToken(42), "Tier 42"},
 		{"unmapped claim is last", limit(9_999), syntheticTierToken(42), "Tier 42"},
 		{"nothing known", limit(9_999), "", ""},
 	}

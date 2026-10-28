@@ -44,8 +44,10 @@ type GrokState struct {
 	// for the account list; accounts without a reading are absent.
 	AccountQuotas map[string]GrokAccountQuota
 	// Plan and UpdatedAt describe the quota reading; zero when none.
-	Plan      string
-	UpdatedAt time.Time
+	Plan              string
+	PlanBillingSystem string
+	PlanError         string
+	UpdatedAt         time.Time
 	// Meters are the quota bars, the overall included quota first.
 	Meters     []Meter
 	LastError  string
@@ -80,6 +82,8 @@ type GrokAccountQuota struct {
 	ResetCreditsKnown     bool
 	ResetCreditsUpdatedAt time.Time
 	Plan                  string
+	PlanBillingSystem     string
+	PlanError             string
 	Title                 string
 	UsedPercent           int
 	ResetsAt              time.Time

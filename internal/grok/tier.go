@@ -29,6 +29,10 @@ const (
 	TierXPremiumPlus
 	TierAPIKey
 	TierUnknown
+	TierXSubscriptionPlus
+	TierXSubscriptionPremium
+	TierXSubscriptionSuper
+	TierXSubscriptionUltra
 )
 
 // DisplayName is the canonical English label shown on badges. Brand names
@@ -51,6 +55,14 @@ func (k TierKind) DisplayName() string {
 		return "X Premium"
 	case TierXPremiumPlus:
 		return "X Premium+"
+	case TierXSubscriptionPlus:
+		return "X · Plus"
+	case TierXSubscriptionPremium:
+		return "X · Premium"
+	case TierXSubscriptionSuper:
+		return "X · Super"
+	case TierXSubscriptionUltra:
+		return "X · Ultra"
 	case TierAPIKey:
 		return "API Key"
 	default:
@@ -61,9 +73,19 @@ func (k TierKind) DisplayName() string {
 // TierResolve maps an API key, JWT claim name or display string to a tier.
 // Empty input and anything unrecognized is TierUnknown.
 func TierResolve(raw string) TierKind {
+	if tier := tierResolveExact(raw); tier != TierUnknown {
+		return tier
+	}
+	return tierResolveFuzzy(tierNormalizeKey(raw))
+}
+
+func tierResolveExact(raw string) TierKind {
 	trimmed, ok := billingNonEmpty(raw)
 	if !ok {
 		return TierUnknown
+	}
+	if tier := subscriptionNamedTier(trimmed); tier != TierUnknown {
+		return tier
 	}
 	key := tierNormalizeKey(trimmed)
 	switch key {
@@ -71,7 +93,7 @@ func TierResolve(raw string) TierKind {
 		return TierFree
 	case "supergrok", "grokpro":
 		return TierSuperGrok
-	case "supergrok_heavy", "supergrokpro", "supergrokheavy":
+	case "supergrok_heavy", "supergrokpro", "supergrokheavy", "heavy":
 		return TierSuperGrokHeavy
 	case "supergrok_lite", "supergroklite":
 		return TierSuperGrokLite
@@ -81,14 +103,14 @@ func TierResolve(raw string) TierKind {
 		return TierXBasic
 	case "x_premium", "xpremium":
 		return TierXPremium
-	case "x_premium_plus", "xpremiumplus", "x_premium_plus_":
+	case "x_premium_plus", "xpremiumplus", "x_premium_plus_", "premium_plus", "premium_plus_":
 		return TierXPremiumPlus
 	case "api_key", "apikey", "api":
 		return TierAPIKey
 	case "unknown":
 		return TierUnknown
 	}
-	return tierResolveFuzzy(key)
+	return TierUnknown
 }
 
 // TierDisplayName is the friendly label for UI tags. A value that is not a
@@ -124,28 +146,6 @@ func TierFromJWTClaim(tier uint64) TierKind {
 		return TierSuperGrokLite
 	case 7:
 		return TierSuperGrokPlus
-	}
-	return TierUnknown
-}
-
-// Monthly included allowances of the plans whose limit identifies them.
-const (
-	superGrokLimitCents      = 15_000
-	superGrokHeavyLimitCents = 150_000
-)
-
-// TierFromMonthlyLimit names the plan from its monthly included limit when
-// no tier field or claim names it: 15,000 cents is SuperGrok and 150,000
-// cents SuperGrok Heavy.
-func TierFromMonthlyLimit(limitCents *int64) TierKind {
-	if limitCents == nil {
-		return TierUnknown
-	}
-	switch *limitCents {
-	case superGrokLimitCents:
-		return TierSuperGrok
-	case superGrokHeavyLimitCents:
-		return TierSuperGrokHeavy
 	}
 	return TierUnknown
 }

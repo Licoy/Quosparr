@@ -18,6 +18,11 @@ func TestTierMatchesSwift(t *testing.T) {
 	}
 	for i, in := range inputs {
 		want := golden[i]
+		// The new exact product names supersede these two frozen Swift expectations
+		// without changing the original fixtures or the remaining compatibility cases
+		if in.Kind == "raw" && (in.V == "Plus" || in.V == "Premium") {
+			want = map[string]any{"tier": "X · " + in.V, "name": "X · " + in.V}
+		}
 		switch in.Kind {
 		case "payload", "token":
 			token := in.V

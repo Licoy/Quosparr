@@ -28,6 +28,7 @@ var (
 	previewGrokTiers = []grok.TierKind{
 		grok.TierFree, grok.TierSuperGrokLite, grok.TierSuperGrok, grok.TierSuperGrokPlus,
 		grok.TierSuperGrokHeavy, grok.TierXBasic, grok.TierXPremium, grok.TierXPremiumPlus,
+		grok.TierXSubscriptionPlus, grok.TierXSubscriptionPremium, grok.TierXSubscriptionSuper, grok.TierXSubscriptionUltra,
 		grok.TierAPIKey, grok.TierUnknown,
 	}
 	previewClaudeTiers = []claude.TierKind{

@@ -7,7 +7,6 @@ import (
 	"github.com/egoist/mygo"
 	"github.com/egoist/mygo/ui"
 	"github.com/licoy/quosparr/internal/codex"
-	"github.com/licoy/quosparr/internal/grok"
 	"github.com/licoy/quosparr/internal/l10n"
 	"github.com/licoy/quosparr/internal/runway"
 	"github.com/licoy/quosparr/internal/store"
@@ -163,8 +162,7 @@ func (a *App) grokCardHeader(c *ui.Context, l l10n.Localizer, acc codex.ManagedA
 					runwayTagPadded(c, l.Text(l10n.KeyAccountsCurrent), toneGreen, 1, 5)
 				}
 				if q.Plan != "" {
-					kind := grok.TierResolve(q.Plan)
-					tierBadgePadded(c, grokTierLook(t, kind), kind.DisplayName(), 1, 5)
+					grokPlanBadgeInfo(c, l, grokPlanInfo{plan: q.Plan, billingSystem: q.PlanBillingSystem, compact: true})
 				}
 				if acc.Email != "" && acc.Email != name {
 					ui.Text(c, accountPrivate(priv, acc.Email)).FontSize(fsCaption).TextColor(inkSecondary(t)).SingleLine().Ellipsis("…").Shrink(1)

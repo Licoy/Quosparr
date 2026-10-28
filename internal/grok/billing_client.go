@@ -26,9 +26,10 @@ const (
 // BillingClient reads included credits for the account whose home holds
 // auth.json. A nil HTTP client follows the current netx proxy.
 type BillingClient struct {
-	HTTP            *http.Client
-	BaseURL         string
-	ResetCreditsURL string
+	HTTP             *http.Client
+	BaseURL          string
+	ResetCreditsURL  string
+	SubscriptionsURL string
 	// Version returns the CLI version stamped on each request. Nil reads
 	// `grok --version` once.
 	Version func() string
@@ -68,6 +69,7 @@ func (c *BillingClient) fetch(ctx context.Context, homeDir string, now time.Time
 	centsCh := c.asyncGET(ctx, "billing", "", token, version)
 	settingsCh := c.asyncGET(ctx, "settings", "", token, version)
 	resetCh := c.asyncReset(ctx, token, version)
+	subscriptionCh := c.asyncSubscription(ctx, token, version)
 
 	credits := <-creditsCh
 	if stopped(credits.err) || errors.Is(credits.err, ErrAuthenticationRequired) {
@@ -85,11 +87,19 @@ func (c *BillingClient) fetch(ctx context.Context, homeDir string, now time.Time
 		return BillingSnapshot{}, err
 	}
 	snap = mergeMoney(snap, cents.data)
+	snap.Plan = rawBillingPlan(credits.data, cents.data)
 	snap = mergePlan(snap, <-settingsCh, token)
+	snap = mergeSubscription(snap, <-subscriptionCh)
+	if err := ctx.Err(); err != nil {
+		return BillingSnapshot{}, err
+	}
 	if reset := <-resetCh; reset.err == nil && len(reset.data) > 0 {
 		if cards, decErr := DecodeResetCredits(reset.data, now); decErr == nil {
 			snap = snap.MergingResetCredits(&cards)
 		}
+	}
+	if err := ctx.Err(); err != nil {
+		return BillingSnapshot{}, err
 	}
 	return snap, nil
 }
@@ -250,28 +260,4 @@ func mergeMoney(snap BillingSnapshot, cents []byte) BillingSnapshot {
 		return snap
 	}
 	return snap.MergingMoneyAllowance(limit, used)
-}
-
-func mergePlan(snap BillingSnapshot, settings billingPart, token string) BillingSnapshot {
-	if settings.err == nil {
-		if plan, ok := DecodeSettingsPlan(settings.data); ok {
-			return snap.MergingPlan(plan, true)
-		}
-	}
-	snap = snap.MergingPlan("", false)
-	if snap.Plan != nil && strings.TrimSpace(*snap.Plan) != "" {
-		return snap
-	}
-	// A known token claim beats the limit; an unmapped "Tier N" claim is
-	// only the last resort.
-	if tier, ok := TierFromAccessToken(token); ok && tier != TierUnknown {
-		return snap.MergingPlan(tier.DisplayName(), true)
-	}
-	if tier := TierFromMonthlyLimit(snap.IncludedLimitCents); tier != TierUnknown {
-		return snap.MergingPlan(tier.DisplayName(), true)
-	}
-	if name, ok := TierDisplayNameFromAccessToken(token); ok {
-		snap = snap.MergingPlan(name, true)
-	}
-	return snap
 }
