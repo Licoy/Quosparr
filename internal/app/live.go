@@ -262,7 +262,8 @@ func newRuntime(opts BackgroundOptions) *liveApp {
 	svc = runway.New(runway.Options{
 		PricingVersion: func() string { return priceSource.PriceBook(context.Background()).Version() },
 		Sources: runway.NewLiveSources(runway.LiveConfig{
-			Store: codexStore, CodexHome: platform.CodexDir(home),
+			LegacyStop: prepareCodexDesktopRestart,
+			Store:      codexStore, CodexHome: platform.CodexDir(home),
 			Quota: codexapi.QuotaClient{}, Refresher: codexapi.TokenRefresher{}, Repo: repo, Prices: priceSource,
 		}),
 		Preferences:         prefs,
@@ -381,7 +382,7 @@ func (rt *liveApp) panelActions(s *Settings) PanelActions {
 					message = rt.switchCodex(l, id, name)
 				}
 				if message != "" {
-					runOnMain(func() { ShowDialog(l.Text(l10n.KeyAccountsSwitchFailed), message) })
+					runOnMain(func() { ShowDialog(l.Text(providerKey(p.SelectedProvider)), message) })
 				}
 			}()
 		},

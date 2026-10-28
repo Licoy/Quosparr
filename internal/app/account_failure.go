@@ -84,6 +84,9 @@ func accountErrorReason(l l10n.Localizer, err error) string {
 }
 
 func accountUnderlyingReason(l l10n.Localizer, err error) string {
+	if errors.Is(err, codex.ErrSwitchFilesChanged) {
+		return accountReasonText(l, "changed")
+	}
 	if accountRollbackFailed(err) {
 		return accountReasonText(l, "rollback_failed")
 	}

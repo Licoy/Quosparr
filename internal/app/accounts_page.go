@@ -182,6 +182,7 @@ type accountForm struct {
 	desktopSwitch      bool
 	selection          *accountSelection
 	restartAfterSwitch bool
+	runtimeApply       bool
 	switchName         string
 	switchRelay        bool
 	api                apiDraft
@@ -228,6 +229,11 @@ func renderCodexAccounts(c *ui.Context, u *settingsUI, f *accountForm, rt *liveA
 	l := u.L()
 	view := rt.svc.Snapshot().Accounts
 	panelAccountStatus(c, l, view)
+	codexRuntimeControls(c, l, view, &f.runtimeApply, f.busy, func() {
+		u.accountAct(f, "", func() string { return rt.checkCodexRuntime(l) })
+	}, func() {
+		u.accountAct(f, "", func() string { msg, _ := rt.switchCodexResult(l, view.ActiveID, true); return msg })
+	})
 	// Settings keep the stored order, as for Claude and Grok, so that moves
 	// show; the panel pins the current account first.
 	rows := sortedCodex(view.Sidebar)
@@ -569,10 +575,8 @@ func (rt *liveApp) switchCodex(l l10n.Localizer, id, name string) string {
 	if !confirmed {
 		return ""
 	}
-	if err := rt.svc.SwitchAccount(context.Background(), id); err != nil {
-		return accountFailure(l, l.Text(l10n.KeyAccountsSwitchFailed), err)
-	}
-	return ""
+	msg, _ := rt.switchCodexResult(l, id, false)
+	return msg
 }
 
 func (rt *liveApp) deleteCodex(l l10n.Localizer, id string) string {

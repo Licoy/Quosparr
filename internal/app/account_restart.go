@@ -42,6 +42,14 @@ func isCodexDesktop(bundleID, name string) bool {
 // runCodexRestart is also used by tests with fake processes and a fake opener.
 // A termination request must actually finish before the login is relaunched.
 func runCodexRestart(apps []runningApp, fallback string, open func(string) error) error {
+	start, err := prepareCodexRestart(apps, fallback, open)
+	if err != nil {
+		return err
+	}
+	return start()
+}
+
+func prepareCodexRestart(apps []runningApp, fallback string, open func(string) error) (func() error, error) {
 	path := fallback
 	for _, app := range apps {
 		if app.release != nil {
@@ -54,28 +62,18 @@ func runCodexRestart(apps []runningApp, fallback string, open func(string) error
 			path = app.path
 		}
 		if !stopApp(app, 3*time.Second) {
-			return errRestartCodex
+			return nil, errRestartCodex
 		}
 	}
 	if path == "" {
-		return errRestartCodex
+		return nil, errRestartCodex
 	}
-	if err := open(path); err != nil {
-		return errRestartCodex
-	}
-	return nil
-}
-
-func switchAndRestartCodex(switchAccount func() error, restart func() error) error {
-	if err := switchAccount(); err != nil {
-		return err
-	}
-	if restart != nil {
-		if err := restart(); err != nil {
+	return func() error {
+		if err := open(path); err != nil {
 			return errRestartCodex
 		}
-	}
-	return nil
+		return nil
+	}, nil
 }
 
 func rtSwitchCodex(l l10n.Localizer, id string, restartAfter bool) string {
@@ -88,22 +86,24 @@ func rtSwitchCodexResult(l l10n.Localizer, id string, restartAfter bool) (string
 	if rt == nil {
 		return l.Text(l10n.KeyAccountsSwitchFailed), false
 	}
-	var restart func() error
-	if restartAfter {
-		restart = restartCodexDesktop
-	}
-	err := switchAndRestartCodex(func() error { return rt.svc.SwitchAccount(context.Background(), id) }, restart)
-	if errors.Is(err, errRestartCodex) {
-		return l.Textf(l10n.KeyAccountsRestartCodexFailed, l.Text(l10n.KeyStatusError)), false
-	}
+	return rt.switchCodexResult(l, id, restartAfter)
+}
+
+func (rt *liveApp) switchCodexResult(l l10n.Localizer, id string, restartAfter bool) (string, bool) {
+	err := rt.svc.SwitchAccountWithRestart(context.Background(), id, restartAfter)
+	status := rt.svc.Snapshot().Accounts.Runtime
 	if err != nil {
+		if errors.Is(err, runway.ErrCodexRuntime) {
+			return codexRuntimeMessage(l, status), false
+		}
 		if key := runway.CredentialModeErrorKey(err); key != "" {
 			return l.Text(key), false
 		}
-		return accountFailure(l, l.Text(l10n.KeyAccountsSwitchFailed), err), false
+		msg := accountFailure(l, l.Text(l10n.KeyAccountsSwitchFailed), err)
+		if status.State != "" {
+			msg += "\n" + codexRuntimeMessage(l, status)
+		}
+		return msg, false
 	}
-	if restartAfter {
-		return l.Text(l10n.KeyAccountsRestartCodexSucceeded), true
-	}
-	return "", true
+	return codexRuntimeMessage(l, status), true
 }

@@ -13,10 +13,11 @@ import (
 // calls them off the main thread. A nil func disables its control.
 type AccountActions struct {
 	// Codex accounts.
-	RefreshAll func() string
-	Refresh    func(id string) string
-	Switch     func(id string, restartCodex bool) string
-	Delete     func(id string) string
+	RefreshAll   func() string
+	Refresh      func(id string) string
+	Switch       func(id string, restartCodex bool) string
+	CheckRuntime func() string
+	Delete       func(id string) string
 
 	// Grok accounts. GrokSwitch reports running Grok processes, which the
 	// user must confirm before force is set.
@@ -62,6 +63,7 @@ type accountsState struct {
 	desktopSwitch bool
 	switchID      string
 	restart       bool
+	runtimeApply  bool
 	deleteID      string
 	runningID     string
 
@@ -80,6 +82,7 @@ func (s *accountsState) closePage() {
 		s.desktop.close()
 	}
 	s.desktopSwitch = false
+	s.runtimeApply = false
 	s.switchID, s.deleteID, s.runningID, s.aliasID = "", "", "", ""
 	s.pasteOpen, s.paste, s.pasteErr, s.notice, s.noticeOpen = false, "", "", "", false
 }

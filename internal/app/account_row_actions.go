@@ -56,7 +56,7 @@ func codexRowActions(u *settingsUI, f *accountForm, rt *liveApp, acc codex.Manag
 	l := u.L()
 	out := []rowAction{makeCurrentAction(l, l10n.KeyAccountsMakeCurrent, l10n.KeyAccountsIsCurrentLogin, current, func() {
 		f.mode, f.editID, f.switchName, f.switchRelay = "switch", acc.ID, name, acc.IsRelay()
-		f.restartAfterSwitch = codexRestartSupported
+		f.restartAfterSwitch = codexRestartDefault
 	})}
 	if acc.AuthMode == codex.AuthModeAPIKey {
 		out = append(out, rowAction{icon: icKey, label: tx(l, xAPIEdit), run: func() { f.openCodexAPIEditor(rt, acc) }})

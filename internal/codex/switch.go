@@ -67,25 +67,46 @@ func (sw *Switcher) fail(stage string) error {
 // managed copy or the index then fails, all three are restored to their
 // state before the commit and the restore is verified.
 func (sw *Switcher) SwitchTo(ctx context.Context, accountID string) (SwitchResult, error) {
-	if err := sw.Store.CheckOfficialCredentialStore(); err != nil {
+	commit, err := sw.PrepareSwitch(ctx, accountID)
+	if err != nil {
 		return SwitchResult{}, err
+	}
+	return commit()
+}
+
+// PrepareSwitch validates the credential before a caller stops its runtime;
+// the returned commit retains the existing atomic file transaction.
+func (sw *Switcher) PrepareSwitch(ctx context.Context, accountID string) (func() (SwitchResult, error), error) {
+	if err := sw.Store.CheckOfficialCredentialStore(); err != nil {
+		return nil, err
 	}
 	auth, err := sw.Store.LoadCredential(accountID)
 	if err != nil {
-		return SwitchResult{}, err
+		return nil, err
 	}
 	if err := requireUsable(auth, sw.now()); err != nil {
-		return SwitchResult{}, err
+		return nil, err
 	}
 	auth, err = sw.verify(ctx, accountID, auth)
 	if err != nil {
-		return SwitchResult{}, err
+		return nil, err
 	}
 	// The refresh above may have rotated tokens, so re-check usability.
 	if err := requireUsable(auth, sw.now()); err != nil {
-		return SwitchResult{}, err
+		return nil, err
 	}
-	return sw.commit(accountID, auth)
+	guard, err := sw.prepareGuard(accountID, auth)
+	if err != nil {
+		return nil, err
+	}
+	return func() (SwitchResult, error) {
+		return sw.commit(accountID, auth, func() error {
+			if err := ctx.Err(); err != nil {
+				return err
+			}
+			return guard()
+		})
+	}, nil
 }
 
 // EnsureValidCredential returns the managed credential of accountID, renewed
@@ -167,10 +188,13 @@ func (sw *Switcher) markReauth(accountID string, cause error) {
 // commit writes the official file, the managed copy, config.toml (the managed
 // provider of a relay account, or its removal) and the index as one
 // all-or-nothing step.
-func (sw *Switcher) commit(accountID string, auth Auth) (SwitchResult, error) {
+func (sw *Switcher) commit(accountID string, auth Auth, check func() error) (SwitchResult, error) {
 	s := sw.Store
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	if err := check(); err != nil {
+		return SwitchResult{}, err
+	}
 	if err := s.CheckOfficialCredentialStore(); err != nil {
 		return SwitchResult{}, err
 	}

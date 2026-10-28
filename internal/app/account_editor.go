@@ -113,10 +113,8 @@ func accountEditorFields(c *ui.Context, u *settingsUI, f *accountForm) {
 		if f.switchRelay {
 			ui.Text(c, tx(l, xAPIHintCodex)).FontSize(12).TextColor(c.Theme().TextMuted)
 		}
-		ui.Checkbox(c.Key("restart-after-switch"), &f.restartAfterSwitch, l.Text(l10n.KeyAccountsRestartCodexAfterSwitch)).Disabled(!codexRestartSupported || f.busy)
-		if !codexRestartSupported {
-			ui.Text(c, tx(l, xCodexRestartMac)).FontSize(11).TextColor(c.Theme().TextMuted)
-		}
+		ui.Checkbox(c.Key("restart-after-switch"), &f.restartAfterSwitch, l.CodexRuntime("restart")).Disabled(!codexRestartSupported || f.busy)
+		ui.Text(c, l.CodexRuntime("restart_hint")).FontSize(11).TextColor(c.Theme().TextMuted)
 	case "claude-switch":
 		ui.Text(c, l.Textf(l10n.KeyClaudeSwitchConfirmMessage, f.switchName)).FontSize(12)
 		risk := l.Text(l10n.KeyClaudeSwitchRisk)

@@ -67,7 +67,8 @@ func (rt *liveApp) updateCodexAPIAccount(ctx context.Context, id string, in Code
 	if err != nil {
 		return err
 	}
-	if in.Apply && strings.TrimSpace(in.APIKey) != "" {
+	if in.Apply {
+		rt.svc.InvalidateCodexRuntime()
 		// The shown login changed under the service.
 		rt.svc.Refresh(usage.RefreshForce)
 	}

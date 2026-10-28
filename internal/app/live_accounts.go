@@ -20,10 +20,11 @@ func installAccountActions(rt *liveApp, s *Settings, a *PanelActions) {
 		return l10n.ForPreference(string(rt.svc.Preferences().Language), rt.langs)
 	}
 	a.Accounts = AccountActions{
-		RefreshAll: func() string { <-rt.svc.RefreshAllAccountQuotas(); return "" },
-		Refresh:    func(id string) string { <-rt.svc.RefreshAccountQuota(id); return "" },
-		Switch:     func(id string, restart bool) string { return rtSwitchCodex(loc(), id, restart) },
-		Delete:     func(id string) string { return rt.removeCodexAccount(loc(), id) },
+		RefreshAll:   func() string { <-rt.svc.RefreshAllAccountQuotas(); return "" },
+		Refresh:      func(id string) string { <-rt.svc.RefreshAccountQuota(id); return "" },
+		Switch:       func(id string, restart bool) string { return rtSwitchCodex(loc(), id, restart) },
+		CheckRuntime: func() string { return rt.checkCodexRuntime(loc()) },
+		Delete:       func(id string) string { return rt.removeCodexAccount(loc(), id) },
 	}
 	installGrokAccountActions(rt, loc, &a.Accounts)
 	installClaudeAccountActions(rt, loc, &a.Accounts)

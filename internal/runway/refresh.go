@@ -157,6 +157,14 @@ func (s *Service) fail(auth *codex.Auth, gen uint64, err error, fn func()) {
 // loadValidAuth gets a usable credential and records it. It returns the
 // generation the credential belongs to; callers tag every result with it.
 func (s *Service) loadValidAuth(ctx context.Context, preferCached bool) (codex.Auth, uint64, error) {
+	s.codexAuthMu.Lock()
+	defer s.codexAuthMu.Unlock()
+	s.mu.Lock()
+	switching := s.switching
+	s.mu.Unlock()
+	if switching {
+		return codex.Auth{}, 0, context.Canceled
+	}
 	s.mu.Lock()
 	start := s.epoch
 	var cached *codex.Auth
@@ -224,6 +232,14 @@ func (s *Service) loadValidAuth(ctx context.Context, preferCached bool) (codex.A
 
 // syncOfficial aligns the account list with the official auth.json.
 func (s *Service) syncOfficial() {
+	s.codexAuthMu.Lock()
+	defer s.codexAuthMu.Unlock()
+	s.mu.Lock()
+	switching := s.switching
+	s.mu.Unlock()
+	if switching {
+		return
+	}
 	if s.src.SyncOfficial == nil {
 		return
 	}
@@ -442,6 +458,10 @@ func (s *Service) fullRunning() bool {
 // startFull launches the full refresh goroutine (or joins the running one).
 func (s *Service) startFull(policy usage.RefreshPolicy, widgets bool) <-chan struct{} {
 	s.mu.Lock()
+	if s.switching {
+		s.mu.Unlock()
+		return closedChan()
+	}
 	if s.allBusy {
 		d := s.fullDone
 		s.mu.Unlock()

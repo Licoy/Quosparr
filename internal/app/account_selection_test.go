@@ -143,22 +143,15 @@ func TestAccountSelectionUIAndCancellation(t *testing.T) {
 	}
 }
 
-func TestSwitchRestartOnlyAfterSuccessfulSwitchAndPreciseIdentity(t *testing.T) {
+func TestCodexDesktopRestartUsesPreciseIdentity(t *testing.T) {
 	for _, identity := range []struct{ bundle, name string }{{"com.openai.codex.helper", "Codex"}, {"com.example.editor", "Codex"}, {"com.openai.something.codex", "Codex"}, {"", "Codex"}} {
 		if isCodexDesktop(identity.bundle, identity.name) {
 			t.Fatal("helper, prefix or same-name app matched")
 		}
 	}
 	calls := 0
-	if err := switchAndRestartCodex(func() error { return errors.New("switch failed") }, func() error { calls++; return nil }); err == nil || calls != 0 {
-		t.Fatal("restart ran after failed switch")
-	}
-	if err := switchAndRestartCodex(func() error { return nil }, nil); err != nil || calls != 0 {
-		t.Fatal("optional restart executed")
-	}
-	if err := switchAndRestartCodex(func() error { return nil }, func() error { calls++; return errors.New("failed") }); !errors.Is(err, errRestartCodex) || calls != 1 {
-		t.Fatal("restart error hidden")
-	}
+	// The complete stop/write/start ordering is covered through Service in
+	// runway/codex_runtime_test.go; this test retains exact desktop matching.
 	fake := runningApp{bundleID: "com.openai.codex", path: "/fake/Codex.app", terminate: func() bool { calls++; return true }, stopped: func() bool { return true }}
 	unrelated := runningApp{bundleID: "com.example.editor", name: "Editor", terminate: func() bool { t.Fatal("unrelated app terminated"); return false }}
 	if err := runCodexRestart([]runningApp{unrelated, fake}, "", func(path string) error {

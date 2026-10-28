@@ -30,6 +30,8 @@ v1 已正式发布（`v1.0.0`、`v1.0.1`）；macOS 仅保留 Swift WidgetKit �
 - Codex API 账号（Base URL + API Key）的 Key 与其他 API Key 一样存于账号库托管副本，Base URL、模型与余额缓存只在 `index.json` 行内，不含 Key；用户主动切到中转账号时同一事务写官方 `auth.json`（`auth_mode=apikey`）与 `config.toml` 的 `model_provider = "quosparr"` 和 `[model_providers.quosparr]`，切走时移除该指针与 Quosparr 写入的模型，失败整体回滚；`config.toml` 只做逐行编辑并保留其他内容，写入前备份到 `~/.quosparr/backups`（目录私有、文件 `0600`，保留最近 10 份）；不改 shell rc 或环境变量；官方登录为 API Key 且 `config.toml` 的 `model_provider` 选中带 `base_url` 的服务商时，同步只读该文件，把站点与顶层模型补到尚无站点的对应账号行；从这类账号切走时，若选中的服务商指向同一站点，只移除 `model_provider` 行，保留用户的服务商表；编辑 API 账号可替换 Key（留空保留），行 ID 不变；编辑当前账号且 Key、站点或模型有变时先询问“仅保存 / 保存并应用”，仅保存只改账号库，应用后提示重启 Codex
 - 中转余额与模型列表只请求用户填写的站点，经应用代理策略、不直连回退；Key 只放在请求头，错误、日志与缓存结果中不得出现 Key 或响应正文
 - 刷新非当前托管账号 token 时只写账号库副本，不得写官方 `auth.json`；刷新当前账号时同步官方 auth 与账号库副本。
+- Codex 切号分别报告登录文件事务与受管理后台身份，未勾选重启只更新文件并显式检查已有后台，不停止或启动进程；用户确认重启时先验证凭据与后台可控性，确认对应 `CODEX_HOME` 的受管理 daemon 已停止后才提交文件，再启动同一后台并核验账号 ID 与邮箱，API Key 身份无法精确验证时明确未验证；不退出 ChatGPT、不停止其他 CLI / IDE，会话可能中断的风险须先告知；传统 macOS 独立 `com.openai.codex` 应用保留精确匹配的停止与重新打开兼容，重新打开不等于身份已核验；文件提交前复核准备后的官方凭据、目标副本与配置，变化则拒绝，正常额度缓存及别名更新不阻断；提交失败尝试恢复原后台，文件回滚失败、后台恢复失败与身份未验证分别报告，状态保留至后续切号或手动重新检查，不增加永久轮询
+
 - 会话日志在普通扫描、详情读取与索引修复中保持只读；会话修复只写已备份的 `session_index.jsonl`。唯一删除例外是用户在“会话管理”中明确选择并确认的 Codex、Claude Code 或 Grok 会话：只将扫描时归属该会话且删除前复核可信根、路径、非符号链接、类型、文件身份、大小与修改时间均未变化的文件逐项移到系统回收站，不永久删除，不移走项目目录，不扩展枚举同目录文件，逐项报告成功、失败与部分完成。
 - 删除操作不直接改写官方 `session_index.jsonl`、全局状态文件或数据库；近期会话与派生统计按现有刷新流程从仍存在的日志重新计算，索引中的孤儿行仅由用户另行确认的会话修复在备份后处理。
 - 读取官方 Claude 凭据时只取 `claudeAiOauth` 的必要字段；`mcpOAuth` 不解析内容，只在用户主动切号时原样保留。
@@ -47,7 +49,7 @@ v1 已正式发布（`v1.0.0`、`v1.0.1`）；macOS 仅保留 Swift WidgetKit �
 ## 代码约定
 
 - Go 入口为 `main.go`，原生 UI 与系统协调放在 `internal/app`，后台协调放在 `internal/runway`，存储 / 平台 / 网络 / 本地化边界分别放在 `internal/store`、`internal/platform`、`internal/netx`、`internal/l10n`
-- Go 业务模块放在 `internal/codex`、`internal/codexapi`、`internal/grok`、`internal/claude`、`internal/usage`、`internal/sessions`、`internal/alerts`、`internal/estimate`、`internal/export`、`internal/resettoday`、`internal/pricing`（models.dev 公开 Token 目录、缓存、同步状态和不可变快照，实际计价由各供应商包保留已核实规则后选择）、`internal/skills`（全局 skill 扫描、来源识别、目录详情与自有回收站，启停写入在各供应商包）、`internal/mcp`（用户级 MCP 配置解析、脱敏摘要、显式连接预览、原子添加、删除与启停，供应商包负责路径和共用锁）；UI 经业务 API 读取结果，不直接解析 JSON 或扫描文件
+- Go 业务模块放在 `internal/codex`、`internal/codexapi`、`internal/codexruntime`（只读检查本配置对应的受管理后台身份，以及用户确认后的同后台停止与启动）、`internal/grok`、`internal/claude`、`internal/usage`、`internal/sessions`、`internal/alerts`、`internal/estimate`、`internal/export`、`internal/resettoday`、`internal/pricing`（models.dev 公开 Token 目录、缓存、同步状态和不可变快照，实际计价由各供应商包保留已核实规则后选择）、`internal/skills`（全局 skill 扫描、来源识别、目录详情与自有回收站，启停写入在各供应商包）、`internal/mcp`（用户级 MCP 配置解析、脱敏摘要、显式连接预览、原子添加、删除与启停，供应商包负责路径和共用锁）；UI 经业务 API 读取结果，不直接解析 JSON 或扫描文件
 - 用户可见文案通过 `internal/l10n`（手工维护的 `tables.go`）与现有附加文案入口，新增 key 必须补齐英文、简体中文、繁体中文、韩文、日文、俄文、法文
 - Widget 使用自带的 `Sources/QuosparrWidget/RunwayWidgetL10n.swift` 与快照类型副本，修改共享 key 或快照 schema 时与 Go 侧保持同步，同样遵守七语言完整性
 - 函数保持短小，优先用简单结构体和函数，不做多 provider 抽象。

@@ -63,6 +63,14 @@ func (a *App) codexAccountsPage(c *ui.Context, l l10n.Localizer, prefs store.Pre
 				a.openAccountsSettings(accountKindCodex)
 			}
 		})
+		var check, apply func()
+		if ac.CheckRuntime != nil {
+			check = func() { a.accountsRun("", ac.CheckRuntime) }
+		}
+		if ac.Switch != nil {
+			apply = func() { a.accountsRun("", func() string { return ac.Switch(view.ActiveID, true) }) }
+		}
+		codexRuntimeControls(c, l, view, &st.runtimeApply, st.busy, check, apply)
 		a.accountsList(c, func() {
 			if len(view.Sidebar) == 0 {
 				accountEmpty(c, l.Text(l10n.KeyAccountsEmpty))
@@ -178,7 +186,7 @@ func (a *App) codexCardActions(c *ui.Context, l l10n.Localizer, acc codex.Manage
 		}
 		tick := accountIconButton(c, icon, title, current || busy || refreshing || ac.Switch == nil, false, current)
 		if tick.Clicked() {
-			st.switchID, st.restart = acc.ID, codexRestartSupported
+			st.switchID, st.restart = acc.ID, codexRestartDefault
 		}
 		a.codexSwitchConfirm(c, l, tick, acc.ID, name, ac)
 
@@ -212,10 +220,8 @@ func (a *App) codexSwitchConfirm(c *ui.Context, l l10n.Localizer, anchor ui.Elem
 }
 
 func restartChoice(c *ui.Context, l l10n.Localizer, st *accountsState) {
-	ui.Checkbox(c.Key("restart-after-switch"), &st.restart, l.Text(l10n.KeyAccountsRestartCodexAfterSwitch)).Disabled(!codexRestartSupported)
-	if !codexRestartSupported {
-		dimText(c, tx(l, xCodexRestartMac))
-	}
+	ui.Checkbox(c.Key("restart-after-switch"), &st.restart, l.CodexRuntime("restart")).Disabled(!codexRestartSupported)
+	dimText(c, l.CodexRuntime("restart_hint"))
 }
 
 func (a *App) codexDeleteConfirm(c *ui.Context, l l10n.Localizer, anchor ui.Element, id, name string, ac AccountActions) {

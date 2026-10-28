@@ -11,11 +11,21 @@ import (
 )
 
 const codexRestartSupported = true
+const codexRestartDefault = true
 
 func accountOnMain(fn func()) {
 	done := make(chan struct{})
 	runOnMain(func() { defer close(done); fn() })
 	<-done
+}
+
+func prepareCodexDesktopRestart() (func() error, error) {
+	apps := runningApplications(isCodexDesktop)
+	fallback := findCodexApplication()
+	if len(apps) == 0 && fallback == "" {
+		return nil, nil
+	}
+	return prepareCodexRestart(apps, fallback, openCodexApplication)
 }
 
 func restartCodexDesktop() error {

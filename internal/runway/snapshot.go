@@ -55,6 +55,7 @@ type Snapshot struct {
 
 // AccountsView is the managed account list and the signed-in identity.
 type AccountsView struct {
+	Runtime CodexRuntimeView
 	// Sidebar is the account list in sidebar order (active first).
 	Sidebar  []codex.ManagedAccount
 	ActiveID string

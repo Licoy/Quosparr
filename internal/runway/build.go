@@ -51,10 +51,17 @@ func (s *Service) buildLocked(now time.Time) Snapshot {
 
 func (s *Service) accountsViewLocked(now time.Time) AccountsView {
 	v := AccountsView{
+		Runtime:   s.runtimeStatus,
 		Sidebar:   s.index.OrderedForSidebar(),
 		ActiveID:  s.index.ActiveAccountID,
 		Switching: s.switching,
 		Message:   s.accountMessage,
+	}
+	if v.Runtime.target != "" {
+		active, _ := s.index.Account(s.index.ActiveAccountID)
+		if runtimeTargetKey(active) != v.Runtime.target {
+			v.Runtime = CodexRuntimeView{State: "unverified"}
+		}
 	}
 	for id := range s.refreshingIDs {
 		v.RefreshingIDs = append(v.RefreshingIDs, id)

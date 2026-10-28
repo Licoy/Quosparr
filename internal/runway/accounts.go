@@ -217,8 +217,14 @@ func (s *Service) indexForUpdate() codex.AccountIndex {
 // SwitchAccount installs a managed account as the Codex login, drops the
 // previous account's data and reloads everything for the new one. It blocks
 // until the switch is done; the refresh that follows runs in the background.
-// Restarting the Codex app is left to the caller.
+// The default leaves existing Codex processes untouched.
 func (s *Service) SwitchAccount(ctx context.Context, id string) error {
+	return s.SwitchAccountWithRestart(ctx, id, false)
+}
+
+// SwitchAccountWithRestart keeps credential updates and runtime outcomes separate;
+// a nil error means the file transaction succeeded, even if the runtime did not.
+func (s *Service) SwitchAccountWithRestart(ctx context.Context, id string, restart bool) error {
 	if s.src.SwitchAccount == nil {
 		return errors.New("runway: account switching is not available")
 	}
@@ -231,14 +237,21 @@ func (s *Service) SwitchAccount(ctx context.Context, id string) error {
 	s.accountMessage = s.lc.Text(l10n.KeyAccountsSwitching)
 	s.publishLocked()
 	s.mu.Unlock()
+	succeeded := false
 	defer func() {
 		s.mu.Lock()
 		s.switching = false
 		s.publishLocked()
 		s.mu.Unlock()
+		if succeeded {
+			s.beginFullRefresh(usage.RefreshForce)
+			s.RefreshTokenHeatmap(usage.RefreshForce)
+		}
 	}()
-
-	res, err := s.src.SwitchAccount(ctx, id)
+	s.cancelAccountScoped()
+	s.codexAuthMu.Lock()
+	defer s.codexAuthMu.Unlock()
+	res, err := s.switchCodexRuntime(ctx, id, restart)
 	if err != nil {
 		s.mu.Lock()
 		s.accountMessage = ""
@@ -252,7 +265,6 @@ func (s *Service) SwitchAccount(ctx context.Context, id string) error {
 	auth := res.Auth
 	s.clearAccountScopedLocked(&auth)
 	s.mu.Unlock()
-	s.cancelAccountScoped()
 	s.mu.Lock()
 	s.planHint = res.Account.PlanType
 	s.reloadIndexLocked()
@@ -260,8 +272,7 @@ func (s *Service) SwitchAccount(ctx context.Context, id string) error {
 	s.publishLocked()
 	s.mu.Unlock()
 
-	s.beginFullRefresh(usage.RefreshForce)
-	s.RefreshTokenHeatmap(usage.RefreshForce)
+	succeeded = true
 	return nil
 }
 
@@ -271,6 +282,12 @@ func (s *Service) switchFailureTextLocked(err error) string {
 		return lc.Text(key)
 	}
 	switch {
+	case errors.Is(err, ErrCodexRuntime):
+		return lc.CodexRuntime(s.runtimeStatus.State)
+	case errors.Is(err, codex.ErrRollbackFailed):
+		return lc.CodexRuntime("rollback_failed")
+	case errors.Is(err, codex.ErrSwitchFilesChanged):
+		return lc.CodexRuntime("credential_failed")
 	case IsAuthFailure(err), errors.Is(err, codex.ErrReauthRequired):
 		return lc.Text(l10n.KeyAccountsNeedsReauth)
 	case errors.Is(err, codex.ErrExpiredAccessWithoutRefresh), errors.Is(err, codex.ErrRefreshUnavailable):

@@ -9,6 +9,7 @@ import (
 	"github.com/licoy/quosparr/internal/apiquota"
 	"github.com/licoy/quosparr/internal/codex"
 	"github.com/licoy/quosparr/internal/codexapi"
+	"github.com/licoy/quosparr/internal/codexruntime"
 	"github.com/licoy/quosparr/internal/export/swiftjson"
 	"github.com/licoy/quosparr/internal/netx"
 	"github.com/licoy/quosparr/internal/sessions"
@@ -96,7 +97,13 @@ type Sources struct {
 	LoadAPIKey    func(id string) (string, error)
 
 	// SwitchAccount installs a managed account as the official login.
-	SwitchAccount func(ctx context.Context, id string) (codex.SwitchResult, error)
+	SwitchAccount   func(ctx context.Context, id string) (codex.SwitchResult, error)
+	PrepareSwitch   func(context.Context, string) (func() (codex.SwitchResult, error), error)
+	RuntimeIdentity func() (codexruntime.Identity, error)
+	LegacyStop      func() (func() error, error)
+	RuntimeInspect  func(context.Context) (codexruntime.Snapshot, error)
+	RuntimeStop     func(context.Context, codexruntime.Snapshot) (codexruntime.Snapshot, error)
+	RuntimeStart    func(context.Context, codexruntime.Snapshot) (codexruntime.Snapshot, error)
 	// RefreshAccounts / RefreshAccount poll the quota of managed accounts.
 	// Results carry the account id and generation; Generations (shared with
 	// the refresher) lets the Service drop stale ones.
@@ -112,10 +119,11 @@ func apiAuth(a codex.Auth) codexapi.Auth {
 
 // LiveConfig wires NewLiveSources. All paths live inside Store.
 type LiveConfig struct {
-	Store     *codex.Store
-	CodexHome string
-	Quota     codexapi.QuotaClient
-	Refresher codexapi.TokenRefresher
+	LegacyStop func() (func() error, error)
+	Store      *codex.Store
+	CodexHome  string
+	Quota      codexapi.QuotaClient
+	Refresher  codexapi.TokenRefresher
 	// Repo is the local usage index; nil uses the direct scanner for costs.
 	Repo   *usage.Repository
 	Prices usage.PriceSource
@@ -138,6 +146,7 @@ func NewLiveSources(cfg LiveConfig) Sources {
 		Credential:  l.credential,
 		Generations: l.gens,
 	}
+	runtimeClient := codexruntime.Client{CodexHome: cfg.CodexHome}
 	return Sources{
 		LoadValidAuth:      l.loadValidAuth,
 		FetchQuota:         cfg.Quota.FetchQuota,
@@ -175,7 +184,19 @@ func NewLiveSources(cfg LiveConfig) Sources {
 			}
 			return a.LoginUsability(now), true
 		},
-		SwitchAccount:   l.switcher.SwitchTo,
+		SwitchAccount: l.switcher.SwitchTo,
+		RuntimeIdentity: func() (codexruntime.Identity, error) {
+			auth, err := cfg.Store.LoadOfficialAuth()
+			if err != nil {
+				return codexruntime.Identity{}, err
+			}
+			return runtimeTarget(codex.NewManagedAccount("", auth, 0, "", "", "", l.Now())), nil
+		},
+		LegacyStop:      cfg.LegacyStop,
+		PrepareSwitch:   l.switcher.PrepareSwitch,
+		RuntimeInspect:  runtimeClient.Inspect,
+		RuntimeStop:     runtimeClient.Stop,
+		RuntimeStart:    runtimeClient.Start,
 		RefreshAccounts: l.accounts.RefreshAll,
 		RefreshAccount:  l.accounts.Refresh,
 		Generations:     l.gens,

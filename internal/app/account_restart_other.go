@@ -2,6 +2,11 @@
 
 package app
 
-const codexRestartSupported = false
+import "runtime"
+
+const codexRestartSupported = runtime.GOOS != "windows"
+const codexRestartDefault = false
+
+func prepareCodexDesktopRestart() (func() error, error) { return nil, nil }
 
 func restartCodexDesktop() error { return errRestartCodex }

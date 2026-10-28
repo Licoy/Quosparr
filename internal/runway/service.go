@@ -94,10 +94,12 @@ type Service struct {
 	pubSig chan struct{}
 	latest Snapshot
 
-	mu    sync.Mutex
-	seq   uint64
-	prefs store.Preferences
-	lc    l10n.Localizer
+	codexAuthMu   sync.Mutex
+	runtimeStatus CodexRuntimeView
+	mu            sync.Mutex
+	seq           uint64
+	prefs         store.Preferences
+	lc            l10n.Localizer
 
 	// epoch is the account-state generation (Swift accountStateGeneration).
 	// Every result carries the epoch and the account identity it was fetched
