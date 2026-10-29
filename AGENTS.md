@@ -31,11 +31,9 @@
 
 ## 隐私与安全
 
-- 不在日志、测试输出、错误信息、README、issue 模板中输出 access token、refresh token、API key 或完整认证 JSON
-- 应用自有数据只写 Quosparr 自有目录（以 `internal/platform` 的路径定义为准），不把应用缓存或派生数据写入官方 CLI 目录
-- 不新增未经用户主动操作的、对官方 CLI 配置或凭据的写入；改动现有写入路径时沿用代码中已有的备份、原子写入、权限与复核做法
+- 不在日志、测试输出、错误信息、文档与 issue 模板中输出 token、API key 等密钥或完整认证 JSON
 - 调用外部命令使用绝对路径，密钥不经命令行参数传递
-- 不修改生产更新源，不关闭 TLS 校验
+- 不关闭 TLS 校验
 
 ## 测试与本地运行
 
@@ -43,7 +41,7 @@
 - `testdata/swift_*` 等冻结 fixture 只读保留，不重新生成
 - 手动隔离运行使用临时 HOME 并设置 `QUOSPARR_PREFS_DOMAIN=<测试域>`，结束后退出自行启动的进程；保留现有 `QUOSPARR_DEV_*` 环境钩子
 - `Scripts/run-dev-app.sh` 使用真实 HOME、数据与偏好，仅在用户要求时运行
-- 自动测试与交叉编译不能替代 Windows ACL、系统权限、真机安装与升级验收
+- 自动测试与交叉编译不能替代真机验收
 
 ```bash
 go vet ./...
