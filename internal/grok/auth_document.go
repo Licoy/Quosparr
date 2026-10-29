@@ -4,7 +4,7 @@
 // account, auth, store, importer, transfer, oauth or refresh are the account
 // side; billing, CLI and session files belong to other parts of the package.
 //
-// File boundaries (see AGENTS.md):
+// File boundaries:
 //
 //   - ~/.quosparr/accounts/grok-index.json holds account metadata only,
 //     never tokens, and keeps fields it does not know across rewrites.

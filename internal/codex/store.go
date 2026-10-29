@@ -2,7 +2,7 @@
 // multi-account library. It never touches the network: token refresh and
 // quota probes arrive as injected hooks.
 //
-// File boundaries (see AGENTS.md):
+// File boundaries:
 //
 //   - ~/.quosparr/accounts/index.json holds account metadata only, never
 //     tokens, and keeps fields it does not know across rewrites.

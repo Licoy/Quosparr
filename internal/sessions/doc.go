@@ -2,11 +2,12 @@
 // sessions list (Scanner) and diagnoses or repairs ~/.codex/session_index.jsonl
 // (Repairer). It ports SessionActivity.swift and SessionRepair.swift.
 //
-// Safety contract, from AGENTS.md: the only file this package ever writes is
+// Safety contract: the only file this package ever writes is
 // session_index.jsonl, and only after copying it to
-// session_index.backup-<unix seconds>.jsonl next to it. Nothing under
-// sessions/ or archived_sessions/ is written, moved or deleted, and no other
-// global state file is touched.
+// session_index.backup-<unix seconds>.jsonl next to it. Session logs are never
+// written, and no other global state file is touched. The one exception is
+// DeleteManaged, which moves the files ListManaged captured for sessions the
+// user selected to the system Trash.
 //
 // Differences from the Swift code, all deliberate and all on the side of
 // working on Windows and Linux too:
