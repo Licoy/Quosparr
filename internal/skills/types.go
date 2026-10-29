@@ -118,6 +118,7 @@ type OriginFrom string
 // OriginFrom values, in the order a scan trusts them.
 const (
 	OriginNone        OriginFrom = ""
+	OriginQuosparr    OriginFrom = "quosparr"    // ~/.quosparr/skill-sources.json, written when Quosparr installs a skill
 	OriginLock        OriginFrom = "lock"        // ~/.agents/.skill-lock.json, written by the skills CLI
 	OriginGit         OriginFrom = "git"         // remote "origin" of an enclosing git checkout
 	OriginPlugin      OriginFrom = "plugin"      // the plugin or its marketplace manifest
@@ -135,7 +136,9 @@ type Origin struct {
 	SkillPath   string // that folder relative to the repository root ("skills/foo")
 	Branch      string // the checked-out branch of a git checkout
 	Version     string // plugin or frontmatter version
-	Installer   string // "skills", "git", or the plugin marketplace name
+	Installer   string // "skills", "git", the plugin marketplace name, or the SourceKind Quosparr imported from
+	Source      string // the local folder or zip Quosparr imported from
+	Commit      string // the commit Quosparr imported at
 	InstalledAt time.Time
 	UpdatedAt   time.Time
 }

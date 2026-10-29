@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/egoist/mygo"
+	"github.com/licoy/quosparr/internal/netx"
 	"github.com/licoy/quosparr/internal/platform"
 	"github.com/licoy/quosparr/internal/skills"
 	"github.com/licoy/quosparr/internal/store"
@@ -56,6 +57,80 @@ func installSkillActions(rt *liveApp, a *SkillActions) {
 	a.Restore = trash.Restore
 	a.Purge = func(id string) error { return trash.Purge(id, system) }
 	a.EmptyTrash = func() (int, error) { return trash.Empty(system) }
+	installSkillImport(rt, a, system)
+}
+
+// installSkillImport wires adding skills: GitHub is reached through the
+// app's proxy only, a folder or zip is read where it is; the picked skills
+// are written into user skills folders, and an update moves the old copy
+// to the skills trash.
+func installSkillImport(rt *liveApp, a *SkillActions, system func(string) error) {
+	a.LoadImport = func(ctx context.Context, src skills.Source, progress func(done, total int64)) (*skills.Snapshot, []skills.Candidate, error) {
+		var snap *skills.Snapshot
+		var err error
+		switch src.Kind {
+		case skills.SourceGitHub:
+			var g skills.GitHub
+			if g, err = skillsGitHub(ctx); err == nil {
+				g.Progress = progress
+				snap, err = g.Load(ctx, src)
+			}
+		case skills.SourceZip:
+			snap, err = skills.LoadZip(ctx, src.Path)
+		default:
+			snap, err = skills.LoadFolder(ctx, src.Path)
+		}
+		if err != nil {
+			return nil, nil, err
+		}
+		found, err := skills.Discover(snap)
+		return snap, found, err
+	}
+	a.PickPath = func(title string, folder bool) (string, error) {
+		opts := mygo.OpenDialogOptions{Title: title, Directory: folder}
+		if !folder {
+			opts.Filters = []mygo.FileFilter{{Name: "ZIP", Extensions: []string{"zip", "skill"}}}
+		}
+		paths, err := mygo.Dialog.Open(opts)
+		if err != nil || len(paths) == 0 {
+			return "", err
+		}
+		return paths[0], nil
+	}
+	a.PrepareInstall = func(target skills.InstallTarget, sums []skills.Summary, snap *skills.Snapshot, picked []skills.Candidate) (skills.InstallPlan, error) {
+		return skills.PrepareInstall(rt.skillsEnv(), target, sums, snap, picked)
+	}
+	a.Install = func(ctx context.Context, plan skills.InstallPlan) (skills.InstallResult, error) {
+		return skills.Install(ctx, plan, time.Now())
+	}
+	a.CheckUpdate = func(ctx context.Context, sk skills.Skill) skills.UpdateCheck {
+		g, err := skillsGitHub(ctx)
+		if err != nil {
+			return skills.UpdateCheck{Dir: sk.Dir, Err: err}
+		}
+		return g.CheckUpdates(ctx, rt.skillsEnv().Home, []string{sk.Dir})[0]
+	}
+	a.Update = func(ctx context.Context, req skills.UpdateRequest) (skills.UpdateResult, error) {
+		g, err := skillsGitHub(ctx)
+		if err != nil {
+			return skills.UpdateResult{}, err
+		}
+		return skills.UpdateSkill(ctx, rt.skillsEnv(), g, req, system)
+	}
+}
+
+// skillsGitHub uses the app's proxied client without cookies; a
+// repository archive may take longer than an API call.
+func skillsGitHub(ctx context.Context) (skills.GitHub, error) {
+	client, err := netx.ClientFor(ctx, netx.WithoutCookies)
+	if err != nil {
+		return skills.GitHub{}, err
+	}
+	// A large repository's tarball is streamed through to reach its
+	// skills; the add page shows the progress and can cancel it.
+	c := *client
+	c.Timeout = 30 * time.Minute
+	return skills.GitHub{Client: &c}, nil
 }
 
 func (rt *liveApp) skillsEnv() skills.Env {

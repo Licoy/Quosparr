@@ -11,11 +11,13 @@ type originCandidate struct {
 	from                         OriginFrom
 	repo, ref, branch, skillPath string
 	homepage, version, installer string
+	commit                       string
 	installedAt, updatedAt       time.Time
 }
 
 type originScanner struct {
 	env     Env
+	records map[string]Record
 	locks   *originLockCache
 	git     *originGitCache
 	plugins *originPluginCache
@@ -25,14 +27,38 @@ func newOriginScanner(env Env) *originScanner {
 	if env.Getenv == nil {
 		env.Getenv = func(string) string { return "" }
 	}
-	return &originScanner{env: env, locks: &originLockCache{env: env}, git: newOriginGitCache(env), plugins: newOriginPluginCache(env)}
+	records, _ := LoadRecords(env.Home)
+	return &originScanner{env: env, records: records, locks: &originLockCache{env: env}, git: newOriginGitCache(env), plugins: newOriginPluginCache(env)}
 }
 
 func (s *originScanner) fill(skills []Skill) {
 	for i := range skills {
 		front := candidateFromOrigin(skills[i].Origin)
+		rec, imported := s.records[recordKey(skills[i].Dir)]
+		imported = imported && skills[i].Scope == ScopeUser
 		candidates := []originCandidate{s.locks.candidate(skills[i]), s.git.candidate(skills[i]), s.plugins.candidate(skills[i]), front}
+		if imported {
+			candidates = append([]originCandidate{recordCandidate(rec)}, candidates...)
+		}
 		skills[i].Origin = mergeOriginCandidates(candidates...)
+		if imported {
+			applyRecord(&skills[i].Origin, rec)
+		}
+	}
+}
+
+func recordCandidate(rec Record) originCandidate {
+	return originCandidate{from: OriginQuosparr, repo: rec.Repository, ref: rec.Ref, branch: rec.Ref, skillPath: rec.SkillPath,
+		installer: string(rec.Kind), commit: rec.Commit, installedAt: rec.InstalledAt, updatedAt: rec.UpdatedAt}
+}
+
+// applyRecord keeps a Quosparr import as the origin even when it came from
+// a local folder or zip, which leaves no repository to choose it by.
+func applyRecord(o *Origin, rec Record) {
+	o.From, o.Installer, o.Source = OriginQuosparr, string(rec.Kind), rec.Source
+	o.InstalledAt, o.UpdatedAt = rec.InstalledAt, rec.UpdatedAt
+	if rec.Kind == SourceGitHub {
+		o.Commit = rec.Commit
 	}
 }
 

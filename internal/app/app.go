@@ -69,14 +69,15 @@ type Options struct {
 
 // App owns the tray and the panel.
 type App struct {
-	mcpAddSession mcpAddSession
-	opts          Options
-	tray          *mygo.Tray
-	panel         *mygo.Window
-	settings      *Settings
-	setWin        *mygo.Window
-	tierWin       *mygo.Window
-	setUI         *settingsUI
+	mcpAddSession   mcpAddSession
+	skillAddSession skillAddSession
+	opts            Options
+	tray            *mygo.Tray
+	panel           *mygo.Window
+	settings        *Settings
+	setWin          *mygo.Window
+	tierWin         *mygo.Window
+	setUI           *settingsUI
 
 	popover     panelPopoverState
 	panelState  panelState
@@ -492,12 +493,13 @@ func (a *App) OpenSettings() {
 		actions.OpenFolder = openFolder
 	}
 	a.setUI = newSettingsUI(a.settings, SettingsOptions{
-		Version:       a.opts.Version,
-		Actions:       actions,
-		Skills:        func() SkillActions { return a.PanelActions().Skills },
-		Sessions:      func() SessionActions { return a.PanelActions().Sessions },
-		MCP:           func() MCPActions { return a.PanelActions().MCP },
-		mcpAddSession: &a.mcpAddSession,
+		Version:         a.opts.Version,
+		Actions:         actions,
+		Skills:          func() SkillActions { return a.PanelActions().Skills },
+		Sessions:        func() SessionActions { return a.PanelActions().Sessions },
+		MCP:             func() MCPActions { return a.PanelActions().MCP },
+		mcpAddSession:   &a.mcpAddSession,
+		skillAddSession: &a.skillAddSession,
 		Pricing: func() PricingActions {
 			if rt := currentRuntime(); rt != nil {
 				return rt.pricingActions()
@@ -530,9 +532,11 @@ func (a *App) OpenSettings() {
 			a.setUI.cancelAccountTask()
 			a.setUI.cancelSessionTasks()
 			a.setUI.cancelMCPTasks()
+			a.setUI.closeSkillAdd()
 			a.setUI.cancelPricingTasks()
 		}
 		a.mcpAddSession.owner = nil
+		a.skillAddSession.owner = nil
 		a.setWin = nil
 		a.setUI = nil
 	})

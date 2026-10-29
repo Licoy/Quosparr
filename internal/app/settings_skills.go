@@ -23,6 +23,10 @@ func (u *settingsUI) skillsPage(c *ui.Context) {
 	s := u.skillsState()
 	acts := u.skillActions()
 	u.syncSkills(acts)
+	if s.add != nil && s.add.open {
+		u.skillAddPage(c, acts)
+		return
+	}
 	if s.tab != skillsTrashTab && s.open != "" {
 		if sum, sk, ok := s.find(s.open); ok {
 			splitPage(c, "skill-page-"+s.open, func() {
@@ -89,6 +93,9 @@ func (u *settingsUI) skillsTabs(c *ui.Context, acts SkillActions) {
 		}
 		ui.Spacer(c).Grow(1)
 		busy := s.task.Running || s.work.Running || s.trash.task.Running
+		if SmallPillButton(c, icPlus, tx(l, xSkillAdd), s.work.Running || acts.LoadImport == nil || acts.Install == nil).Clicked() {
+			u.openSkillAdd()
+		}
 		if busy {
 			ui.Spinner(c).Size(14, 14)
 		}
@@ -713,7 +720,7 @@ func (u *settingsUI) skillPage(c *ui.Context, sum skills.Summary, sk skills.Skil
 	l := u.L()
 	u.skillStatusBox(c, sum, sk)
 	skillFactsBox(c, tx(l, xSkillsSecBasics), "", skillBasicFacts(l, sum, sk))
-	u.skillOriginBox(c, sk)
+	u.skillOriginBox(c, sum, sk, acts)
 	u.skillFilesBox(c, sk)
 	if len(sk.Fields) > 0 {
 		facts := make([]skillFact, 0, len(sk.Fields))
@@ -961,7 +968,7 @@ func skillBasicFacts(l l10n.Localizer, sum skills.Summary, sk skills.Skill) []sk
 
 func skillTime(t time.Time) string { return t.Local().Format("2006-01-02 15:04") }
 
-func (u *settingsUI) skillOriginBox(c *ui.Context, sk skills.Skill) {
+func (u *settingsUI) skillOriginBox(c *ui.Context, sum skills.Summary, sk skills.Skill, acts SkillActions) {
 	l, t := u.L(), c.Theme()
 	o := sk.Origin
 	if o.From == skills.OriginNone && o.Homepage == "" {
@@ -985,6 +992,12 @@ func (u *settingsUI) skillOriginBox(c *ui.Context, sk skills.Skill) {
 	if o.Branch != "" {
 		facts = append(facts, skillFact{label: tx(l, xSkillsBranch), value: o.Branch, mono: true})
 	}
+	if o.Commit != "" {
+		facts = append(facts, skillFact{label: tx(l, xSkillsCommit), value: shortCommit(o.Commit), mono: true, url: o.Repository + "/tree/" + o.Commit})
+	}
+	if o.Source != "" {
+		facts = append(facts, skillFact{label: tx(l, xSkillsImportedFrom), value: o.Source, mono: true})
+	}
 	if o.Homepage != "" && o.Homepage != o.Repository {
 		facts = append(facts, skillFact{label: tx(l, xSkillsHomepage), value: o.Homepage, url: o.Homepage})
 	}
@@ -997,11 +1010,17 @@ func (u *settingsUI) skillOriginBox(c *ui.Context, sk skills.Skill) {
 	if !o.UpdatedAt.IsZero() && !o.UpdatedAt.Equal(o.InstalledAt) {
 		facts = append(facts, skillFact{label: tx(l, xSkillsUpdatedAt), value: skillTime(o.UpdatedAt)})
 	}
-	skillFactsBox(c, tx(l, xSkillsSecOrigin), "", facts)
+	var header func()
+	if skills.Updatable(sk) {
+		header = func() { u.skillUpdateControls(c, sum, sk, acts) }
+	}
+	skillFactsBoxWith(c, tx(l, xSkillsSecOrigin), "", header, facts)
 }
 
 func skillInstallerText(l l10n.Localizer, o skills.Origin) string {
 	switch o.From {
+	case skills.OriginQuosparr:
+		return tx(l, xSkillsInstQuosparr, skillSourceKindName(l, skills.SourceKind(o.Installer)))
 	case skills.OriginLock:
 		return tx(l, xSkillsInstSkillsCLI)
 	case skills.OriginGit:
@@ -1019,8 +1038,13 @@ func skillInstallerText(l l10n.Localizer, o skills.Origin) string {
 
 // skillFactsBox is a box of label / value rows under a title.
 func skillFactsBox(c *ui.Context, title, subtitle string, facts []skillFact) {
+	skillFactsBoxWith(c, title, subtitle, nil, facts)
+}
+
+// skillFactsBoxWith is skillFactsBox with controls beside the title.
+func skillFactsBoxWith(c *ui.Context, title, subtitle string, header func(), facts []skillFact) {
 	t := c.Theme()
-	settingsSection(c, title, subtitle, nil, func() {
+	settingsSection(c, title, subtitle, header, func() {
 		for i, f := range facts {
 			settingsRule(c, i)
 			ui.Row(c).Gap(14).Padding(8, 0).MinHeight(34).AlignItems(ui.Center).Children(func() {

@@ -40,6 +40,20 @@ type SkillActions struct {
 	Restore    func(id string) (skills.TrashEntry, error)
 	Purge      func(id string) error
 	EmptyTrash func() (int, error)
+	// Adding skills: a GitHub repository, folder or zip is read into
+	// memory and searched for skills; the picked ones are checked against
+	// each chosen folder, then written into the folders that lack them.
+	// progress hears how far a GitHub download got, total 0 when unknown.
+	LoadImport func(ctx context.Context, src skills.Source, progress func(done, total int64)) (*skills.Snapshot, []skills.Candidate, error)
+	// PickPath asks for a folder, or for a zip file when folder is false;
+	// "" is a cancelled dialog.
+	PickPath       func(title string, folder bool) (string, error)
+	PrepareInstall func(skills.InstallTarget, []skills.Summary, *skills.Snapshot, []skills.Candidate) (skills.InstallPlan, error)
+	Install        func(context.Context, skills.InstallPlan) (skills.InstallResult, error)
+	// A skill added from GitHub can be checked against and replaced by
+	// its repository's latest version; the old one goes to the trash.
+	CheckUpdate func(context.Context, skills.Skill) skills.UpdateCheck
+	Update      func(context.Context, skills.UpdateRequest) (skills.UpdateResult, error)
 }
 
 // skillsStale is how old a scan may be before the panel scans again.

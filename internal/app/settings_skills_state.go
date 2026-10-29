@@ -260,11 +260,17 @@ type settingsSkills struct {
 	md     markdown.Options
 	detail skillDetailState
 	trash  skillTrashState
+	// add is the add page while it is open, or its confirmed write.
+	add    *skillAddWizard
+	update skillUpdateState
 }
 
 func (u *settingsUI) skillsState() *settingsSkills {
 	if u.skills == nil {
 		u.skills = &settingsSkills{}
+		if u.opts.skillAddSession != nil {
+			u.skills.add = u.opts.skillAddSession.wizard
+		}
 	}
 	return u.skills
 }
@@ -296,6 +302,7 @@ func (s *settingsSkills) closeItem() {
 	s.open, s.confirm, s.notice, s.noticeErr = "", "", "", false
 	s.transferID, s.transferTarget = "", ""
 	s.body, s.detail = panelSkillBody{}, skillDetailState{}
+	s.update.stop()
 }
 
 func (s *settingsSkills) find(id string) (skills.Summary, skills.Skill, bool) {
@@ -426,7 +433,10 @@ func (u *settingsUI) skillWork(acts SkillActions, fn func() (string, error), fai
 // skillErrorText names the trash errors a user can act on.
 func skillErrorText(l l10n.Localizer, err error) string {
 	var partial *skillTransferPartialError
+	var imported *skills.ImportError
 	switch {
+	case errors.As(err, &imported):
+		return skillAddErrorText(l, err)
 	case errors.As(err, &partial):
 		return tx(l, xSkillsTransferPartial, partial.path)
 	case errors.Is(err, skills.ErrNotFixable):

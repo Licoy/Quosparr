@@ -45,9 +45,10 @@ type Actions struct {
 
 // SettingsOptions configures the settings window.
 type SettingsOptions struct {
-	mcpAddSession *mcpAddSession
-	Version       string
-	Actions       Actions
+	mcpAddSession   *mcpAddSession
+	skillAddSession *skillAddSession
+	Version         string
+	Actions         Actions
 	// Skills returns the skills actions of the running app; nil or an
 	// empty result leaves the skills tab read-only.
 	Skills func() SkillActions
@@ -176,6 +177,9 @@ func newSettingsUI(s *Settings, opts SettingsOptions) *settingsUI {
 	if opts.mcpAddSession != nil {
 		opts.mcpAddSession.owner = u
 	}
+	if opts.skillAddSession != nil {
+		opts.skillAddSession.owner = u
+	}
 	return u
 }
 
@@ -196,6 +200,9 @@ func (u *settingsUI) text(k l10n.Key) string { return u.L().Text(k) }
 func (u *settingsUI) view(c *ui.Context) {
 	if u.tab != tabMCP {
 		u.closeMCPAdd()
+	}
+	if u.tab != tabSkills {
+		u.closeSkillAdd()
 	}
 	applyThemeColor(c, u.s.prefs.ThemeColor, u.s.prefs.FontFamily)
 	if !u.draftReady {
