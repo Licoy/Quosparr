@@ -246,7 +246,14 @@ func (s *Service) syncOfficial() {
 	idx, err := s.src.SyncOfficial(s.now())
 	s.mu.Lock()
 	if err == nil || idx.Version != 0 {
-		s.index, s.indexLoaded = idx, true
+		// SyncOfficial's returned index predates concurrent library changes.
+		// Read the current store under the same lock used by ReloadAccounts
+		// so an already published import, deletion or edit cannot be undone.
+		if s.src.LoadIndex != nil {
+			s.reloadIndexLocked()
+		} else {
+			s.index, s.indexLoaded = idx, true
+		}
 	}
 	if err != nil {
 		s.accountMessage = s.errTextLocked(err)

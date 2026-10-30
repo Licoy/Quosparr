@@ -35,7 +35,9 @@ func (rt *liveApp) addCodexAPIAccount(ctx context.Context, in CodexAPIInput) err
 	if err != nil {
 		return err
 	}
-	rt.svc.ReloadAccounts()
+	if err := rt.svc.ReloadAccounts(); err != nil {
+		return &codexReloadError{err}
+	}
 	rt.awaitCodexBalance(ctx, acc)
 	return nil
 }
@@ -63,7 +65,7 @@ func (rt *liveApp) updateCodexAPIAccount(ctx context.Context, id string, in Code
 	}
 	edit := codex.RelayEdit{Profile: codex.RelayProfile{BaseURL: in.BaseURL, Model: in.Model}, Key: in.APIKey, Apply: in.Apply}
 	saved, err := rt.codex.EditRelayAccount(id, edit, time.Now())
-	rt.svc.ReloadAccounts()
+	reloadErr := rt.svc.ReloadAccounts()
 	if err != nil {
 		return err
 	}
@@ -71,6 +73,9 @@ func (rt *liveApp) updateCodexAPIAccount(ctx context.Context, id string, in Code
 		rt.svc.InvalidateCodexRuntime()
 		// The shown login changed under the service.
 		rt.svc.Refresh(usage.RefreshForce)
+	}
+	if reloadErr != nil {
+		return &codexReloadError{reloadErr}
 	}
 	if saved.APIQuota == nil {
 		rt.awaitCodexBalance(ctx, saved)

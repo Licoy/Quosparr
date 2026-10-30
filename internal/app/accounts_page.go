@@ -467,26 +467,26 @@ func confirmDialog(l l10n.Localizer, title, message, detail, action string) (boo
 }
 
 func (rt *liveApp) importCodexOfficial(l l10n.Localizer) string {
-	if _, err := (&codex.Importer{Store: rt.codex}).ImportOfficial(false); err != nil {
+	result, err := (&codex.Importer{Store: rt.codex}).ImportOfficialWithResult(false)
+	if err != nil {
 		if key := runway.CredentialModeErrorKey(err); key != "" {
 			return l.Text(key)
 		}
 		return accountFailure(l, l.Text(l10n.KeyAccountsImportFailed), err)
 	}
-	rt.svc.ReloadAccounts()
-	return l.Textf(l10n.KeyAccountsImportSucceeded, 1)
+	if message := rt.reloadCodexAfterSave(l); message != "" {
+		return message
+	}
+	created := 0
+	if result.Created {
+		created = 1
+	}
+	return tx(l, xCodexImportResult, created, 1-created)
 }
 
 func (rt *liveApp) pasteCodex(l l10n.Localizer, text string) (string, bool) {
 	batch := (&codex.Importer{Store: rt.codex}).ImportPastedText(context.Background(), text, false)
-	rt.svc.ReloadAccounts()
-	if message := accountBatchFailure(l, len(batch.Succeeded), len(batch.Failures), batch.FailureErrors); message != "" {
-		return message, false
-	}
-	if len(batch.Succeeded) == 0 {
-		return l.Text(l10n.KeyAccountsImportNoCredentials), false
-	}
-	return l.Textf(l10n.KeyAccountsImportSucceeded, len(batch.Succeeded)), true
+	return rt.codexImportMessage(l, batch, 0)
 }
 
 func (rt *liveApp) importCodexFiles(l l10n.Localizer) string {
@@ -498,11 +498,8 @@ func (rt *liveApp) importCodexFiles(l l10n.Localizer) string {
 		return ""
 	}
 	batch := (&codex.Importer{Store: rt.codex}).ImportFiles(context.Background(), paths, false)
-	rt.svc.ReloadAccounts()
-	if message := accountBatchFailure(l, len(batch.Succeeded), len(batch.Failures), batch.FailureErrors); message != "" {
-		return message
-	}
-	return l.Textf(l10n.KeyAccountsImportSucceeded, len(batch.Succeeded))
+	message, _ := rt.codexImportMessage(l, batch, 0)
+	return message
 }
 
 func (rt *liveApp) exportCodex(l l10n.Localizer, ids []string) (string, bool) {
@@ -547,8 +544,7 @@ func (rt *liveApp) setCodexMeta(l l10n.Localizer, id string, alias, note *string
 	if err := rt.codex.UpdateMetadata(acc); err != nil {
 		return accountFailure(l, tx(l, xAccountSaveFailed), err)
 	}
-	rt.svc.ReloadAccounts()
-	return ""
+	return rt.reloadCodexAfterSave(l)
 }
 
 func (rt *liveApp) moveCodex(id string, dir int) string {
@@ -563,8 +559,7 @@ func (rt *liveApp) moveCodex(id string, dir int) string {
 	if err := rt.codex.Reorder(next); err != nil {
 		return accountError(rt, err)
 	}
-	rt.svc.ReloadAccounts()
-	return ""
+	return rt.reloadCodexAfterSave(l10n.New(rt.svc.Snapshot().Language))
 }
 
 func (rt *liveApp) switchCodex(l l10n.Localizer, id, name string) string {
@@ -590,8 +585,7 @@ func (rt *liveApp) deleteCodex(l l10n.Localizer, id string) string {
 	if err := rt.codex.DeleteAccount(id); err != nil {
 		return accountFailure(l, l.Text(l10n.KeyStatusError), err)
 	}
-	rt.svc.ReloadAccounts()
-	return ""
+	return rt.reloadCodexAfterSave(l)
 }
 
 func (rt *liveApp) loginGrok(l l10n.Localizer) string {

@@ -21,6 +21,9 @@ const (
 // ImportBatchResult is the outcome of importing several credentials.
 type ImportBatchResult struct {
 	Succeeded []ManagedAccount
+	// Counts reflect successful imports, including repeats within one batch.
+	CreatedCount int
+	UpdatedCount int
 	// Failures are display lines of the form "<label>: <reason>".
 	Failures      []string
 	FailureErrors []error `json:"-"`
@@ -88,7 +91,13 @@ func (im *Importer) now() time.Time {
 
 // ImportOfficial adds the login in ~/.codex/auth.json to the library.
 func (im *Importer) ImportOfficial(makeActive bool) (ManagedAccount, error) {
-	return im.Store.ImportOfficialAuth(makeActive, im.now())
+	result, err := im.ImportOfficialWithResult(makeActive)
+	return result.Account, err
+}
+
+// ImportOfficialWithResult also reports whether a managed account was added.
+func (im *Importer) ImportOfficialWithResult(makeActive bool) (UpsertResult, error) {
+	return im.Store.ImportOfficialAuthWithResult(makeActive, im.now())
 }
 
 // ImportAPIKey adds an OpenAI API key account.
@@ -157,10 +166,10 @@ func (im *Importer) importCandidates(ctx context.Context, candidates []importCan
 	for _, c := range candidates {
 		auth, err := im.materialize(ctx, c.auth, c.refreshToken)
 		if err == nil {
-			var acc ManagedAccount
+			var acc UpsertResult
 			acc, err = im.commit(auth, UpsertOptions{MakeActive: makeActiveFirst && len(result.Succeeded) == 0}, c.emailHint)
 			if err == nil {
-				result.Succeeded = append(result.Succeeded, acc)
+				result.addSuccess(acc)
 				continue
 			}
 		}
@@ -171,22 +180,24 @@ func (im *Importer) importCandidates(ctx context.Context, candidates []importCan
 }
 
 // commit stores auth and fills in an email the token did not carry.
-func (im *Importer) commit(auth Auth, opt UpsertOptions, emailHint string) (ManagedAccount, error) {
+func (im *Importer) commit(auth Auth, opt UpsertOptions, emailHint string) (UpsertResult, error) {
 	opt.Now = im.now()
-	acc, err := im.Store.Upsert(auth, opt)
+	result, err := im.Store.UpsertWithResult(auth, opt)
 	if err != nil {
-		return ManagedAccount{}, err
+		return UpsertResult{}, err
 	}
+	acc := result.Account
 	if acc.Email == "" && emailHint != "" {
 		acc.Email = emailHint
 		if acc.DisplayName == "" || acc.DisplayName == acc.ID {
 			acc.DisplayName = emailHint
 		}
 		if err := im.Store.UpdateMetadata(acc); err != nil {
-			return ManagedAccount{}, err
+			return UpsertResult{}, err
 		}
 	}
-	return acc, nil
+	result.Account = acc
+	return result, nil
 }
 
 // materialize turns a candidate into a complete credential, refreshing it
@@ -450,8 +461,17 @@ func (im *Importer) commitPreview(ctx context.Context, c ImportCandidate, active
 	if err != nil {
 		return err
 	}
-	result.Succeeded = append(result.Succeeded, acc)
+	result.addSuccess(acc)
 	return nil
+}
+
+func (result *ImportBatchResult) addSuccess(saved UpsertResult) {
+	result.Succeeded = append(result.Succeeded, saved.Account)
+	if saved.Created {
+		result.CreatedCount++
+	} else {
+		result.UpdatedCount++
+	}
 }
 
 // --- parsing pasted text ------------------------------------------------

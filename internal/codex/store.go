@@ -364,19 +364,36 @@ func (o UpsertOptions) now() time.Time {
 	return o.Now
 }
 
+// UpsertResult describes the account write completed under the store lock.
+type UpsertResult struct {
+	Account ManagedAccount
+	Created bool
+}
+
 // Upsert adds or updates the account that auth belongs to (matched by stable
 // identity) and stores its credential. It returns the final row.
 func (s *Store) Upsert(auth Auth, opt UpsertOptions) (ManagedAccount, error) {
+	result, err := s.UpsertWithResult(auth, opt)
+	return result.Account, err
+}
+
+// UpsertWithResult also reports whether the committed account was newly added.
+func (s *Store) UpsertWithResult(auth Auth, opt UpsertOptions) (UpsertResult, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	return s.upsert(auth, opt)
+	return s.upsertWithResult(auth, opt)
 }
 
 func (s *Store) upsert(auth Auth, opt UpsertOptions) (ManagedAccount, error) {
+	result, err := s.upsertWithResult(auth, opt)
+	return result.Account, err
+}
+
+func (s *Store) upsertWithResult(auth Auth, opt UpsertOptions) (UpsertResult, error) {
 	now := opt.now()
 	idx, err := s.loadIndex()
 	if err != nil {
-		return ManagedAccount{}, err
+		return UpsertResult{}, err
 	}
 	existing, found := matchingAccount(idx, auth)
 	sortIndex := nextSortIndex(idx)
@@ -406,7 +423,7 @@ func (s *Store) upsert(auth Auth, opt UpsertOptions) (ManagedAccount, error) {
 		acc = acc.withRelayProfile(opt.Relay.BaseURL, opt.Relay.Model)
 	}
 	if err := s.saveCredential(acc.ID, auth); err != nil {
-		return ManagedAccount{}, err
+		return UpsertResult{}, err
 	}
 	idx.Upsert(acc)
 	if opt.MakeActive || idx.ActiveAccountID == "" {
@@ -415,12 +432,12 @@ func (s *Store) upsert(auth Auth, opt UpsertOptions) (ManagedAccount, error) {
 		idx.Upsert(acc)
 	}
 	if err := s.saveIndex(idx); err != nil {
-		return ManagedAccount{}, err
+		return UpsertResult{}, err
 	}
 	if saved, ok := idx.Account(acc.ID); ok {
-		return saved, nil
+		return UpsertResult{Account: saved, Created: !found}, nil
 	}
-	return acc, nil
+	return UpsertResult{Account: acc, Created: !found}, nil
 }
 
 func matchingAccount(idx AccountIndex, auth Auth) (ManagedAccount, bool) {
@@ -513,11 +530,17 @@ func (s *Store) Reorder(ids []string) error {
 // ImportOfficialAuth adds the official login to the library. It reads the
 // official file and writes only managed copies.
 func (s *Store) ImportOfficialAuth(makeActive bool, now time.Time) (ManagedAccount, error) {
+	result, err := s.ImportOfficialAuthWithResult(makeActive, now)
+	return result.Account, err
+}
+
+// ImportOfficialAuthWithResult also reports whether the managed copy was added.
+func (s *Store) ImportOfficialAuthWithResult(makeActive bool, now time.Time) (UpsertResult, error) {
 	auth, err := s.LoadOfficialAuth()
 	if err != nil {
-		return ManagedAccount{}, err
+		return UpsertResult{}, err
 	}
-	return s.Upsert(auth, UpsertOptions{MakeActive: makeActive, Now: now})
+	return s.UpsertWithResult(auth, UpsertOptions{MakeActive: makeActive, Now: now})
 }
 
 // OfficialStatus describes the official auth.json after a sync.

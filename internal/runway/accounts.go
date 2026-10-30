@@ -17,25 +17,28 @@ var ErrSwitchBusy = errors.New("runway: account switch in progress")
 
 // reloadIndexLocked re-reads the account list. A failure is shown to the user
 // instead of leaving a stale list unnoticed.
-func (s *Service) reloadIndexLocked() {
+func (s *Service) reloadIndexLocked() error {
 	if s.src.LoadIndex == nil {
-		return
+		return nil
 	}
 	idx, err := s.src.LoadIndex()
 	if err != nil {
-		s.lastErr = s.lc.Text(l10n.KeyAccountsImportFailed) + ": " + err.Error()
-		return
+		s.lastErr = s.lc.Text(l10n.KeyAccountsReloadFailed)
+		return err
 	}
 	s.index, s.indexLoaded = idx, true
+	return nil
 }
 
 // ReloadAccounts re-reads the account list (after the UI changed it through
-// codex.Store: import, delete, reorder, alias, OAuth login).
-func (s *Service) ReloadAccounts() {
+// codex.Store: import, delete, reorder, alias, OAuth login). On failure it
+// keeps the current list and returns the source error for the caller to handle.
+func (s *Service) ReloadAccounts() error {
 	s.mu.Lock()
-	s.reloadIndexLocked()
+	err := s.reloadIndexLocked()
 	s.publishLocked()
 	s.mu.Unlock()
+	return err
 }
 
 func toQuotaWindow(w codexapi.RateWindow) codex.QuotaWindow {

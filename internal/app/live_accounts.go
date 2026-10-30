@@ -47,8 +47,7 @@ func (rt *liveApp) removeCodexAccount(l l10n.Localizer, id string) string {
 	if err := rt.codex.DeleteAccount(id); err != nil {
 		return accountFailure(l, l.Text(l10n.KeyStatusError), err)
 	}
-	rt.svc.ReloadAccounts()
-	return ""
+	return rt.reloadCodexAfterSave(l)
 }
 
 func installGrokAccountActions(rt *liveApp, loc func() l10n.Localizer, a *AccountActions) {

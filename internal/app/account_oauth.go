@@ -28,49 +28,49 @@ type codexLoginError struct {
 func (e *codexLoginError) Error() string { return string(e.reason) }
 func (e *codexLoginError) Unwrap() error { return e.cause }
 
-func (f codexLoginFlow) run(ctx context.Context) (codex.ManagedAccount, error) {
+func (f codexLoginFlow) run(ctx context.Context) (codex.UpsertResult, error) {
 	session, err := codexapi.StartLoginSession(f.port, time.Now(), f.lifetime)
 	if err != nil {
-		return codex.ManagedAccount{}, err
+		return codex.UpsertResult{}, err
 	}
 	ctx, cancel := context.WithDeadline(ctx, session.ExpiresAt)
 	defer cancel()
 	server := codexapi.NewCallbackServer(session.Port)
 	defer server.Cancel()
 	if err := server.Start(); err != nil {
-		return codex.ManagedAccount{}, err
+		return codex.UpsertResult{}, err
 	}
 	if err := ctx.Err(); err != nil {
-		return codex.ManagedAccount{}, err
+		return codex.UpsertResult{}, err
 	}
 	if err := f.openBrowser(ctx, session.AuthURL); err != nil {
 		if ctx.Err() != nil && !accountRollbackFailed(err) {
-			return codex.ManagedAccount{}, ctx.Err()
+			return codex.UpsertResult{}, ctx.Err()
 		}
-		return codex.ManagedAccount{}, &codexLoginError{xOAuthBrowser, err}
+		return codex.UpsertResult{}, &codexLoginError{xOAuthBrowser, err}
 	}
 	callback, err := server.WaitForCallback(ctx, time.Until(session.ExpiresAt))
 	if err != nil {
-		return codex.ManagedAccount{}, err
+		return codex.UpsertResult{}, err
 	}
 	code, err := codexapi.AuthorizationCode(callback.String(), session.State)
 	if err != nil {
-		return codex.ManagedAccount{}, &codexLoginError{xOAuthCallback, err}
+		return codex.UpsertResult{}, &codexLoginError{xOAuthCallback, err}
 	}
 	tokens, err := f.login.ExchangeCode(ctx, code, session, time.Now())
 	if err != nil {
-		return codex.ManagedAccount{}, &codexLoginError{xOAuthExchange, err}
+		return codex.UpsertResult{}, &codexLoginError{xOAuthExchange, err}
 	}
 	if err := ctx.Err(); err != nil {
-		return codex.ManagedAccount{}, err
+		return codex.UpsertResult{}, err
 	}
 	auth := codex.Auth{AuthMode: tokens.AuthMode, PlanType: tokens.PlanType, LastRefresh: tokens.LastRefresh,
 		Tokens: codex.Tokens{IDToken: tokens.Tokens.IDToken, AccessToken: tokens.Tokens.AccessToken,
 			RefreshToken: tokens.Tokens.RefreshToken, AccountID: tokens.AccountID}}
 	// Importing a login never installs it as the official Codex auth.
-	account, err := f.store.Upsert(auth, codex.UpsertOptions{Now: time.Now()})
+	account, err := f.store.UpsertWithResult(auth, codex.UpsertOptions{Now: time.Now()})
 	if err != nil {
-		return codex.ManagedAccount{}, &codexLoginError{xOAuthStore, err}
+		return codex.UpsertResult{}, &codexLoginError{xOAuthStore, err}
 	}
 	return account, nil
 }
@@ -88,15 +88,21 @@ func (u *settingsUI) startCodexLoginFlow(f *accountForm, rt *liveApp, flow codex
 	l := u.L()
 	u.accountAct(f, l.Text(l10n.KeyAccountsOAuthWaiting), func() string {
 		defer cancel()
-		_, err := flow.run(ctx)
+		result, err := flow.run(ctx)
 		if !accountRollbackFailed(err) && (errors.Is(err, context.Canceled) || errors.Is(err, codexapi.ErrCancelled)) {
 			return l.Text(l10n.KeyAccountsOAuthCancelled)
 		}
 		if err != nil {
 			return codexLoginFailure(l, err)
 		}
-		rt.svc.ReloadAccounts()
-		return l.Textf(l10n.KeyAccountsImportSucceeded, 1)
+		if message := rt.reloadCodexAfterSave(l); message != "" {
+			return message
+		}
+		created := 0
+		if result.Created {
+			created = 1
+		}
+		return tx(l, xCodexImportResult, created, 1-created)
 	})
 }
 

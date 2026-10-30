@@ -51,6 +51,7 @@ const (
 	KeyAccountsImportProviderNotice                        Key = "accountsImportProviderNotice"
 	KeyAccountsImportSelected                              Key = "accountsImportSelected"
 	KeyAccountsImportSucceeded                             Key = "accountsImportSucceeded"
+	KeyAccountsReloadFailed                                Key = "accountsReloadFailed"
 	KeyAccountsImportWillAdd                               Key = "accountsImportWillAdd"
 	KeyAccountsImportWillUpdate                            Key = "accountsImportWillUpdate"
 	KeyAccountsUserIdLabel                                 Key = "accountsUserIdLabel"
@@ -691,6 +692,7 @@ var allKeys = []Key{
 	KeyAccountsImportProviderNotice,
 	KeyAccountsImportSelected,
 	KeyAccountsImportSucceeded,
+	KeyAccountsReloadFailed,
 	KeyAccountsImportWillAdd,
 	KeyAccountsImportWillUpdate,
 	KeyAccountsUserIdLabel,
@@ -1362,6 +1364,7 @@ var tables = map[Language]map[Key]string{
 		KeyAccountsImportProviderNotice:          "Imported into %@ accounts",
 		KeyAccountsImportSelected:                "Import Selected",
 		KeyAccountsImportSucceeded:               "Imported %d account(s)",
+		KeyAccountsReloadFailed:                  "Could not reload the account list",
 		KeyAccountsImportWillAdd:                 "Will add",
 		KeyAccountsImportWillUpdate:              "Will update",
 		KeyAccountsUserIdLabel:                   "User ID:",
@@ -2000,6 +2003,7 @@ var tables = map[Language]map[Key]string{
 		KeyAccountsImportProviderNotice:          "已导入到 %@ 账号库",
 		KeyAccountsImportSelected:                "导入选中",
 		KeyAccountsImportSucceeded:               "已导入 %d 个账号",
+		KeyAccountsReloadFailed:                  "无法重新加载账号列表",
 		KeyAccountsImportWillAdd:                 "将新增",
 		KeyAccountsImportWillUpdate:              "将更新",
 		KeyAccountsUserIdLabel:                   "用户 ID：",
@@ -2638,6 +2642,7 @@ var tables = map[Language]map[Key]string{
 		KeyAccountsImportProviderNotice:          "已匯入到 %@ 帳號庫",
 		KeyAccountsImportSelected:                "匯入選中",
 		KeyAccountsImportSucceeded:               "已匯入 %d 个帳號",
+		KeyAccountsReloadFailed:                  "無法重新載入帳號清單",
 		KeyAccountsImportWillAdd:                 "將新增",
 		KeyAccountsImportWillUpdate:              "將更新",
 		KeyAccountsUserIdLabel:                   "使用者 ID：",
@@ -3276,6 +3281,7 @@ var tables = map[Language]map[Key]string{
 		KeyAccountsImportProviderNotice:          "%@ 계정으로 가져왔습니다",
 		KeyAccountsImportSelected:                "선택 항목 가져오기",
 		KeyAccountsImportSucceeded:               "%d개 계정을 가져왔습니다",
+		KeyAccountsReloadFailed:                  "계정 목록을 다시 불러올 수 없습니다",
 		KeyAccountsImportWillAdd:                 "추가됨",
 		KeyAccountsImportWillUpdate:              "업데이트됨",
 		KeyAccountsUserIdLabel:                   "사용자 ID:",
@@ -3914,6 +3920,7 @@ var tables = map[Language]map[Key]string{
 		KeyAccountsImportProviderNotice:          "%@ アカウントに読み込みました",
 		KeyAccountsImportSelected:                "選択した項目を読み込む",
 		KeyAccountsImportSucceeded:               "%d 件のアカウントを読み込みました",
+		KeyAccountsReloadFailed:                  "アカウント一覧を再読み込みできません",
 		KeyAccountsImportWillAdd:                 "追加されます",
 		KeyAccountsImportWillUpdate:              "更新されます",
 		KeyAccountsUserIdLabel:                   "ユーザー ID：",
@@ -4552,6 +4559,7 @@ var tables = map[Language]map[Key]string{
 		KeyAccountsImportProviderNotice:          "Импортировано в аккаунты %@",
 		KeyAccountsImportSelected:                "Импортировать выбранные",
 		KeyAccountsImportSucceeded:               "Импортировано аккаунтов: %d",
+		KeyAccountsReloadFailed:                  "Не удалось обновить список аккаунтов",
 		KeyAccountsImportWillAdd:                 "Будет добавлен",
 		KeyAccountsImportWillUpdate:              "Будет обновлён",
 		KeyAccountsUserIdLabel:                   "ID пользователя:",
@@ -5190,6 +5198,7 @@ var tables = map[Language]map[Key]string{
 		KeyAccountsImportProviderNotice:          "Importé dans les comptes %@",
 		KeyAccountsImportSelected:                "Importer la sélection",
 		KeyAccountsImportSucceeded:               "%d compte(s) importé(s)",
+		KeyAccountsReloadFailed:                  "Impossible de recharger la liste des comptes",
 		KeyAccountsImportWillAdd:                 "Sera ajouté",
 		KeyAccountsImportWillUpdate:              "Sera mis à jour",
 		KeyAccountsUserIdLabel:                   "ID utilisateur :",

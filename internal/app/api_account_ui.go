@@ -383,6 +383,10 @@ func apiSavedText(l l10n.Localizer, mode string, apply apiApply) string {
 
 // apiErrorText localizes API validation and classifies other failures safely.
 func apiErrorText(l l10n.Localizer, err error) string {
+	var reload *codexReloadError
+	if errors.As(err, &reload) {
+		return accountFailure(l, tx(l, xCodexSavedReloadFailed), reload.cause)
+	}
 	switch {
 	case err == nil:
 		return ""

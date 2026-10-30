@@ -10,8 +10,8 @@ import (
 
 func TestKeyCount(t *testing.T) {
 	// Pinned so that adding or dropping a key is a deliberate change.
-	if got := len(allKeys); got != 636 {
-		t.Errorf("len(allKeys) = %d, want 636", got)
+	if got := len(allKeys); got != 637 {
+		t.Errorf("len(allKeys) = %d, want 637", got)
 	}
 	seen := map[Key]bool{}
 	for _, k := range allKeys {
