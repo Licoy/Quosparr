@@ -48,14 +48,20 @@ func settingsMCPView(t *testing.T, actions MCPActions) (*settingsUI, *ui.Tester,
 // not identify when the refreshed snapshot is ready.
 func finishMCPTasks(t *testing.T, queue <-chan func(), u *settingsUI) {
 	t.Helper()
+	finishMCPUntil(t, queue, func() bool { return !u.mcp.work.Running && !u.mcp.task.Running })
+}
+
+// finishMCPUntil delivers queued UI work until this operation's result lands.
+func finishMCPUntil(t *testing.T, queue <-chan func(), done func() bool) {
+	t.Helper()
 	deadline := time.NewTimer(3 * time.Second)
 	defer deadline.Stop()
-	for u.mcp.work.Running || u.mcp.task.Running {
+	for !done() {
 		select {
 		case fn := <-queue:
 			fn()
 		case <-deadline.C:
-			t.Fatalf("MCP operations did not finish: %+v", u.mcp)
+			t.Fatal("MCP operation did not finish")
 		}
 	}
 }

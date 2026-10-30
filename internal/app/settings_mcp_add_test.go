@@ -7,7 +7,22 @@ import (
 	"github.com/licoy/quosparr/internal/store"
 	"sync/atomic"
 	"testing"
+	"time"
 )
+
+// takeMCPCallback captures the completion of a controlled, sole pending action.
+// Cancellation tests must execute that callback even after cancellation clears
+// its Running flag; waiting for an idle flag would skip the stale result.
+func takeMCPCallback(t *testing.T, queue <-chan func()) func() {
+	t.Helper()
+	select {
+	case callback := <-queue:
+		return callback
+	case <-time.After(3 * time.Second):
+		t.Fatal("MCP completion callback was not posted")
+		return nil
+	}
+}
 
 func mcpAddTestActions() MCPActions {
 	return MCPActions{Parse: mcp.ParseDrafts, PrepareAdd: func(_ context.Context, p store.Provider, ds []mcp.Draft) (mcp.AddPlan, error) {
@@ -68,7 +83,9 @@ func TestMCPAddPreviewRequiresClickAndDropsCancelledAndStale(t *testing.T) {
 		<-release
 		return mcp.ProbeResult{ServerName: "old"}, nil
 	}
-	u, tt, queue := settingsMCPView(t, actions)
+	u, tt, _ := settingsMCPView(t, actions)
+	// Only this test's controlled preview posts to the dedicated dispatcher.
+	queue := detailMainQueue(t)
 	e := mcpAddFixture(u)
 	e.transport, e.command = "stdio", "fixture"
 	u.mcp.add.step = mcpStepTools
@@ -86,7 +103,7 @@ func TestMCPAddPreviewRequiresClickAndDropsCancelledAndStale(t *testing.T) {
 	e.command = "other"
 	u.mcp.add.invalidate(e)
 	close(release)
-	finishDetail(t, queue)
+	takeMCPCallback(t, queue)()
 	if e.probed || e.probe.ServerName != "" || e.task.Running {
 		t.Fatal("stale preview overwrote edited draft")
 	}
@@ -95,7 +112,7 @@ func TestMCPAddPreviewRequiresClickAndDropsCancelledAndStale(t *testing.T) {
 	<-started
 	u.closeMCPAdd()
 	close(release)
-	finishDetail(t, queue)
+	takeMCPCallback(t, queue)()
 	if u.mcp.add != nil || e.probed {
 		t.Fatal("cancelled preview retained draft")
 	}
@@ -123,7 +140,7 @@ func TestMCPAddPreflightAllTargetsBlocksOnAnyFailure(t *testing.T) {
 	}
 	w.unverified = true
 	u.prepareMCPDrafts(actions, false)
-	finishDetail(t, queue)
+	finishMCPUntil(t, queue, func() bool { return !w.task.Running && !w.writing && !u.mcp.task.Running })
 	tt.Frame()
 	if calls.Load() != 3 || w.step != mcpStepReview || w.err == nil {
 		t.Fatal("all target preflight must complete and block on any failure")
@@ -160,22 +177,22 @@ func TestMCPAddPartialRetryAndDuplicateSubmit(t *testing.T) {
 	w.unverified = true
 	w.targets[store.ProviderClaude] = true
 	u.prepareMCPDrafts(actions, false)
-	finishDetail(t, queue)
+	finishMCPUntil(t, queue, func() bool { return !w.task.Running && !w.writing && !u.mcp.task.Running })
 	u.submitMCPDrafts(actions)
 	<-started
 	u.submitMCPDrafts(actions)
 	close(release)
-	finishDetail(t, queue)
+	finishMCPUntil(t, queue, func() bool { return !w.task.Running && !w.writing && !u.mcp.task.Running })
 	if codex.Load() != 1 || claude.Load() != 1 || !w.completed {
 		t.Fatal("duplicate submission or missing result")
 	}
 	u.prepareMCPDrafts(actions, true)
-	finishDetail(t, queue)
+	finishMCPUntil(t, queue, func() bool { return !w.task.Running && !w.writing && !u.mcp.task.Running })
 	if retried := w.plan(store.ProviderClaude); len(w.plans) != 2 || retried == nil || retried.done || retried.err != nil || !w.plan(store.ProviderCodex).done {
 		t.Fatal("retry skipped fresh preflight")
 	}
 	u.submitMCPDrafts(actions)
-	finishDetail(t, queue)
+	finishMCPUntil(t, queue, func() bool { return !w.task.Running && !w.writing && !u.mcp.task.Running })
 	if codex.Load() != 1 || claude.Load() != 2 {
 		t.Fatal("retry rewrote successful provider")
 	}
@@ -193,7 +210,7 @@ func TestMCPAddConfirmedWriteSurvivesClose(t *testing.T) {
 	w := u.mcp.add
 	w.unverified = true
 	u.prepareMCPDrafts(actions, false)
-	finishDetail(t, queue)
+	finishMCPUntil(t, queue, func() bool { return !w.task.Running && !w.writing && !u.mcp.task.Running })
 	u.submitMCPDrafts(actions)
 	<-started
 	u.closeMCPAdd()
@@ -201,7 +218,7 @@ func TestMCPAddConfirmedWriteSurvivesClose(t *testing.T) {
 		t.Fatal("close retained editable secrets")
 	}
 	close(release)
-	finishDetail(t, queue)
+	finishMCPUntil(t, queue, func() bool { return !w.task.Running && !w.writing && !u.mcp.task.Running })
 	u.openMCPAdd()
 	if u.mcp.add != w || !w.completed || len(w.plans) != 1 || !w.plans[0].done {
 		t.Fatal("confirmed result lost after closing")
@@ -226,7 +243,7 @@ func TestMCPAddSharedSessionSurvivesWholeWindowRecreation(t *testing.T) {
 	w := u.mcp.add
 	w.unverified = true
 	u.prepareMCPDrafts(actions, false)
-	finishDetail(t, queue)
+	finishMCPUntil(t, queue, func() bool { return !w.task.Running && !w.writing && !u.mcp.task.Running })
 	u.submitMCPDrafts(actions)
 	<-started
 	u.cancelMCPTasks()
@@ -240,8 +257,7 @@ func TestMCPAddSharedSessionSurvivesWholeWindowRecreation(t *testing.T) {
 		t.Fatal("new window failed to reuse confirmed operation")
 	}
 	close(release)
-	finishDetail(t, queue)
-	finishDetail(t, queue)
+	finishMCPUntil(t, queue, func() bool { return !w.writing && !next.mcp.task.Running })
 	if !w.completed || !w.plans[0].done || next.mcp.snapshot.Path != "refreshed-new-window" {
 		t.Fatal("result did not reach current window or refresh its list")
 	}

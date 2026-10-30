@@ -1,6 +1,7 @@
 package app
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"github.com/egoist/mygo/ui"
@@ -146,6 +147,14 @@ func TestMCPAddBackLinkLeavesFromEveryStep(t *testing.T) {
 
 func TestMCPAddUnverifiedTargetChangesRemainActionable(t *testing.T) {
 	actions := mcpAddTestActions()
+	var writes []store.Provider
+	actions.Add = func(_ context.Context, p store.Provider, _ mcp.AddPlan) (mcp.AddResult, error) {
+		writes = append(writes, p)
+		return mcp.AddResult{Added: []string{"fixture"}}, nil
+	}
+	actions.Query = func(context.Context, store.Provider) (mcp.Snapshot, error) {
+		return mcp.Snapshot{Fingerprint: "added-v2"}, nil
+	}
 	u, tt, queue := settingsMCPView(t, actions)
 	mcpAddFixture(u)
 	w := u.mcp.add
@@ -157,18 +166,25 @@ func TestMCPAddUnverifiedTargetChangesRemainActionable(t *testing.T) {
 	if err := tt.Click(tx(u.L(), xMCPNext)); err != nil {
 		t.Fatal(err)
 	}
-	finishDetail(t, queue)
+	finishMCPUntil(t, queue, func() bool { return !w.task.Running && !w.writing && !u.mcp.task.Running })
 	if w.step != mcpStepReview || !w.unverified || len(w.plans) != 1 {
 		t.Fatal("unverified acknowledgement was lost or the target was not checked")
 	}
 	tt.Frame()
-	for _, p := range []store.Provider{store.ProviderClaude, store.ProviderGrok} {
-		if err := tt.Click(u.L().Text(providerKey(p))); err != nil {
-			t.Fatal(err)
-		}
+	if err := tt.Click(u.L().Text(providerKey(store.ProviderClaude))); err != nil {
+		t.Fatal(err)
 	}
-	finishDetail(t, queue)
-	finishDetail(t, queue)
+	// Hold the two-provider completion until the newer three-provider check lands.
+	oldCallback := takeMCPCallback(t, queue)
+	unrelatedDelivered := 0
+	for range 2 {
+		queue <- func() { unrelatedDelivered++ }
+	}
+	if err := tt.Click(u.L().Text(providerKey(store.ProviderGrok))); err != nil {
+		t.Fatal(err)
+	}
+	finishMCPUntil(t, queue, func() bool { return unrelatedDelivered == 2 && !w.task.Running })
+	oldCallback()
 	if !w.unverified {
 		t.Fatal("provider change erased draft acknowledgement")
 	}
@@ -182,7 +198,10 @@ func TestMCPAddUnverifiedTargetChangesRemainActionable(t *testing.T) {
 	if !w.writing || w.step != mcpStepResults {
 		t.Fatal("submit did not start the confirmed write")
 	}
-	finishDetail(t, queue)
+	finishMCPUntil(t, queue, func() bool { return !w.task.Running && !w.writing && !u.mcp.task.Running })
+	if !w.completed || len(writes) != 3 || u.mcp.snapshot.Fingerprint != "added-v2" {
+		t.Fatal("confirmed three-provider write or owner refresh did not finish")
+	}
 }
 func TestMCPAddTransportSwitchKeepsFieldsAndArgsDelete(t *testing.T) {
 	u, _, _ := settingsMCPView(t, mcpAddTestActions())
