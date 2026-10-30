@@ -8,6 +8,7 @@ import (
 	"strconv"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/egoist/mygo/ui"
 	"github.com/licoy/quosparr/internal/l10n"
@@ -40,6 +41,23 @@ func settingsMCPView(t *testing.T, actions MCPActions) (*settingsUI, *ui.Tester,
 	tt := ui.NewTester(u.view, settingsWidth, settingsHeight)
 	tt.Frame()
 	return u, tt, queue
+}
+
+// finishMCPTasks waits for business completion while delivering unrelated UI work.
+// A delete or toggle completion starts a separate scan, so callback counts do
+// not identify when the refreshed snapshot is ready.
+func finishMCPTasks(t *testing.T, queue <-chan func(), u *settingsUI) {
+	t.Helper()
+	deadline := time.NewTimer(3 * time.Second)
+	defer deadline.Stop()
+	for u.mcp.work.Running || u.mcp.task.Running {
+		select {
+		case fn := <-queue:
+			fn()
+		case <-deadline.C:
+			t.Fatalf("MCP operations did not finish: %+v", u.mcp)
+		}
+	}
 }
 
 func TestMCPScanDropsStaleProviderResult(t *testing.T) {
@@ -154,9 +172,14 @@ func TestMCPDeleteConfirmationCancelAndBackground(t *testing.T) {
 	if u.mcp.provider != before {
 		t.Fatal("provider changed during deletion")
 	}
+	// An unrelated UI update may precede the delete completion.
+	unrelatedDelivered := false
+	queue <- func() { unrelatedDelivered = true }
 	close(release)
-	finishDetail(t, queue)
-	finishDetail(t, queue)
+	finishMCPTasks(t, queue, u)
+	if !unrelatedDelivered {
+		t.Fatal("unrelated UI callback was not delivered")
+	}
 	if u.mcp.work.Running || u.mcp.stale || !u.mcp.loaded || u.mcp.snapshot.Fingerprint != "v2" {
 		t.Fatalf("delete/refresh state = %+v", u.mcp)
 	}
@@ -167,7 +190,7 @@ func TestMCPRefreshAndDeleteFailuresKeepExistingData(t *testing.T) {
 	u, _, queue := settingsMCPView(t, MCPActions{})
 	want := len(u.mcp.snapshot.Servers)
 	u.startMCPScan(MCPActions{Query: func(context.Context, store.Provider) (mcp.Snapshot, error) { return mcp.Snapshot{}, refreshErr }})
-	finishDetail(t, queue)
+	finishMCPTasks(t, queue, u)
 	if len(u.mcp.snapshot.Servers) != want || !u.mcp.loaded || !errors.Is(u.mcp.task.Err, refreshErr) {
 		t.Fatal("refresh failure discarded existing snapshot")
 	}
@@ -175,7 +198,7 @@ func TestMCPRefreshAndDeleteFailuresKeepExistingData(t *testing.T) {
 	u.deleteMCPServers(MCPActions{Delete: func(context.Context, store.Provider, []mcp.Server) ([]mcp.DeleteResult, error) {
 		return []mcp.DeleteResult{{Server: server, Err: errors.New("changed")}}, errors.New("delete failed")
 	}}, []mcp.Server{server})
-	finishDetail(t, queue)
+	finishMCPTasks(t, queue, u)
 	if len(u.mcp.snapshot.Servers) != want || !u.mcp.noticeErr {
 		t.Fatal("delete failure discarded existing snapshot")
 	}
@@ -207,8 +230,7 @@ func TestMCPConsecutiveDeletesUseRefreshedFingerprint(t *testing.T) {
 	for range 2 {
 		server := u.mcp.snapshot.Servers[0]
 		u.deleteMCPServers(actions, []mcp.Server{server})
-		finishDetail(t, queue)
-		finishDetail(t, queue)
+		finishMCPTasks(t, queue, u)
 	}
 	if deletes != 2 || len(u.mcp.snapshot.Servers) != 0 || u.mcp.stale {
 		t.Fatalf("deletes=%d state=%+v", deletes, u.mcp)
@@ -365,8 +387,7 @@ func TestMCPSwitchWritesStateAndRescans(t *testing.T) {
 	if !u.mcp.work.Running || u.mcp.pending["codex\x00alpha"] {
 		t.Fatalf("switch did not start a write: %+v", u.mcp)
 	}
-	finishDetail(t, queue)
-	finishDetail(t, queue)
+	finishMCPTasks(t, queue, u)
 	if len(calls) != 1 || calls[0] || u.mcp.stale || u.mcp.pending != nil || u.mcp.noticeErr || u.mcp.open != "codex\x00alpha" {
 		t.Fatalf("calls=%v state=%+v", calls, u.mcp)
 	}
@@ -388,8 +409,7 @@ func TestMCPSwitchFailureReportsAndKeepsState(t *testing.T) {
 	server := u.mcp.snapshot.Servers[0]
 	server.Toggleable = true
 	u.toggleMCP(actions, server, false)
-	finishDetail(t, queue)
-	finishDetail(t, queue)
+	finishMCPTasks(t, queue, u)
 	if !u.mcp.noticeErr || u.mcp.pending != nil || !u.mcp.snapshot.Servers[0].Enabled {
 		t.Fatalf("failed toggle state = %+v", u.mcp)
 	}
