@@ -540,3 +540,39 @@ func TestRejectsInvalidRecentNonCompletedPostID(t *testing.T) {
 	wantDecodeError(t, newFeed(now, newEvent("reset_completed", "2026-08-31T02:34:27Z")).
 		withTimeline(timelineJSON("", "not-an-id", "", "", "")))
 }
+
+func TestAcceptsOperatorSuppressedPostID(t *testing.T) {
+	now := at(t, "2026-09-01T08:00:00Z")
+	global := newEvent("reset_scheduled", "2026-09-01T00:00:00Z", rtype("global"), effective("2026-09-01T16:00:00Z"),
+		precision("datetime"), post("100"))
+	banked := operatorEvent("reset_scheduled", "2026-09-01T00:12:30Z", operatorPostID,
+		rtype("banked"), effective("2026-09-01T14:00:00Z"), precision("datetime"), basis("explicit"))
+	s := newFeed(now, global, banked).checked("2026-09-01T08:00:00Z").
+		withTimeline(timelineJSON(global.JSON(), "100", "", "", `"`+operatorPostID+`"`)).mustDecode(t)
+	if got := s.ResetTimeline.SuppressedPostIDs; len(got) != 1 || got[0] != operatorPostID {
+		t.Fatalf("suppressed = %v", got)
+	}
+	if next := s.NextScheduledReset(now); next == nil || next.Event.Source.PostID != "100" {
+		t.Errorf("suppressed operator schedule still wins: %+v", next)
+	}
+}
+
+func TestRejectsInvalidSuppressedPostID(t *testing.T) {
+	now := at(t, "2026-09-01T08:00:00Z")
+	wantDecodeError(t, newFeed(now, newEvent("reset_completed", "2026-08-31T02:34:27Z")).
+		withTimeline(timelineJSON("", "", "", "", `"op_not-an-id"`)))
+}
+
+func TestAcceptsOperatorManualCompletionSchedule(t *testing.T) {
+	now := at(t, "2026-09-01T20:00:00Z")
+	scheduled := operatorEvent("reset_scheduled", "2026-09-01T00:12:30Z", operatorPostID,
+		rtype("global"), effective("2026-09-01T14:00:00Z"), precision("datetime"), basis("explicit"))
+	manual := `{"id": "manual:cl_abd57edf90eb450aa54bd48c010854af", "completedAt": "2026-09-01T14:30:00.000Z",
+      "visibleUntil": "2026-09-11T14:30:00.000Z", "representativePostId": "` + operatorPostID + `",
+      "schedulePostIds": ["` + operatorPostID + `"], "schedules": [` + scheduled.JSON() + `], "fulfillmentOrigin": "manual"}`
+	s := newFeed(now, scheduled).checked("2026-09-01T20:00:00Z").
+		withTimeline(timelineJSON("", "", "", manual, `"`+operatorPostID+`"`)).mustDecode(t)
+	if m := s.ResetTimeline.ManualCompletions; len(m) != 1 || m[0].RepresentativePostID != operatorPostID {
+		t.Fatalf("manual = %+v", m)
+	}
+}

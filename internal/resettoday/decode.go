@@ -682,7 +682,7 @@ func validateTimeline(t Timeline) error {
 	}
 	suppressed := map[string]bool{}
 	for _, id := range t.SuppressedPostIDs {
-		if err := validatePostID(id, "suppressedPostIds"); err != nil {
+		if err := validateEventID(id, "suppressedPostIds"); err != nil {
 			return err
 		}
 		if suppressed[id] {
@@ -703,7 +703,7 @@ func validateManual(m ManualCompletion) error {
 	if m.FulfillmentOrigin != "manual" {
 		return invalid("Manual completions must use fulfillmentOrigin manual.")
 	}
-	if err := validatePostID(m.RepresentativePostID, "representativePostId"); err != nil {
+	if err := validateEventID(m.RepresentativePostID, "representativePostId"); err != nil {
 		return err
 	}
 	unique := map[string]bool{}
@@ -714,7 +714,7 @@ func validateManual(m ManualCompletion) error {
 		return invalid("Manual completion schedule post IDs must be unique and non-empty.")
 	}
 	for _, id := range m.SchedulePostIDs {
-		if err := validatePostID(id, "schedulePostIds"); err != nil {
+		if err := validateEventID(id, "schedulePostIds"); err != nil {
 			return err
 		}
 	}
@@ -838,13 +838,6 @@ func validateSource(s EventSource, kind EventKind) error {
 	if strings.ToLower(u.Scheme) != "https" || strings.ToLower(u.Hostname()) != "x.com" ||
 		len(path) != 3 || !strings.EqualFold(path[0], "thsottiaux") || path[1] != "status" || path[2] != s.PostID {
 		return bad
-	}
-	return nil
-}
-
-func validatePostID(id, label string) error {
-	if !IsXPostID(id) {
-		return invalid("%s must be a numeric X post ID.", label)
 	}
 	return nil
 }
