@@ -74,7 +74,7 @@ macOS 输出目录为 `build/v1-<arm64|x86_64>`，Windows/Linux 为 `build/v1-<o
 
 Windows 使用 mygo 默认的用户级 NSIS 安装器，安装到 `%LOCALAPPDATA%\Programs\Quosparr`，`RequestExecutionLevel user`，不要求管理员权限；未生成 EXE 安装器时脚本报错；Linux tar 使用用户目录安装器，deb 声明 GTK3、AppIndicator 与密钥存储依赖，`linux.webview` 为 `false` 时不依赖 WebKitGTK，平台校验拒绝含 WebKitGTK 依赖的 deb，由包管理器管理更新；SQLite 运行库缺失或架构错误会阻止验收，应用不依赖首次启动时下载该库
 
-Windows 构建目录保留 mygo 的 `Quosparr Setup <version> <arch>.exe` 名称，发布汇总时将空格替换为点号，再生成校验和，确保文件名与 GitHub 下载资产一致；独立的 `Quosparr.exe` 只属于应用载荷，不单独上传到 Release
+Windows 构建目录保留 mygo 的 `quosparr-setup-<version>-<arch>.exe` 名称，发布汇总时改名为 `Quosparr.Setup.<version>.<arch>.exe`，再生成校验和，确保文件名与 GitHub 下载资产一致；独立的 `Quosparr.exe` 只属于应用载荷，不单独上传到 Release
 
 Windows 将对应架构的 SQLite DLL 嵌入 EXE，安装器和更新归档不再附带外置 DLL，单独复制 EXE 不会遗漏运行库；首次使用时从内嵌资源原子释放到 `~/.quosparr/runtime/sqlite/<SHA256>/mygo-sqlite3.dll`，目录和文件仅当前用户可访问，加载前检查内容；已有缓存损坏或路径异常会明确报错，不下载替代库、不加载 EXE 旁边的 DLL；缓存缺失时可从内嵌资源重新创建
 

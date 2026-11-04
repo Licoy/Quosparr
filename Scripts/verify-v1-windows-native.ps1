@@ -8,7 +8,7 @@ if ($env:GITHUB_ACTIONS -ne 'true' -or $env:RUNNER_OS -ne 'Windows') { throw 'Na
 $nativeArch = [System.Runtime.InteropServices.RuntimeInformation]::OSArchitecture.ToString().ToLower()
 if (($Arch -eq 'amd64' -and $nativeArch -ne 'x64') -or ($Arch -eq 'arm64' -and $nativeArch -ne 'arm64')) { throw 'Runner architecture does not match package' }
 $Stage = (Resolve-Path $Stage).Path
-$installers = @(Get-ChildItem $Stage -Filter "Quosparr Setup * $Arch.exe")
+$installers = @(Get-ChildItem $Stage -Filter "quosparr-setup-*-$Arch.exe")
 if ($installers.Count -ne 1) { throw 'Expected exactly one NSIS installer' }
 $temporary = Join-Path $env:RUNNER_TEMP ('quosparr-native-' + [guid]::NewGuid())
 $installed = Join-Path $temporary 'installed'
@@ -22,7 +22,7 @@ try {
     $process = Start-Process -FilePath $installers[0].FullName -ArgumentList @('/S', "/D=$installed") -PassThru -Wait
     if ($process.ExitCode -ne 0) { throw "NSIS installation failed: $($process.ExitCode)" }
     foreach ($source in (Get-ChildItem $Stage -File)) {
-        if ($source.Name -like 'Quosparr Setup *' -or $source.Name -like '*.tar.gz' -or $source.Name -like 'update-*') { continue }
+        if ($source.Name -like 'quosparr-setup-*' -or $source.Name -like '*.tar.gz' -or $source.Name -like 'update-*') { continue }
         $destination = Join-Path $installed $source.Name
         if (!(Test-Path $destination) -or (Get-FileHash $source.FullName).Hash -ne (Get-FileHash $destination).Hash) { throw "Installed payload mismatch: $($source.Name)" }
     }

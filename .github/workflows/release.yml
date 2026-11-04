@@ -226,9 +226,12 @@ jobs:
             stage="$V1_BUILD_DIR/$PLATFORM-$arch"
             cp "$stage"/*.tar.gz "$stage"/update-*.json dist-v1/
             if [[ "$PLATFORM" == windows ]]; then
-              for installer in "$stage"/*Setup*.exe; do
-                name="${installer##*/}"
-                cp "$installer" "dist-v1/${name// /.}"
+              # Publish mygo's quosparr-setup-<version>-<arch>.exe under the
+              # established Quosparr.Setup.<version>.<arch>.exe asset name
+              for installer in "$stage"/quosparr-setup-*-"$arch".exe; do
+                version="${installer##*/quosparr-setup-}"
+                version="${version%-"$arch".exe}"
+                cp "$installer" "dist-v1/Quosparr.Setup.$version.$arch.exe"
               done
             else
               cp "$stage"/*.deb dist-v1/

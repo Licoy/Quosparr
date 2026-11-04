@@ -15,8 +15,8 @@ def digest(data):
 
 def payload_files(stage):
     return [p for p in stage.iterdir() if not (
-        p.name.startswith("Quosparr Setup ") or p.name.startswith("update-")
-        or p.name.endswith((".tar.gz", ".deb")) or p.name == "install.sh")]
+        p.name.startswith("quosparr-setup-") or p.name.startswith("update-")
+        or p.name.endswith((".tar.gz", ".deb")) or p.name in {"install.sh", "PKGBUILD"})]
 
 
 def archive_windows(config, stage, target):
@@ -118,7 +118,7 @@ def verify(config, stage, target):
     else:
         if (stage / "mygo-sqlite3.dll").exists():
             raise ValueError("Windows SQLite must be embedded, not shipped beside the executable")
-        setup = stage / f"Quosparr Setup {config['version']} {arch}.exe"
+        setup = stage / f"quosparr-setup-{config['version']}-{arch}.exe"
         data = setup.read_bytes()
         if len(data) < 64 or data[:2] != b"MZ":
             raise ValueError("missing Windows PE installer")

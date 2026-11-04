@@ -36,7 +36,7 @@ go version -m "$EXECUTABLE" | python3 -c 'import sys; tags=[line.strip().split("
 VERSION="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["version"])' "$WORK/config/mygo.json")"
 if [[ "$TARGET" == windows/* ]]; then
   [[ ! -e "$STAGE/mygo-sqlite3.dll" ]] || { printf 'Windows SQLite must be embedded in the executable\n' >&2; exit 1; }
-  [[ -f "$STAGE/Quosparr Setup $VERSION ${TARGET#*/}.exe" ]] || { printf 'NSIS installer missing; install makensis\n' >&2; exit 1; }
+  [[ -f "$STAGE/quosparr-setup-$VERSION-${TARGET#*/}.exe" ]] || { printf 'NSIS installer missing; install makensis\n' >&2; exit 1; }
 fi
 if [[ "$DEVELOPMENT" == 1 ]]; then
   # Mygo writes unsigned Linux archives itself; Windows needs a review archive.

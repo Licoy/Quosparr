@@ -61,6 +61,8 @@ class PlatformPackages(unittest.TestCase):
         if failure == "truncated":
             data = data[:-100]
         (stage / "quosparr_1.0.0_amd64.deb").write_bytes(data)
+        # mygo also writes an Arch PKGBUILD beside the package; it is no payload
+        (stage / "PKGBUILD").write_bytes(b"pkgname=quosparr\n")
 
     def test_debian_payload_and_metadata(self):
         with tempfile.TemporaryDirectory() as temporary:
@@ -87,7 +89,7 @@ class PlatformPackages(unittest.TestCase):
             files = {"Quosparr.exe": b"application-with-embedded-sqlite", "LICENSE": b"license"}
             for name, data in files.items():
                 (stage / name).write_bytes(data)
-            (stage / "Quosparr Setup 1.0.0 amd64.exe").write_bytes(b"installer")
+            (stage / "quosparr-setup-1.0.0-amd64.exe").write_bytes(b"installer")
             (stage / "update-windows-amd64.json").write_bytes(b"must-not-archive")
             package.archive_windows({"version": "1.0.0"}, stage, "windows/amd64")
             archive = package.tar_members((stage / "quosparr-1.0.0-windows-amd64.tar.gz").read_bytes())
@@ -111,7 +113,7 @@ class PlatformPackages(unittest.TestCase):
     def test_windows_installer_must_be_pe(self):
         with tempfile.TemporaryDirectory() as temporary:
             stage = pathlib.Path(temporary)
-            setup = stage / "Quosparr Setup 1.0.0 amd64.exe"
+            setup = stage / "quosparr-setup-1.0.0-amd64.exe"
             setup.write_bytes(b"not-an-installer")
             with self.assertRaises(ValueError):
                 package.verify({"version": "1.0.0"}, stage, "windows/amd64")

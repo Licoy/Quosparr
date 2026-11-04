@@ -117,7 +117,7 @@ jobs:
           name: v1-development-${{ matrix.platform }}-${{ matrix.arch }}
           path: |
             build/v1-native/${{ matrix.platform }}-${{ matrix.arch }}/*.tar.gz
-            build/v1-native/${{ matrix.platform }}-${{ matrix.arch }}/*Setup*.exe
+            build/v1-native/${{ matrix.platform }}-${{ matrix.arch }}/quosparr-setup-*.exe
             build/v1-native/${{ matrix.platform }}-${{ matrix.arch }}/*.deb
           if-no-files-found: error
           retention-days: 7
