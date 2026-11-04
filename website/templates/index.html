@@ -275,9 +275,6 @@ if(c){if(c!=="en")location.replace("/"+c+"/"+location.hash);return}}})();</scrip
             {{template "dl" dict "asset" $dl.MacX64DMG "key" "mac-x64" "label" "DMG" "name" "macOS (Intel)" "primary" true}}
             {{template "dl" dict "asset" $dl.MacX64ZIP "key" "mac-x64-zip" "label" "ZIP" "name" "" "primary" false}}
           </div></div>
-          <p class="note">{{.T.Download.MacNote}}</p>
-          <p class="note">{{.T.Download.MacFix}}</p>
-          <div class="cmd"><code>xattr -dr com.apple.quarantine /Applications/Quosparr.app</code><button class="icon-btn copy" type="button" aria-label="{{.T.Download.Copy}}" title="{{.T.Download.Copy}}" data-copied="{{.T.Download.Copied}}">{{icon "file-copy-line"}}{{icon "check-line"}}</button></div>
         </article>
         <article class="platform" id="download-windows" data-os="win">
           <p class="badge">{{icon "check-line"}}{{.T.Download.Recommended}}</p>

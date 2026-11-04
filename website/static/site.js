@@ -54,22 +54,6 @@
     });
   }
 
-  document.querySelectorAll(".copy").forEach(function (button) {
-    button.addEventListener("click", function () {
-      var text = button.parentElement.querySelector("code").textContent;
-      if (!navigator.clipboard) return;
-      navigator.clipboard.writeText(text).then(function () {
-        var label = button.getAttribute("aria-label");
-        button.classList.add("done");
-        button.setAttribute("aria-label", button.dataset.copied);
-        setTimeout(function () {
-          button.classList.remove("done");
-          button.setAttribute("aria-label", label);
-        }, 1600);
-      });
-    });
-  });
-
   // Hero panel replica: provider tabs, chart views and the reset clock.
   document.querySelectorAll("[data-app]").forEach(function (app) {
     var tabs = Array.prototype.slice.call(app.querySelectorAll('[role="tab"]'));

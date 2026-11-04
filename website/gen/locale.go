@@ -104,8 +104,6 @@ type Strings struct {
 		Released    string
 		Recommended string
 		MacReq      string
-		MacNote     string
-		MacFix      string
 		WinReq      string
 		WinPortable string
 		WinSetup    string
@@ -116,8 +114,6 @@ type Strings struct {
 		AllReleases string
 		Checksums   string
 		Upgrade     string
-		Copy        string
-		Copied      string
 	}
 	// Panel labels mirror the app's own translations in internal/l10n and
 	// internal/app/extra_l10n.go; {n} and {date} are filled in by buildPanel.

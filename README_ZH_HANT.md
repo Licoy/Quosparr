@@ -106,16 +106,6 @@ Quosparr 是適用於 macOS、Windows、Linux 的原生選單列 / 系統匣應�
 
 之前使用過 CodexRunway？請參閱[升級指南](docs/upgrade-from-codexrunway_ZH_HANT.md)。
 
-### macOS 安全性提示
-
-macOS 版本目前為 ad-hoc signed，尚未經過公證。若 macOS 提示無法驗證開發者，請在 `Quosparr.app` 上按右鍵並選擇「打開」，或前往「系統設定 → 隱私權與安全性」點選「仍要打開」。
-
-若提示應用程式已損壞，通常是下載時附加的隔離屬性所致。將應用程式移入 `Applications` 後執行：
-
-```bash
-xattr -dr com.apple.quarantine /Applications/Quosparr.app
-```
-
 ### Linux 需求
 
 Linux 需要 GTK3、AppIndicator、支援系統匣的桌面環境，以及可用的 Secret Service 工作階段（例如 GNOME Keyring 或 KWallet）以儲存代理憑證。deb 已宣告這些相依套件，並透過套件管理員更新。

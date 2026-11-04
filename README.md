@@ -106,16 +106,6 @@ Homebrew installation is not available yet; use the DMG or ZIP for now.
 
 If you used CodexRunway before, see the [upgrade guide](docs/upgrade-from-codexrunway.md).
 
-### macOS security prompts
-
-macOS builds are currently ad-hoc signed and not notarized. If macOS says the developer cannot be verified, right-click `Quosparr.app` and choose Open, or go to System Settings → Privacy & Security and click Open Anyway.
-
-If macOS says the app is damaged, it is usually the download quarantine attribute. After moving the app into `Applications`, run:
-
-```bash
-xattr -dr com.apple.quarantine /Applications/Quosparr.app
-```
-
 ### Linux requirements
 
 Linux needs GTK3, AppIndicator, a desktop with tray support, and a working Secret Service session (for example GNOME Keyring or KWallet) to store proxy credentials. The deb declares these dependencies and is updated through the package manager.

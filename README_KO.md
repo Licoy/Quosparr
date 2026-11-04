@@ -106,16 +106,6 @@ Homebrew 설치는 아직 제공되지 않습니다. 당분간 DMG 또는 ZIP을
 
 이전에 CodexRunway를 사용했다면 [업그레이드 가이드](docs/upgrade-from-codexrunway_KO.md)를 참고하세요.
 
-### macOS 보안 안내
-
-macOS 빌드는 현재 ad-hoc signed이며 notarized되지 않았습니다. 개발자를 확인할 수 없다는 메시지가 나오면 `Quosparr.app`을 마우스 오른쪽 버튼으로 클릭해 열기를 선택하거나, 시스템 설정 → 개인 정보 보호 및 보안에서 그래도 열기를 클릭하세요.
-
-앱이 손상되었다는 메시지가 나오면 보통 다운로드 격리 속성 때문입니다. 앱을 `Applications`로 옮긴 뒤 다음을 실행하세요.
-
-```bash
-xattr -dr com.apple.quarantine /Applications/Quosparr.app
-```
-
 ### Linux 요구 사항
 
 Linux에는 GTK3, AppIndicator, 트레이를 지원하는 데스크톱, 프록시 자격 증명을 저장할 수 있는 Secret Service 세션(예: GNOME Keyring 또는 KWallet)이 필요합니다. deb는 이 의존성을 선언하며 패키지 관리자를 통해 업데이트됩니다.

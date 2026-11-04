@@ -628,20 +628,6 @@ b.low { color: var(--a-low-ink); }
 .note code { white-space: nowrap; }
 .arch + .note { margin-top: 0; padding-top: 14px; border-top: 1px solid var(--border); }
 
-.cmd {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  margin-top: 8px;
-  padding: 6px 4px 6px 12px;
-  background: var(--code-bg);
-  border-radius: 8px;
-}
-.cmd code { flex: 1; min-width: 0; padding: 0; background: none; font-size: 12.5px; overflow-x: auto; white-space: nowrap; }
-.copy .ico:last-child { display: none; }
-.copy.done .ico:first-child { display: none; }
-.copy.done .ico:last-child { display: block; color: var(--accent-text); }
-
 .dl-meta {
   display: flex;
   flex-wrap: wrap;

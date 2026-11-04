@@ -106,16 +106,6 @@ Quosparr 是面向 macOS、Windows、Linux 的原生菜单栏 / 系统托盘应�
 
 之前使用过 CodexRunway？请参阅[升级指南](docs/upgrade-from-codexrunway_ZH.md)
 
-### macOS 安全提示
-
-macOS 包目前为 ad-hoc signed，未经公证。若提示“无法验证开发者”，请右键点击 `Quosparr.app` 选择“打开”，或在“系统设置 → 隐私与安全性”中点击“仍要打开”
-
-若提示应用已损坏，通常是下载隔离属性导致。将应用放入 `Applications` 后执行：
-
-```bash
-xattr -dr com.apple.quarantine /Applications/Quosparr.app
-```
-
 ### Linux 依赖
 
 Linux 需要 GTK3、AppIndicator、支持托盘的桌面，以及可用的 Secret Service 会话（如 GNOME Keyring 或 KWallet）用于保存代理凭据。deb 已声明这些依赖，并通过包管理器更新

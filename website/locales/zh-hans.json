@@ -88,8 +88,6 @@
     "released": "发布于",
     "recommended": "推荐用于当前设备",
     "macReq": "需要 macOS 12 或更高版本，桌面组件需要 macOS 14+。",
-    "macNote": "应用为 ad-hoc signed，未经公证。若提示无法验证开发者，请右键点击 Quosparr.app 选择“打开”，或在“系统设置 → 隐私与安全性”中点击“仍要打开”。",
-    "macFix": "若提示应用已损坏，将应用放入“应用程序”后执行：",
     "winReq": "Windows 10 或 11",
     "winPortable": "绿色版",
     "winSetup": "安装版",
@@ -99,9 +97,7 @@
     "linuxNote": "用包管理器安装 .deb；或将 <code>install.sh</code> 放在 .tar.gz 同目录，运行 <code>sh install.sh</code> 安装到 <code>~/.local</code>。",
     "allReleases": "全部版本",
     "checksums": "SHA256 校验和",
-    "upgrade": "之前使用过 CodexRunway？",
-    "copy": "复制",
-    "copied": "已复制"
+    "upgrade": "之前使用过 CodexRunway？"
   },
   "panel": {
     "caption": "示例数据 · 点按标签切换供应商",

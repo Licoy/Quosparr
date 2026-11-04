@@ -106,16 +106,6 @@ L’installation via Homebrew n’est pas encore disponible ; utilisez pour l’
 
 Si vous utilisiez CodexRunway, consultez le [guide de migration](docs/upgrade-from-codexrunway_FR.md).
 
-### Avertissements de sécurité macOS
-
-Les builds macOS sont actuellement signés ad hoc et non notariés. Si macOS indique que le développeur ne peut pas être vérifié, faites un clic droit sur `Quosparr.app` et choisissez Ouvrir, ou allez dans Réglages Système → Confidentialité et sécurité et cliquez sur Ouvrir quand même.
-
-Si macOS indique que l’app est endommagée, c’est généralement l’attribut de quarantaine du téléchargement. Après avoir déplacé l’app dans `Applications`, exécutez :
-
-```bash
-xattr -dr com.apple.quarantine /Applications/Quosparr.app
-```
-
 ### Prérequis Linux
 
 Linux nécessite GTK3, AppIndicator, un bureau prenant en charge la zone de notification et une session Secret Service fonctionnelle (par exemple GNOME Keyring ou KWallet) pour stocker les identifiants du proxy. Le deb déclare ces dépendances et se met à jour via le gestionnaire de paquets.

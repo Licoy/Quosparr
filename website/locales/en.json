@@ -88,8 +88,6 @@
     "released": "released",
     "recommended": "Recommended for this device",
     "macReq": "macOS 12 or later. Desktop widgets need macOS 14+.",
-    "macNote": "The app is ad-hoc signed and not notarized. If macOS cannot verify the developer, right-click Quosparr.app and choose Open, or click Open Anyway in System Settings → Privacy & Security.",
-    "macFix": "If macOS says the app is damaged, move it to Applications and run:",
     "winReq": "Windows 10 or 11",
     "winPortable": "Portable",
     "winSetup": "Installer",
@@ -99,9 +97,7 @@
     "linuxNote": "Install the .deb with your package manager, or put <code>install.sh</code> next to the .tar.gz and run <code>sh install.sh</code> to install into <code>~/.local</code>.",
     "allReleases": "All releases",
     "checksums": "SHA256 checksums",
-    "upgrade": "Upgrading from CodexRunway?",
-    "copy": "Copy",
-    "copied": "Copied"
+    "upgrade": "Upgrading from CodexRunway?"
   },
   "panel": {
     "caption": "Sample data · click a tab to switch providers",

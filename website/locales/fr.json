@@ -88,8 +88,6 @@
     "released": "publiée le",
     "recommended": "Recommandé pour cet appareil",
     "macReq": "macOS 12 ou ultérieur. Les widgets de bureau demandent macOS 14+.",
-    "macNote": "L’application est signée ad-hoc et n’est pas notariée. Si macOS ne peut pas vérifier le développeur, faites un clic droit sur Quosparr.app et choisissez Ouvrir, ou cliquez sur Ouvrir quand même dans Réglages Système → Confidentialité et sécurité.",
-    "macFix": "Si macOS indique que l’application est endommagée, placez-la dans Applications puis exécutez :",
     "winReq": "Windows 10 ou 11",
     "winPortable": "Portable",
     "winSetup": "Installateur",
@@ -99,9 +97,7 @@
     "linuxNote": "Installez le .deb avec votre gestionnaire de paquets, ou placez <code>install.sh</code> à côté du .tar.gz et lancez <code>sh install.sh</code> pour installer dans <code>~/.local</code>.",
     "allReleases": "Toutes les versions",
     "checksums": "Sommes de contrôle SHA256",
-    "upgrade": "Vous utilisiez CodexRunway ?",
-    "copy": "Copier",
-    "copied": "Copié"
+    "upgrade": "Vous utilisiez CodexRunway ?"
   },
   "panel": {
     "caption": "Données d’exemple · cliquez sur un onglet pour changer de fournisseur",

@@ -88,8 +88,6 @@
     "released": "リリース日",
     "recommended": "このデバイスにおすすめ",
     "macReq": "macOS 12 以降が必要です。デスクトップウィジェットには macOS 14+ が必要です。",
-    "macNote": "アプリは ad-hoc signed で、公証されていません。開発元を確認できないと表示された場合は、Quosparr.app を右クリックして「開く」を選ぶか、システム設定 → プライバシーとセキュリティで「このまま開く」をクリックしてください。",
-    "macFix": "アプリが壊れていると表示された場合は、アプリケーションフォルダーに移動してから次を実行してください：",
     "winReq": "Windows 10 または 11",
     "winPortable": "ポータブル版",
     "winSetup": "インストーラー",
@@ -99,9 +97,7 @@
     "linuxNote": ".deb はパッケージマネージャーでインストールします。または <code>install.sh</code> を .tar.gz と同じフォルダーに置き、<code>sh install.sh</code> を実行して <code>~/.local</code> にインストールします。",
     "allReleases": "すべてのリリース",
     "checksums": "SHA256 チェックサム",
-    "upgrade": "CodexRunway を使っていましたか？",
-    "copy": "コピー",
-    "copied": "コピーしました"
+    "upgrade": "CodexRunway を使っていましたか？"
   },
   "panel": {
     "caption": "サンプルデータ · タブをクリックしてプロバイダーを切り替え",
