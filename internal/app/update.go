@@ -132,9 +132,9 @@ func UseUpdater(opts UpdateOptions) (*UpdateService, error) {
 	if client == nil {
 		client = netxUpdateClient
 	}
-	// Before the updater can run: its requests use http.DefaultClient (see
-	// updaterTransport), which now sends them through the user's settings.
-	configureUpdaterHTTP(client)
+	// Before the updater can run: its requests go through updateSource,
+	// which sends them through the user's settings.
+	mygo.Updater.SetSource(newUpdateSource(updateFeed(mygo.App.Version(), runtime.GOOS, runtime.GOARCH), client))
 	err := usePlugin(native.New(updater.Options{
 		Interval:               UpdateInterval,
 		DisableAutomaticChecks: true,

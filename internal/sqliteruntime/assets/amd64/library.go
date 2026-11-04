@@ -1,4 +1,4 @@
-// Package amd64 holds the pinned Windows x64 SQLite runtime from mygo v0.6.2.
+// Package amd64 holds the pinned Windows x64 SQLite runtime from mygo v0.7.4.
 package amd64
 
 import _ "embed"

@@ -27,6 +27,9 @@ elif os.environ.get("V1_UPDATE_CHANNEL", "stable") == "beta":
 elif os.environ.get("V1_UPDATE_CHANNEL", "stable") != "stable":
     raise SystemExit("V1_UPDATE_CHANNEL must be stable or beta")
 else:
+    # The app picks its update feed from the version (internal/app updateFeed)
+    if "-" in config["version"]:
+        raise SystemExit("stable channel requires a release version in mygo.json")
     config["updates"]["tagPrefix"] = "v"
 destination.mkdir(parents=True, exist_ok=True)
 (destination / "mygo.json").write_text(json.dumps(config, indent=2) + "\n")

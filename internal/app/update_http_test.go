@@ -22,14 +22,14 @@ import (
 	"github.com/licoy/quosparr/internal/store"
 )
 
-// proxyAt starts a plain HTTP proxy that answers every request itself and
-// counts them, and returns the configuration that uses it.
+// proxyAt starts an HTTP proxy that counts the requests it is asked to
+// forward and refuses them, and returns the configuration that uses it.
 func proxyAt(t *testing.T) (store.NetworkProxyConfiguration, *atomic.Int32) {
 	t.Helper()
 	var seen atomic.Int32
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		seen.Add(1)
-		_, _ = io.WriteString(w, "via proxy "+r.URL.Host)
+		w.WriteHeader(http.StatusForbidden)
 	}))
 	t.Cleanup(srv.Close)
 	host, port, _ := net.SplitHostPort(srv.Listener.Addr().String())
@@ -37,92 +37,118 @@ func proxyAt(t *testing.T) (store.NetworkProxyConfiguration, *atomic.Int32) {
 	return store.NetworkProxyConfiguration{Mode: store.ProxyModeHTTP, Host: host, Port: n}, &seen
 }
 
-func getVia(t *testing.T, ctx context.Context, url string) (string, error) {
-	t.Helper()
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
-	if err != nil {
-		t.Fatal(err)
+// readAll returns the reader of a fetched body: its text, or the test fails.
+func readAll(t *testing.T) func(io.ReadCloser, error) string {
+	return func(body io.ReadCloser, err error) string {
+		t.Helper()
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer body.Close()
+		b, _ := io.ReadAll(body)
+		return string(b)
 	}
-	resp, err := http.DefaultClient.Do(req)
-	if err != nil {
-		return "", err
-	}
-	defer resp.Body.Close()
-	b, _ := io.ReadAll(resp.Body)
-	return string(b), nil
 }
 
-func TestConfigureUpdaterHTTPSendsRequestsThroughTheNetworkContext(t *testing.T) {
-	before := http.DefaultClient
-	restore := configureUpdaterHTTP(netxUpdateClient)
-	t.Cleanup(restore)
-	if http.DefaultClient == before {
-		t.Fatal("http.DefaultClient was not replaced")
+func TestUpdateFeedFollowsTheChannelOfTheVersion(t *testing.T) {
+	for version, want := range map[string]string{
+		"1.11.1":        "https://github.com/Licoy/Quosparr/releases/latest/download/update-darwin-arm64.json",
+		"1.12.0-beta.1": "https://github.com/Licoy/Quosparr/releases/download/v1-beta/update-darwin-arm64.json",
+	} {
+		if got := updateFeed(version, "darwin", "arm64"); got != want {
+			t.Errorf("updateFeed(%q) = %q, want %q", version, got, want)
+		}
 	}
-	if before.Transport != nil {
-		t.Error("the previous client was modified in place")
-	}
+}
 
+func TestUpdateSourceFetchesTheFeedAndItsFiles(t *testing.T) {
+	var agents []string
+	srv := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		agents = append(agents, r.UserAgent())
+		switch r.URL.Path {
+		case "/update.json":
+			_, _ = io.WriteString(w, "manifest")
+		case "/app.tar.gz":
+			_, _ = io.WriteString(w, "archive")
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer srv.Close()
+	src := newUpdateSource(srv.URL+"/update.json", func(context.Context) (*http.Client, error) { return srv.Client(), nil })
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	if got := readAll(t)(src.Manifest(ctx, false)); got != "manifest" {
+		t.Errorf("manifest %q", got)
+	}
+	if got := readAll(t)(src.Open(ctx, srv.URL+"/app.tar.gz")); got != "archive" {
+		t.Errorf("archive %q", got)
+	}
+	if _, err := src.Open(ctx, srv.URL+"/missing"); err == nil || !strings.Contains(err.Error(), "404") {
+		t.Errorf("missing file: err = %v", err)
+	}
+	for _, a := range agents {
+		if a != "mygo-updater" {
+			t.Errorf("User-Agent %q", a)
+		}
+	}
+	if _, err := src.Open(ctx, "http://updates.example.invalid/app.tar.gz"); err == nil {
+		t.Error("a plain HTTP download was allowed")
+	}
+}
+
+func TestUpdateSourceSendsACycleThroughTheNetworkContext(t *testing.T) {
 	cfg, seen := proxyAt(t)
 	c, err := netx.NewContext(cfg, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
+	src := newUpdateSource("https://updates.example.invalid/update.json", netxUpdateClient)
 	// The request context carries the cycle's network context, like the
 	// update cycle's own context does after a settings change.
 	ctx, cancel := context.WithCancel(netx.WithContext(context.Background(), c))
 	defer cancel()
 	// "check" and "install" of one cycle: same ctx, same proxy.
-	for range 2 {
-		body, err := getVia(t, ctx, "http://updates.example.invalid/feed.json")
-		if err != nil || !strings.HasPrefix(body, "via proxy updates.example.invalid") {
-			t.Fatalf("body %q, err %v", body, err)
-		}
+	if _, err := src.Manifest(ctx, false); err == nil {
+		t.Error("the refusing proxy let the manifest through")
+	}
+	if _, err := src.Open(ctx, "https://updates.example.invalid/app.tar.gz"); err == nil {
+		t.Error("the refusing proxy let the archive through")
 	}
 	if seen.Load() != 2 {
 		t.Errorf("proxy saw %d requests, want 2", seen.Load())
 	}
-
-	restore()
-	if http.DefaultClient != before {
-		t.Error("restore did not put the previous client back")
-	}
 }
 
-func TestUpdaterTransportUsesNetxForAContextThatIsNoCycle(t *testing.T) {
+func TestUpdateSourceUsesNetxForAContextThatIsNoCycle(t *testing.T) {
 	var asked atomic.Int32
-	rt := updaterTransport{clients: newCycleClients(func(ctx context.Context) (*http.Client, error) {
+	src := newUpdateSource("https://x.invalid/update.json", func(ctx context.Context) (*http.Client, error) {
 		asked.Add(1)
 		return &http.Client{Transport: roundTripFunc(func(*http.Request) (*http.Response, error) {
 			return &http.Response{StatusCode: 200, Body: io.NopCloser(strings.NewReader("ok")), Header: http.Header{}}, nil
 		})}, nil
-	})}
+	})
 	for range 2 {
-		req, _ := http.NewRequest(http.MethodGet, "http://x.invalid/", nil) // Background: never ends
-		resp, err := rt.RoundTrip(req)
-		if err != nil {
-			t.Fatal(err)
-		}
-		resp.Body.Close()
+		readAll(t)(src.Manifest(context.Background(), false)) // Background: never ends
 	}
 	if asked.Load() != 2 {
 		t.Errorf("provider asked %d times, want once per request", asked.Load())
 	}
 }
 
-func TestUpdaterTransportFailsInsteadOfConnectingDirectly(t *testing.T) {
+func TestUpdateSourceFailsInsteadOfConnectingDirectly(t *testing.T) {
 	var reached atomic.Int32
-	srv := httptest.NewServer(http.HandlerFunc(func(http.ResponseWriter, *http.Request) { reached.Add(1) }))
+	srv := httptest.NewTLSServer(http.HandlerFunc(func(http.ResponseWriter, *http.Request) { reached.Add(1) }))
 	defer srv.Close()
 	boom := errors.New("proxy settings are broken")
-	rt := updaterTransport{clients: newCycleClients(func(context.Context) (*http.Client, error) { return nil, boom })}
-	req, _ := http.NewRequest(http.MethodGet, srv.URL, nil)
-	if _, err := rt.RoundTrip(req); !errors.Is(err, boom) {
+	src := newUpdateSource(srv.URL, func(context.Context) (*http.Client, error) { return nil, boom })
+	if _, err := src.Manifest(context.Background(), false); !errors.Is(err, boom) {
 		t.Errorf("err = %v, want the provider's error", err)
 	}
 	// A client without a transport must not mean the default one.
-	rt = updaterTransport{clients: newCycleClients(func(context.Context) (*http.Client, error) { return &http.Client{}, nil })}
-	if _, err := rt.RoundTrip(req); !errors.Is(err, ErrUpdateNoTransport) {
+	src = newUpdateSource(srv.URL, func(context.Context) (*http.Client, error) { return &http.Client{}, nil })
+	if _, err := src.Manifest(context.Background(), false); !errors.Is(err, ErrUpdateNoTransport) {
 		t.Errorf("err = %v, want ErrUpdateNoTransport", err)
 	}
 	if reached.Load() != 0 {
@@ -134,8 +160,7 @@ type roundTripFunc func(*http.Request) (*http.Response, error)
 
 func (f roundTripFunc) RoundTrip(r *http.Request) (*http.Response, error) { return f(r) }
 
-// TestNoBusinessCodeUsesTheGlobalHTTPClient: the global client belongs to
-// mygo's updater (see updaterTransport). Every other request in the app takes
+// TestNoBusinessCodeUsesTheGlobalHTTPClient: every request in the app takes
 // an explicit client from internal/netx.
 func TestNoBusinessCodeUsesTheGlobalHTTPClient(t *testing.T) {
 	_, here, _, _ := runtime.Caller(0)
@@ -154,7 +179,7 @@ func TestNoBusinessCodeUsesTheGlobalHTTPClient(t *testing.T) {
 			return err
 		}
 		rel, _ := filepath.Rel(root, path)
-		if rel == filepath.Join("app", "update_http.go") || allowed[rel] {
+		if allowed[rel] {
 			return nil
 		}
 		f, err := parser.ParseFile(token.NewFileSet(), path, nil, 0)
