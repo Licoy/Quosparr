@@ -32,7 +32,7 @@ macOS 包使用 Developer ID Application 证书签名（hardened runtime、安�
 |---|---|
 | `MACOS_CERTIFICATE_P12` | 从钥匙串导出的 Developer ID Application 证书与私钥 `.p12`，base64 编码 |
 | `MACOS_CERTIFICATE_PASSWORD` | 导出 `.p12` 时设置的密码 |
-| `APPLE_API_KEY_P8` | App Store Connect API 私钥 `.p8` 的完整文本 |
+| `APPLE_API_KEY_P8` | App Store Connect API 私钥 `.p8`，base64 编码 |
 | `APPLE_API_KEY_ID` | 该 API 密钥的 Key ID |
 | `APPLE_API_ISSUER_ID` | App Store Connect API 的 Issuer ID |
 

@@ -44,5 +44,11 @@ IDENTITY="$(/usr/bin/security find-identity -v -p codesigning "$KEYCHAIN" | sed 
   exit 1
 }
 
-printf '%s\n' "$APPLE_API_KEY_P8" > "$WORK/AuthKey.p8"
+# APPLE_API_KEY_P8 is the base64 .p8, like the .p12
+printf '%s' "$APPLE_API_KEY_P8" | /usr/bin/base64 -D > "$WORK/AuthKey.p8"
+/usr/bin/openssl pkey -in "$WORK/AuthKey.p8" -noout 2>/dev/null || {
+  printf 'APPLE_API_KEY_P8 is not the base64 of the App Store Connect .p8 key\n' >&2
+  exit 1
+}
+
 printf 'APPLE_API_KEY_PATH=%s\nMACOS_DEV_IDENTITY=%s\n' "$WORK/AuthKey.p8" "$IDENTITY" >&3
