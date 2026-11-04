@@ -26,6 +26,8 @@ Options:
 
 Other options go to the app, e.g. --settings or --self-check.
 Env: ARCH=arm64|x86_64 (default: this Mac).
+     MACOS_DEV_IDENTITY=<Developer ID Application identity> signs with that
+     certificate from the keychain (default: ad hoc).
 
 Examples:
   Scripts/run-dev-app.sh
@@ -105,8 +107,9 @@ else
     -Xlinker -install_name -Xlinker @rpath/libQuosparrWidgetBridge.dylib \
     "$ROOT/Sources/QuosparrWidgetBridge/WidgetBridge.swift" -o "$BRIDGE"
 
-  # Stable identifier requirement, as in package-v1-app.sh, so Keychain and
-  # privacy grants survive rebuilds.
+  # Same signing as package-v1-app.sh (Developer ID with MACOS_DEV_IDENTITY,
+  # else a stable ad-hoc requirement), so Keychain and privacy grants survive
+  # rebuilds.
   ENTITLEMENTS="$WORK/app-entitlements.plist"
   rm -f "$ENTITLEMENTS"
   plutil -create xml1 "$ENTITLEMENTS"

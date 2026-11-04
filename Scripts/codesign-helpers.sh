@@ -1,5 +1,8 @@
 #!/usr/bin/env bash
-# Ad-hoc sign with a stable designated requirement.
+# Sign with the Developer ID Application identity named by
+# MACOS_DEV_IDENTITY (hardened runtime, secure timestamp, Apple's default
+# designated requirement: identifier plus team). Without it, e.g. CI runs
+# that have no signing secrets, sign ad hoc with a stable requirement.
 #
 # Default `codesign --sign -` records only a per-build cdhash. TCC keys
 # kTCCServiceSystemPolicyAppData grants by that requirement, so "Allow"
@@ -15,19 +18,48 @@ runway_codesign() {
   local target="${1:?target required}"
   local identifier="${2:?identifier required}"
   local entitlements="${3:-}"
-  local requirement
-  requirement="$(runway_designated_requirement "$identifier")"
   local args=(
     --force
     --options runtime
     --identifier "$identifier"
-    --requirements "$requirement"
-    --sign -
   )
+  if [[ -n "${MACOS_DEV_IDENTITY:-}" ]]; then
+    args+=(--timestamp --sign "$MACOS_DEV_IDENTITY")
+  else
+    args+=(--requirements "$(runway_designated_requirement "$identifier")" --sign -)
+  fi
   if [[ -n "$entitlements" ]]; then
     args+=(--entitlements "$entitlements")
   fi
   codesign "${args[@]}" "$target"
+}
+
+# Notarize an app bundle or disk image with the App Store Connect API key in
+# APPLE_API_KEY_PATH / APPLE_API_KEY_ID / APPLE_API_ISSUER_ID, then staple
+# the ticket so Gatekeeper accepts it offline.
+runway_notarize() {
+  local target="${1:?target required}"
+  local submission="$target" scratch= output status id
+  : "${APPLE_API_KEY_PATH:?Missing APPLE_API_KEY_PATH}"
+  : "${APPLE_API_KEY_ID:?Missing APPLE_API_KEY_ID}"
+  : "${APPLE_API_ISSUER_ID:?Missing APPLE_API_ISSUER_ID}"
+  if [[ -d "$target" ]]; then
+    scratch="$(mktemp -d "${TMPDIR:-/tmp}/runway-notarize.XXXXXX")"
+    submission="$scratch/$(basename "$target").zip"
+    ditto -c -k --keepParent "$target" "$submission"
+  fi
+  local auth=(--key "$APPLE_API_KEY_PATH" --key-id "$APPLE_API_KEY_ID" --issuer "$APPLE_API_ISSUER_ID")
+  output="$(xcrun notarytool submit "$submission" "${auth[@]}" --wait --output-format json)" || true
+  [[ -z "$scratch" ]] || rm -rf "$scratch"
+  # The verdict is the last (flat) JSON object; notarytool may print more first
+  read -r status id < <(printf '%s' "$output" | python3 -c 'import json,sys; s=sys.stdin.read(); r=json.loads(s[s.rindex("{"):]); print(r.get("status") or "-", r.get("id") or "")' 2>/dev/null) || true
+  if [[ "${status:-}" != Accepted ]]; then
+    printf 'Notarization of %s failed (%s):\n%s\n' "$(basename "$target")" "${status:--}" "$output" >&2
+    [[ -z "${id:-}" ]] || xcrun notarytool log "$id" "${auth[@]}" >&2 || true
+    return 1
+  fi
+  xcrun stapler staple "$target"
+  xcrun stapler validate "$target"
 }
 
 runway_codesign_self_test() {

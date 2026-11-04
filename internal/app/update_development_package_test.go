@@ -11,7 +11,7 @@ import (
 )
 
 func TestPackagedDevelopmentUpdateExplainsMissingUpdates(t *testing.T) {
-	// mygo build uses production mode even for our unsigned CI packages.
+	// mygo build uses production mode even for our development CI packages.
 	t.Setenv("MYGO_ENV", "production")
 	if mygo.IsDev() || mygo.Updater.Enabled() {
 		t.Fatal("fixture must be production mode without a linked update feed")

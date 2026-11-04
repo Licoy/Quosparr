@@ -29,6 +29,11 @@ trap 'rm -rf "$CONFIG_STAGE"' EXIT
 if [[ "$DEVELOPMENT" == 0 ]]; then
   export MYGO_UPDATER_PRIVATE_KEY="${MYGO_UPDATE_PRIVATE_KEY:-${MYGO_UPDATER_PRIVATE_KEY:-}}"
   [[ -n "$MYGO_UPDATER_PRIVATE_KEY" ]] || { printf 'Missing MYGO_UPDATE_PRIVATE_KEY\n' >&2; exit 1; }
+  # Release apps are Developer ID signed and notarized, never ad hoc
+  for key in MACOS_DEV_IDENTITY APPLE_API_KEY_PATH APPLE_API_KEY_ID APPLE_API_ISSUER_ID; do
+    [[ -n "${!key:-}" ]] || { printf 'Missing %s\n' "$key" >&2; exit 1; }
+  done
+  [[ -f "$APPLE_API_KEY_PATH" ]] || { printf 'Missing App Store Connect API key file\n' >&2; exit 1; }
 fi
 V1_DEVELOPMENT_PACKAGE="$DEVELOPMENT" python3 "$ROOT/Scripts/stage-v1-config.py" "$ROOT" "$CONFIG_STAGE"
 mkdir -p "$WORK/config"
@@ -77,8 +82,9 @@ plutil -replace NSAppDataUsageDescription -string \
   'Quosparr reads local Codex and Grok configuration to show quota, reset credits, and API-equivalent cost.' \
   "$CONTENTS/Info.plist"
 
-# Sign only after every resource is embedded, inside out, then archive that
-# final bundle. The app updates through mygo and never embeds Sparkle.
+# Sign only after every resource is embedded, inside out, then notarize and
+# archive that final bundle. The app updates through mygo and never embeds
+# Sparkle.
 [[ ! -e "$CONTENTS/Frameworks/Sparkle.framework" ]] || { printf 'Unexpected Sparkle.framework\n' >&2; exit 1; }
 APP_ENTITLEMENTS="$WORK/app-entitlements.plist"
 WIDGET_ENTITLEMENTS="$WORK/widget-entitlements.plist"
@@ -95,6 +101,7 @@ runway_codesign "$CONTENTS/Resources/libmygo-sqlite3.dylib" "$HOST_ID.sqlite"
 runway_codesign "$WIDGET" "$HOST_ID.widget" "$WIDGET_ENTITLEMENTS"
 runway_codesign "$APP" "$HOST_ID" "$APP_ENTITLEMENTS"
 bash "$ROOT/Scripts/verify-v1-app.sh" "$APP" "$ARCH" "$WORK/config/mygo.json"
+[[ "$DEVELOPMENT" == 1 ]] || runway_notarize "$APP"
 ZIP="$WORK/Quosparr-macos-$ARCH$SUFFIX.zip"
 rm -f "$ZIP"
 ditto -c -k --keepParent "$APP" "$ZIP"
@@ -108,7 +115,10 @@ if [[ "$DEVELOPMENT" == 0 ]]; then
   mkdir -p "$DMG_ROOT"
   ditto "$APP" "$DMG_ROOT/Quosparr.app"
   ln -s /Applications "$DMG_ROOT/Applications"
-  hdiutil create -volname Quosparr -srcfolder "$DMG_ROOT" -ov -format UDZO "$WORK/Quosparr-macos-$ARCH.dmg" >/dev/null
+  DMG="$WORK/Quosparr-macos-$ARCH.dmg"
+  hdiutil create -volname Quosparr -srcfolder "$DMG_ROOT" -ov -format UDZO "$DMG" >/dev/null
   rm -rf "$DMG_ROOT"
-  printf 'Final mygo archive and DMG generated from the verified bundle\n'
+  codesign --force --timestamp --sign "$MACOS_DEV_IDENTITY" "$DMG"
+  runway_notarize "$DMG"
+  printf 'Final mygo archive and DMG generated from the verified, notarized bundle\n'
 fi

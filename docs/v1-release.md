@@ -16,9 +16,27 @@ Quosparr 使用 `com.quosparr.app` 和 `quosparr://`，Git 仓库地址保留；
 
 产品版本只来自 `mygo.json` 的 `version`；macOS 的 `macos.infoPlist.CFBundleVersion` 是独立递增整数，必须至少为 100，并严格大于全部已发布 appcast 的构建号；宿主、Widget 和 Sparkle appcast 使用同一构建号
 
-GitHub Actions 需要 `MYGO_UPDATE_PRIVATE_KEY`、`SPARKLE_PUBLIC_KEY`、`SPARKLE_PRIVATE_KEY` 三个 secrets；本地脚本将 `MYGO_UPDATE_PRIVATE_KEY` 映射到 mygo v0.6.2 实际接受的 `MYGO_UPDATER_PRIVATE_KEY`；私钥只放受限临时文件或 secrets，不写配置、命令参数、仓库和日志
+GitHub Actions 需要 `MYGO_UPDATE_PRIVATE_KEY`、`SPARKLE_PUBLIC_KEY`、`SPARKLE_PRIVATE_KEY` 三个更新签名 secrets，以及下文 macOS 签名与公证的五个 secrets，`v1-preflight` 缺任一项即失败；本地脚本将 `MYGO_UPDATE_PRIVATE_KEY` 映射到 mygo v0.6.2 实际接受的 `MYGO_UPDATER_PRIVATE_KEY`；私钥只放受限临时文件或 secrets，不写配置、命令参数、仓库和日志
 
 mygo 与 Sparkle 使用独立密钥；保留现有 `SUPublicEDKey`；`SPARKLE_PRIVATE_KEY` 为 Sparkle `generate_keys -x` 导出的 base64 32 字节种子；appcast 不依赖 Sparkle 工具，由 `go run ./Scripts/release-assets sparkle-appcast` 直接生成，以 Ed25519 对 ZIP 原始字节签名，与 `sign_update` 的结果一致；`legacy-appcast.sh` 要求 Sparkle secret 的公钥等于该字段，生成后再用固定公钥执行 `release-assets verify-sparkle`；Go 宿主不携带 Sparkle 运行库
+
+## macOS 签名与公证
+
+macOS 包使用 Developer ID Application 证书签名（hardened runtime、安全时间戳、Apple 默认指定要求），正式包再经 `notarytool` 公证并 staple：`.app` 公证后才生成 ZIP、tar 与 DMG，DMG 本身也签名、公证并 staple；`Scripts/codesign-helpers.sh` 的 `runway_codesign` / `runway_notarize` 是唯一实现
+
+- 本地：`MACOS_DEV_IDENTITY` 设为钥匙串中的证书名称（形如 `Developer ID Application: <Name> (<TEAMID>)`），`run-dev-app.sh` 与开发包即用它签名；未设置时回退为带稳定 identifier 要求的 ad-hoc 签名，供没有签名 secrets 的 CI 与 PR 使用
+- 正式包（`V1_DEVELOPMENT_PACKAGE=0`）必须提供 `MACOS_DEV_IDENTITY`、`APPLE_API_KEY_PATH`（App Store Connect API 私钥 `.p8` 文件路径）、`APPLE_API_KEY_ID`、`APPLE_API_ISSUER_ID`，缺任一项直接失败，不回退 ad-hoc
+- CI 的 `v1-macos` 先运行 `Scripts/import-macos-signing.sh`：把证书导入一次性钥匙串，从中读出 Developer ID Application 身份作为 `MACOS_DEV_IDENTITY`，并把 `.p8` 写入受限临时文件；`.p12` 密码只经环境变量交给 openssl，不出现在命令行参数中
+
+| Secret | 内容 |
+|---|---|
+| `MACOS_CERTIFICATE_P12` | 从钥匙串导出的 Developer ID Application 证书与私钥 `.p12`，base64 编码 |
+| `MACOS_CERTIFICATE_PASSWORD` | 导出 `.p12` 时设置的密码 |
+| `APPLE_API_KEY_P8` | App Store Connect API 私钥 `.p8` 的完整文本 |
+| `APPLE_API_KEY_ID` | 该 API 密钥的 Key ID |
+| `APPLE_API_ISSUER_ID` | App Store Connect API 的 Issuer ID |
+
+`verify-v1-release.sh` 要求 ZIP 内应用与 DMG 都由 Developer ID 签名且公证票据已 staple
 
 正式发布前运行 `python3 Scripts/check-v1-build-number.py`，它使用 `gh` 读取全部非 draft release 的两份 appcast，任何网络错误、缺少历史 appcast、不可解析构建号或新构建号不够大都会阻止发布；`--appcasts` 只用于明确指定的隔离测试样本，不是生产查询失败时的后备路径
 
@@ -32,7 +50,7 @@ V1_DEVELOPMENT_PACKAGE=1 bash Scripts/package-v1-platform.sh windows/arm64
 V1_DEVELOPMENT_PACKAGE=1 bash Scripts/package-v1-platform.sh linux/amd64
 V1_DEVELOPMENT_PACKAGE=1 bash Scripts/package-v1-platform.sh linux/arm64
 
-# 正式 macOS 包，签名密钥需提前放入环境
+# 正式 macOS 包，更新签名、Developer ID 与公证凭据需提前放入环境
 ARCH=arm64 V1_DEVELOPMENT_PACKAGE=0 bash Scripts/package-v1-app.sh
 ARCH=x86_64 V1_DEVELOPMENT_PACKAGE=0 bash Scripts/package-v1-app.sh
 
@@ -78,7 +96,7 @@ python3 Scripts/release-checksums.py write /absolute/path/to/dist
 bash Scripts/verify-v1-release.sh /absolute/path/to/dist mygo.json
 ```
 
-校验先核对所有资产的 SHA256，再核对 mygo 归档签名、版本、长度、目标与 URL，验证 Sparkle ZIP 公钥签名后才解包或挂载；归档禁止路径穿越、重复条目和符号链接循环；每个可执行文件和 SQLite 都检查真实 Mach-O/PE/ELF 架构；macOS 还验证可执行权限、桥接、Widget、1024px icns、深度签名及 tar/ZIP/DMG 内容一致；Windows EXE 内必须包含 256px 图标，NSIS 通过 `7z` 解包后与已验签 tar 逐文件比较；Linux deb 的架构、版本、依赖和 payload 与 tar 比较
+校验先核对所有资产的 SHA256，再核对 mygo 归档签名、版本、长度、目标与 URL，验证 Sparkle ZIP 公钥签名后才解包或挂载；归档禁止路径穿越、重复条目和符号链接循环；每个可执行文件和 SQLite 都检查真实 Mach-O/PE/ELF 架构；macOS 还验证可执行权限、桥接、Widget、1024px icns、深度签名、Developer ID 与已 staple 的公证票据及 tar/ZIP/DMG 内容一致；Windows EXE 内必须包含 256px 图标，NSIS 通过 `7z` 解包后与已验签 tar 逐文件比较；Linux deb 的架构、版本、依赖和 payload 与 tar 比较
 
 ## Beta 与 latest
 

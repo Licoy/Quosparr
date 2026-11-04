@@ -91,7 +91,7 @@ const (
 	// StorageAppGroup is the macOS App Group container (opt-in: touching it
 	// triggers a privacy prompt).
 	StorageAppGroup StorageMode = "app-group"
-	// StorageLocal is ~/.quosparr, the default for ad-hoc and public builds.
+	// StorageLocal is ~/.quosparr, the default for development and release builds.
 	StorageLocal StorageMode = "local"
 
 	// StorageModeInfoKey and AppGroupInfoKey are the Info.plist keys of the

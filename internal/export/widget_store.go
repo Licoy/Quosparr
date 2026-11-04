@@ -39,7 +39,7 @@ type SnapshotStore struct {
 }
 
 // LocalSnapshotPath is ~/.quosparr/widget-snapshot.json under home, the
-// location of ad-hoc and public builds.
+// location of every build that does not opt into the App Group.
 func LocalSnapshotPath(home string) string {
 	return filepath.Join(platform.RunwayDir(home), SnapshotFileName)
 }

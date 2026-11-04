@@ -56,12 +56,6 @@ macOS 12 or later. Desktop widgets are included and require macOS 14 or later.
 | Apple Silicon (M series) | $mac_arm_dmg · $mac_arm_zip |
 | Intel | $mac_x64_dmg · $mac_x64_zip |
 
-The app is ad-hoc signed and not notarized. Prefer the .dmg for manual install; if macOS cannot verify the developer, right-click Quosparr.app and choose Open, or click Open Anyway in System Settings → Privacy & Security. If macOS says the app is damaged, move it to Applications and run:
-
-\`\`\`bash
-xattr -dr com.apple.quarantine /Applications/Quosparr.app
-\`\`\`
-
 ### Windows
 
 Windows 10 or 11.

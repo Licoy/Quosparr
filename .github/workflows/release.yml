@@ -58,6 +58,11 @@ jobs:
           SPARKLE_PUBLIC_KEY: ${{ secrets.SPARKLE_PUBLIC_KEY }}
           SPARKLE_PRIVATE_KEY: ${{ secrets.SPARKLE_PRIVATE_KEY }}
           MYGO_UPDATE_PRIVATE_KEY: ${{ secrets.MYGO_UPDATE_PRIVATE_KEY }}
+          MACOS_CERTIFICATE_P12: ${{ secrets.MACOS_CERTIFICATE_P12 }}
+          MACOS_CERTIFICATE_PASSWORD: ${{ secrets.MACOS_CERTIFICATE_PASSWORD }}
+          APPLE_API_KEY_P8: ${{ secrets.APPLE_API_KEY_P8 }}
+          APPLE_API_KEY_ID: ${{ secrets.APPLE_API_KEY_ID }}
+          APPLE_API_ISSUER_ID: ${{ secrets.APPLE_API_ISSUER_ID }}
         run: |
           python3 - <<'PY'
           import json, os, re
@@ -73,7 +78,9 @@ jobs:
               channel = 'beta'
           else:
               raise SystemExit('release tag must match the stable or beta version in mygo.json')
-          for key in ('SPARKLE_PUBLIC_KEY', 'SPARKLE_PRIVATE_KEY', 'MYGO_UPDATE_PRIVATE_KEY'):
+          for key in ('SPARKLE_PUBLIC_KEY', 'SPARKLE_PRIVATE_KEY', 'MYGO_UPDATE_PRIVATE_KEY',
+                      'MACOS_CERTIFICATE_P12', 'MACOS_CERTIFICATE_PASSWORD',
+                      'APPLE_API_KEY_P8', 'APPLE_API_KEY_ID', 'APPLE_API_ISSUER_ID'):
               if not os.environ.get(key, '').strip():
                   raise SystemExit('Missing ' + key + ' secret')
           if os.environ['SPARKLE_PUBLIC_KEY'].strip() != config['macos']['infoPlist']['SUPublicEDKey']:
@@ -145,12 +152,20 @@ jobs:
       - uses: actions/setup-go@v6
         with:
           go-version-file: go.mod
-      - name: Package final apps and Sparkle feeds
+      - name: Import Developer ID certificate and notary API key
+        env:
+          MACOS_CERTIFICATE_P12: ${{ secrets.MACOS_CERTIFICATE_P12 }}
+          MACOS_CERTIFICATE_PASSWORD: ${{ secrets.MACOS_CERTIFICATE_PASSWORD }}
+          APPLE_API_KEY_P8: ${{ secrets.APPLE_API_KEY_P8 }}
+        run: bash Scripts/import-macos-signing.sh >> "$GITHUB_ENV"
+      - name: Package, sign and notarize final apps and Sparkle feeds
         env:
           V1_UPDATE_CHANNEL: ${{ needs.v1-preflight.outputs.channel }}
           SPARKLE_PUBLIC_KEY: ${{ secrets.SPARKLE_PUBLIC_KEY }}
           SPARKLE_PRIVATE_KEY: ${{ secrets.SPARKLE_PRIVATE_KEY }}
           MYGO_UPDATE_PRIVATE_KEY: ${{ secrets.MYGO_UPDATE_PRIVATE_KEY }}
+          APPLE_API_KEY_ID: ${{ secrets.APPLE_API_KEY_ID }}
+          APPLE_API_ISSUER_ID: ${{ secrets.APPLE_API_ISSUER_ID }}
         run: |
           # Keep one macos-26 runner: concurrent hosted runners previously failed acquisition
           mkdir -p dist-v1

@@ -23,6 +23,14 @@ cleanup() {
   rm -rf "$WORK"
 }
 trap cleanup EXIT
+# Release apps and disk images are Developer ID signed with a stapled ticket
+verify_notarized() {
+  [[ "$(codesign -dvv "$1" 2>&1)" == *$'\nAuthority=Developer ID Application: '* ]] || {
+    printf 'Not signed with Developer ID: %s\n' "$1" >&2
+    return 1
+  }
+  xcrun stapler validate "$1" >/dev/null
+}
 VERSION="$(python3 -c 'import json,sys;print(json.load(open(sys.argv[1]))["version"])' "$CONFIG")"
 IFS=',' read -r -a SELECTED <<< "$TARGETS"
 for target in "${SELECTED[@]}"; do
@@ -35,8 +43,10 @@ for target in "${SELECTED[@]}"; do
   ditto -x -k "$DIST/Quosparr-macos-$ARCH.zip" "$WORK/$target/zip"
   bash "$ROOT/Scripts/verify-v1-app.sh" "$WORK/$target/tar/Quosparr.app" "$ARCH" "$CONFIG"
   codesign --verify --deep --strict "$WORK/$target/zip/Quosparr.app"
+  verify_notarized "$WORK/$target/zip/Quosparr.app"
   diff -qr "$WORK/$target/tar/Quosparr.app" "$WORK/$target/zip/Quosparr.app"
   hdiutil verify "$DIST/Quosparr-macos-$ARCH.dmg" >/dev/null
+  verify_notarized "$DIST/Quosparr-macos-$ARCH.dmg"
   MOUNT="$WORK/$target/mount"
   mkdir -p "$MOUNT"
   hdiutil attach "$DIST/Quosparr-macos-$ARCH.dmg" -mountpoint "$MOUNT" -readonly -nobrowse >/dev/null

@@ -47,8 +47,6 @@ def generate(directory, config):
     "~/Library/Preferences/com.quosparr.app.plist",
   ]
   caveats <<~EOS
-    Quosparr is ad-hoc signed and not notarized; first launch may require
-    approval in System Settings > Privacy & Security
     Use brew upgrade --cask --greedy quosparr for Homebrew upgrades
   EOS
 end

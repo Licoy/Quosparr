@@ -362,7 +362,7 @@ public struct RunwayWidgetSnapshotStore: Sendable {
 
 /// Host-side snapshot locations chosen at launch.
 ///
-/// Local/ad-hoc builds must not call `containerURL(forSecurityApplicationGroupIdentifier:)`.
+/// Local-mode builds must not call `containerURL(forSecurityApplicationGroupIdentifier:)`.
 /// That API touches `~/Library/Group Containers` and triggers
 /// `kTCCServiceSystemPolicyAppData` on every launch.
 public struct RunwayWidgetLaunchStorage: Sendable {

@@ -19,6 +19,6 @@ brew uninstall --cask quosparr
 
 默认卸载仅退出并移除应用，保留设置、账号副本、统计与小组件快照；显式 `brew uninstall --cask --zap quosparr` 才清理 `~/.quosparr`、Quosparr 应用支持目录和偏好域，保留更名前的目录及偏好域，候选 cask 不清理 `~/.codex`、`~/.grok` 或任何会话目录
 
-应用最低支持 macOS 12，小组件要求 macOS 14；候选包为 ad-hoc 签名且未 notarize，首次打开可能需要在系统设置「隐私与安全性」中允许；Homebrew 安装位置或当前用户权限阻止应用内安装时，使用上述 `brew upgrade` 或从稳定 release 下载 DMG 覆盖安装
+应用最低支持 macOS 12，小组件要求 macOS 14；Homebrew 安装位置或当前用户权限阻止应用内安装时，使用上述 `brew upgrade` 或从稳定 release 下载 DMG 覆盖安装
 
 本轮仅校验生成器、cask 语法和资产命名，未执行真实 Homebrew 安装、升级、卸载或远端 tap 推送

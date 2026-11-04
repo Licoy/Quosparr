@@ -171,9 +171,10 @@ func (s keychainSecrets) get(id string, allowInteraction bool) ([]byte, bool, er
 	q, tmp := k.query(s.service, id, k.kReturnData, k.cfTrue, k.kMatchLimit, k.kMatchLimitOne)
 	defer k.releaseAll(append(tmp, q))
 
-	// Ad-hoc builds use the legacy Keychain, which ignores LAContext. Its
-	// process-wide interaction switch is the only way to forbid the access
-	// prompt for a background load, as in the Swift store; restore it after.
+	// Items live in the legacy (file-based) Keychain, which ignores
+	// LAContext. Its process-wide interaction switch is the only way to forbid
+	// the access prompt for a background load, as in the Swift store; restore
+	// it after.
 	var previous uint8
 	if !allowInteraction {
 		if k.getInteract(&previous) != errSecSuccess || k.setInteract(0) != errSecSuccess {

@@ -88,7 +88,7 @@ bash Scripts/verify-v1-release.sh "$DIST" "$CONFIG"
 | I-02 | 运行旧版经隔离代理查看手动下载提示，退出旧版后从下载页安装 Quosparr Go G1 | 原 appcast 仅有下载页 link 且不含新包 enclosure，安装后自动复制旧数据并保留原件，不要求重添账号 | 未执行 |
 | I-03 | 对历史 0.0.1 / 0.0.2 手动安装 Quosparr，保留原包、原数据与旧设置域 | 缺失的新设置从旧域导入，错误可见，不删除原数据或以默认值覆盖损坏设置 | 未执行 |
 | I-04 | 从 DMG / ZIP 在标准可写目录全新安装，检查品牌图标、托盘初始占位、应用身份和深链 | 正确 CPU 架构；`Quosparr.app`、bundle ID `com.quosparr.app`、`LSUIElement=true`、`quosparr` scheme 保持；macOS 无 Dock 图标 | 未执行 |
-| I-05 | 记录 ad-hoc / 未公证包首次 Gatekeeper 提示，在已核验包来源与完整性的前提下按系统允许打开 | 可诊断的系统授权流程；不误称 Developer ID 或已公证，记录首次与覆盖升级体验 | 未执行 |
+| I-05 | 从浏览器下载 DMG / ZIP（带隔离属性），断网后首次打开，再覆盖安装新版本 | Gatekeeper 直接放行，无需右键打开或移除隔离属性；`spctl -a -vv` 显示 Notarized Developer ID，记录首次与覆盖升级体验 | 未执行 |
 | I-06 | 在 Windows 非管理员用户运行匹配架构 EXE；启动、退出、重复安装并卸载 / 重装 | 用户级目录 `%LOCALAPPDATA%\Programs\Quosparr`，无需管理员，单实例与数据接续正常，默认卸载不删除配置 | 未执行 |
 | I-07 | 在 Linux 用户目录使用对应 tar.gz / `install.sh` 安装，断网首次启动 | 随包 SQLite 已可用，首次启动不下载运行库；桌面入口 / 托盘正常，路径可写时 mygo 更新可用 | 未执行 |
 | I-08 | 通过包管理器安装 deb 到 `/opt/quosparr`，从应用请求更新，再用包管理器升级 | UI 明确包管理器更新方式，不把不能检查写为「已是最新版」，不进行绕过权限的自更新 | 未执行 |
