@@ -22,7 +22,7 @@ try {
     $process = Start-Process -FilePath $installers[0].FullName -ArgumentList @('/S', "/D=$installed") -PassThru -Wait
     if ($process.ExitCode -ne 0) { throw "NSIS installation failed: $($process.ExitCode)" }
     foreach ($source in (Get-ChildItem $Stage -File)) {
-        if ($source.Name -like 'quosparr-setup-*' -or $source.Name -like '*.tar.gz' -or $source.Name -like 'update-*') { continue }
+        if ($source.Name -like 'quosparr-setup-*' -or $source.Name -like '*.tar.gz' -or $source.Name -like 'update-*' -or $source.Name -eq 'install.ps1') { continue }
         $destination = Join-Path $installed $source.Name
         if (!(Test-Path $destination) -or (Get-FileHash $source.FullName).Hash -ne (Get-FileHash $destination).Hash) { throw "Installed payload mismatch: $($source.Name)" }
     }

@@ -91,6 +91,7 @@ class PlatformPackages(unittest.TestCase):
                 (stage / name).write_bytes(data)
             (stage / "quosparr-setup-1.0.0-amd64.exe").write_bytes(b"installer")
             (stage / "update-windows-amd64.json").write_bytes(b"must-not-archive")
+            (stage / "install.ps1").write_bytes(b"must-not-archive")
             package.archive_windows({"version": "1.0.0"}, stage, "windows/amd64")
             archive = package.tar_members((stage / "quosparr-1.0.0-windows-amd64.tar.gz").read_bytes())
             self.assertEqual({name: value[0] for name, value in archive.items()}, files)

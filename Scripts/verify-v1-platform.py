@@ -16,7 +16,7 @@ def digest(data):
 def payload_files(stage):
     return [p for p in stage.iterdir() if not (
         p.name.startswith("quosparr-setup-") or p.name.startswith("update-")
-        or p.name.endswith((".tar.gz", ".deb")) or p.name in {"install.sh", "PKGBUILD"})]
+        or p.name.endswith((".tar.gz", ".deb")) or p.name in {"install.sh", "install.ps1", "PKGBUILD"})]
 
 
 def archive_windows(config, stage, target):
