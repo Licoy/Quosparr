@@ -11,7 +11,7 @@ import (
 func (f *accountForm) closeEditor() {
 	f.mode, f.editID, f.paste = "", "", ""
 	f.alias, f.note, f.switchName, f.editorError = "", "", "", ""
-	f.selection, f.api, f.switchRelay = nil, apiDraft{}, false
+	f.selection, f.api, f.switchRelay, f.switchShare = nil, apiDraft{}, false, false
 	f.desktopSwitch = false
 }
 
@@ -115,6 +115,16 @@ func accountEditorFields(c *ui.Context, u *settingsUI, f *accountForm) {
 		}
 		ui.Checkbox(c.Key("restart-after-switch"), &f.restartAfterSwitch, l.CodexRuntime("restart")).Disabled(!codexRestartSupported || f.busy)
 		ui.Text(c, l.CodexRuntime("restart_hint")).FontSize(11).TextColor(c.Theme().TextMuted)
+		if f.switchShare {
+			codexShareOption(c, l, &f.shareProjects, f.busy, func() {
+				rt := currentRuntime()
+				if rt == nil {
+					return
+				}
+				f.closeEditor()
+				u.accountAct(f, "", func() string { return rt.restoreDesktopProjects(l) })
+			})
+		}
 	case "claude-switch":
 		ui.Text(c, l.Textf(l10n.KeyClaudeSwitchConfirmMessage, f.switchName)).FontSize(12)
 		risk := l.Text(l10n.KeyClaudeSwitchRisk)
@@ -160,6 +170,10 @@ func (u *settingsUI) submitAccountEdit(f *accountForm, apply apiApply) {
 	paste, alias, note, restart := f.paste, f.alias, f.note, f.restartAfterSwitch
 	draft := f.api
 	desktop := f.desktopSwitch
+	if mode == "switch" && f.switchShare {
+		// The switch reads the choice, which the next dialog starts from.
+		u.s.SetShareCodexDesktopProjects(f.shareProjects)
+	}
 	u.accountEditAct(f, func() (string, bool) {
 		if isAPIMode(mode) {
 			return submitAPIAccount(l, mode, id, alias, draft, apply)

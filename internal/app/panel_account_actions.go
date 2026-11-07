@@ -18,6 +18,9 @@ type AccountActions struct {
 	Switch       func(id string, restartCodex bool) string
 	CheckRuntime func() string
 	Delete       func(id string) string
+	// RestoreDesktop undoes Quosparr's last change to the ChatGPT desktop
+	// app's data; nil where sharing its projects is not offered.
+	RestoreDesktop func() string
 
 	// Grok accounts. GrokSwitch reports running Grok processes, which the
 	// user must confirm before force is set.
@@ -63,6 +66,7 @@ type accountsState struct {
 	desktopSwitch bool
 	switchID      string
 	restart       bool
+	shareProjects bool
 	runtimeApply  bool
 	deleteID      string
 	runningID     string

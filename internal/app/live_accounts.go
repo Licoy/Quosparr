@@ -26,6 +26,9 @@ func installAccountActions(rt *liveApp, s *Settings, a *PanelActions) {
 		CheckRuntime: func() string { return rt.checkCodexRuntime(loc()) },
 		Delete:       func(id string) string { return rt.removeCodexAccount(loc(), id) },
 	}
+	if codexDesktopShareSupported {
+		a.Accounts.RestoreDesktop = func() string { return rt.restoreDesktopProjects(loc()) }
+	}
 	installGrokAccountActions(rt, loc, &a.Accounts)
 	installClaudeAccountActions(rt, loc, &a.Accounts)
 }

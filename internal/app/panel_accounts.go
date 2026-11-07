@@ -187,8 +187,9 @@ func (a *App) codexCardActions(c *ui.Context, l l10n.Localizer, acc codex.Manage
 		tick := accountIconButton(c, icon, title, current || busy || refreshing || ac.Switch == nil, false, current)
 		if tick.Clicked() {
 			st.switchID, st.restart = acc.ID, codexRestartDefault
+			st.shareProjects = a.settings.Prefs().ShareCodexDesktopProjects
 		}
-		a.codexSwitchConfirm(c, l, tick, acc.ID, name, ac)
+		a.codexSwitchConfirm(c, l, tick, acc, name, ac)
 
 		if accountIconButton(c, icRefresh, l.Text(l10n.KeyRefresh), refreshing || ac.Refresh == nil, refreshing, false).Clicked() {
 			id := acc.ID
@@ -206,12 +207,25 @@ func (a *App) codexCardActions(c *ui.Context, l l10n.Localizer, acc codex.Manage
 
 // codexSwitchConfirm is AccountSwitchConfirmSheet: the message, the restart
 // choice and the confirmation.
-func (a *App) codexSwitchConfirm(c *ui.Context, l l10n.Localizer, anchor ui.Element, id, name string, ac AccountActions) {
-	st := &a.panelState.accounts
+func (a *App) codexSwitchConfirm(c *ui.Context, l l10n.Localizer, anchor ui.Element, acc codex.ManagedAccount, name string, ac AccountActions) {
+	st, id := &a.panelState.accounts, acc.ID
 	open := st.switchID == id
+	share := codexShareOffered(acc) && ac.RestoreDesktop != nil
 	confirmPopover(c, l, anchor, &open, l.Text(l10n.KeyAccountsSwitchConfirmTitle), l.Textf(l10n.KeyAccountsSwitchConfirmMessage, name),
-		l.Text(l10n.KeyAccountsMakeCurrent), func() { restartChoice(c, l, st) }, func() {
+		l.Text(l10n.KeyAccountsMakeCurrent), func() {
+			restartChoice(c, l, st)
+			if share {
+				codexShareOption(c, l, &st.shareProjects, st.busy, func() {
+					open = false
+					a.accountsRun("", ac.RestoreDesktop)
+				})
+			}
+		}, func() {
 			restart := st.restart && codexRestartSupported
+			if share {
+				// The switch reads the choice, which the next dialog starts from.
+				a.settings.SetShareCodexDesktopProjects(st.shareProjects)
+			}
 			a.accountsRun("", func() string { return ac.Switch(id, restart) })
 		})
 	if !open && st.switchID == id {
