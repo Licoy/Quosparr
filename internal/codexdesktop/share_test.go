@@ -143,7 +143,7 @@ func TestShareCreatesTargetPartitionWithOnlyProjectKeys(t *testing.T) {
 	}
 }
 
-func TestFirstShareMergesThenPoolReplaces(t *testing.T) {
+func TestFirstShareMergesThenReplacesWhatItWrote(t *testing.T) {
 	f := newFixture(t)
 	f.write(aliceActive(map[string]any{
 		"local-projects":  map[string]any{"p2": map[string]any{"id": "p2"}},
@@ -162,7 +162,7 @@ func TestFirstShareMergesThenPoolReplaces(t *testing.T) {
 		t.Fatal("bob's own atoms were dropped")
 	}
 
-	// Both are pooled now: Alice removed p1, Bob must follow.
+	// Bob's partition is still what Share wrote: Alice removed p1, Bob follows.
 	doc := aliceActive(nil)
 	doc[rendererKey] = f.read()[rendererKey]
 	doc["local-projects"] = map[string]any{}
@@ -179,9 +179,23 @@ func TestFirstShareMergesThenPoolReplaces(t *testing.T) {
 	if !reflect.DeepEqual(globals["remote-projects"], []any{"bob-host"}) {
 		t.Fatal("isolated key was touched")
 	}
+}
 
-	if err := f.sharer.ResetPool(); err != nil || len(f.sharer.loadPool()) != 0 {
-		t.Fatalf("reset pool: %v", err)
+func TestShareMergesAfterTargetChangedOnItsOwn(t *testing.T) {
+	f := newFixture(t)
+	f.write(aliceActive(nil))
+	f.share(bob)
+
+	// Bob added p3 in a session that was not shared back.
+	doc := f.read()
+	renderer := doc[rendererKey].(map[string]any)
+	entry := renderer["inactive"].(map[string]any)[bob.Key()].(map[string]any)
+	entry["globals"].(map[string]any)["local-projects"].(map[string]any)["p3"] = map[string]any{"id": "p3"}
+	f.write(doc)
+	f.share(bob)
+	globals, _ := partition(t, f.read(), bob)
+	if got := globals["local-projects"].(map[string]any); len(got) != 2 || got["p3"] == nil {
+		t.Fatalf("bob's own project was replaced away: %v", got)
 	}
 }
 

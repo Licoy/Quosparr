@@ -2,6 +2,8 @@ package codexdesktop
 
 import (
 	"bytes"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"reflect"
 )
@@ -10,10 +12,11 @@ import (
 type object = map[string]json.RawMessage
 
 // shareState returns data with the owner's project keys written into the
-// target's partition, and the owner's key. Data comes back unchanged when
-// the app does not isolate accounts, nobody is signed in, the target is
-// already the owner or its partition already holds those values.
-func shareState(data []byte, target string, pool map[string]bool) ([]byte, string, error) {
+// target's partition, and the fingerprint of the target's project values.
+// Data comes back unchanged, with no fingerprint when nothing was shared,
+// if the app does not isolate accounts, nobody is signed in or the target is
+// already the owner. written holds the fingerprints of earlier shares.
+func shareState(data []byte, target string, written map[string]string) ([]byte, string, error) {
 	doc, ok := decodeObject(data)
 	if !ok || doc == nil {
 		return nil, "", ErrUnknownFormat
@@ -48,7 +51,7 @@ func shareState(data []byte, target string, pool map[string]bool) ([]byte, strin
 		return nil, "", ErrUnknownFormat
 	}
 	atoms, globals = orEmpty(atoms), orEmpty(globals)
-	replace := pool[*owner] && pool[target]
+	replace := written[target] != "" && written[target] == fingerprint(globals, atoms)
 	for _, key := range projectGlobals {
 		carry(globals, key, doc, replace)
 	}
@@ -56,17 +59,37 @@ func shareState(data []byte, target string, pool map[string]bool) ([]byte, strin
 		carry(atoms, key, ownerAtoms, replace)
 	}
 	if _, found := inactive[target]; !found && len(atoms) == 0 && len(globals) == 0 {
-		return data, *owner, nil
+		return data, "", nil
 	}
+	print := fingerprint(globals, atoms)
 	entry["atoms"], entry["globals"] = encode(atoms), encode(globals)
 	next := encode(entry)
 	if sameJSON(next, inactive[target]) {
-		return data, *owner, nil
+		return data, print, nil
 	}
 	inactive[target] = next
 	renderer["inactive"] = encode(inactive)
 	doc[rendererKey] = encode(renderer)
-	return encode(doc), *owner, nil
+	return encode(doc), print, nil
+}
+
+// fingerprint hashes the shared project values of a partition, independent
+// of key order and spacing.
+func fingerprint(globals, atoms object) string {
+	values := map[string]any{}
+	add := func(prefix string, from object, keys []string) {
+		for _, key := range keys {
+			var v any
+			if raw, ok := from[key]; ok && json.Unmarshal(raw, &v) == nil {
+				values[prefix+key] = v
+			}
+		}
+	}
+	add("globals/", globals, projectGlobals)
+	add("atoms/", atoms, projectAtoms)
+	data, _ := json.Marshal(values) // maps marshal with sorted keys
+	sum := sha256.Sum256(data)
+	return hex.EncodeToString(sum[:])
 }
 
 // carry sets dst[key] from src: as is when replacing (a missing source value

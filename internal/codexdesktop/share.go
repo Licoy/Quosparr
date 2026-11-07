@@ -15,10 +15,11 @@
 //
 // Only projectGlobals and projectAtoms are carried; remote hosts, queued
 // follow-ups and per-account preferences stay isolated. The file is changed
-// only after a backup in Dir/backups, and never while the app runs. Between
-// two accounts that are both in the shared pool (Dir/shared-owners.json) the
-// source values replace the target's, so a removed project disappears
-// everywhere; an account entering the pool keeps its own entries as well.
+// only after a backup in Dir/backups, and never while the app runs. When the
+// target's project values are still exactly what Share last wrote there
+// (fingerprints in Dir/shared-state.json), the source replaces them, so a
+// removed project disappears everywhere; once the target changed on its own,
+// for example after a switch without sharing, both sides are merged instead.
 package codexdesktop
 
 import (
@@ -39,7 +40,7 @@ const (
 	StateFileName = ".codex-global-state.json"
 	rendererKey   = "electron-account-renderer-state-v1"
 	atomsKey      = "electron-persisted-atom-state"
-	poolFileName  = "shared-owners.json"
+	writtenFile   = "shared-state.json"
 	backupPrefix  = "global-state-"
 	backupExt     = ".json"
 	backupKeep    = 10
@@ -125,8 +126,8 @@ func (s Sharer) now() time.Time {
 	return time.Now()
 }
 
-func (s Sharer) statePath() string { return filepath.Join(s.CodexHome, StateFileName) }
-func (s Sharer) poolPath() string  { return filepath.Join(s.Dir, poolFileName) }
+func (s Sharer) statePath() string   { return filepath.Join(s.CodexHome, StateFileName) }
+func (s Sharer) writtenPath() string { return filepath.Join(s.Dir, writtenFile) }
 
 func (s Sharer) backups() platform.BackupPolicy {
 	return platform.BackupPolicy{Dir: filepath.Join(s.Dir, "backups"), Prefix: backupPrefix, Ext: backupExt, Keep: backupKeep}
@@ -142,17 +143,17 @@ func (s Sharer) Share(target Owner) (Outcome, error) {
 	if s.Running() {
 		return Running, nil
 	}
-	pool := s.loadPool()
-	outcome, source := Unchanged, ""
+	written := s.loadWritten()
+	outcome, print := Unchanged, ""
 	err := s.edit(func(old []byte) ([]byte, error) {
 		if len(old) == 0 {
 			return old, nil
 		}
-		out, owner, err := shareState(old, target.Key(), pool)
+		out, fp, err := shareState(old, target.Key(), written)
 		if err != nil {
 			return nil, err
 		}
-		source = owner
+		print = fp
 		if !bytes.Equal(out, old) {
 			outcome = Shared
 		}
@@ -166,9 +167,9 @@ func (s Sharer) Share(target Owner) (Outcome, error) {
 	case err != nil:
 		return Unchanged, err
 	}
-	if source != "" {
-		pool[source], pool[target.Key()] = true, true
-		if err := s.savePool(pool); err != nil {
+	if print != "" && written[target.Key()] != print {
+		written[target.Key()] = print
+		if err := s.saveWritten(written); err != nil {
 			return outcome, err
 		}
 	}
@@ -196,15 +197,6 @@ func (s Sharer) RestoreLatest() error {
 		return ErrUnknownFormat
 	}
 	return s.edit(func([]byte) ([]byte, error) { return data, nil })
-}
-
-// ResetPool forgets which accounts already share, so the next switch merges
-// again instead of replacing. It is called when sharing is turned on.
-func (s Sharer) ResetPool() error {
-	if err := os.Remove(s.poolPath()); err != nil && !errors.Is(err, os.ErrNotExist) {
-		return err
-	}
-	return nil
 }
 
 // edit rewrites the state file after a backup, refusing at the last moment
@@ -252,34 +244,28 @@ func (s Sharer) latestBackup() (string, error) {
 	return latest, nil
 }
 
-type poolFile struct {
-	Owners []string `json:"owners"`
+type writtenState struct {
+	// Written maps a partition key to the fingerprint of the project values
+	// Share last left there.
+	Written map[string]string `json:"written"`
 }
 
-// loadPool reads the shared pool; an unreadable pool counts as empty, which
-// only makes the next share merge instead of replace.
-func (s Sharer) loadPool() map[string]bool {
-	pool := map[string]bool{}
-	data, err := os.ReadFile(s.poolPath())
-	if err != nil {
-		return pool
+// loadWritten reads the fingerprints; an unreadable file counts as empty,
+// which only makes the next share merge instead of replace.
+func (s Sharer) loadWritten() map[string]string {
+	var f writtenState
+	if data, err := os.ReadFile(s.writtenPath()); err == nil {
+		_ = json.Unmarshal(data, &f)
 	}
-	var f poolFile
-	if json.Unmarshal(data, &f) == nil {
-		for _, o := range f.Owners {
-			pool[o] = true
-		}
+	if f.Written == nil {
+		f.Written = map[string]string{}
 	}
-	return pool
+	return f.Written
 }
 
-func (s Sharer) savePool(pool map[string]bool) error {
-	f := poolFile{Owners: []string{}}
-	for o := range pool {
-		f.Owners = append(f.Owners, o)
-	}
+func (s Sharer) saveWritten(written map[string]string) error {
 	if err := platform.EnsurePrivateDirectory(s.Dir); err != nil {
 		return err
 	}
-	return platform.WriteFileAtomic(s.poolPath(), encode(f), 0o600)
+	return platform.WriteFileAtomic(s.writtenPath(), encode(writtenState{Written: written}), 0o600)
 }
