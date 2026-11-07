@@ -101,9 +101,13 @@ func accountNSString(value objc.ID) string {
 }
 
 func findCodexApplication() string {
-	paths := []string{"/Applications/Codex.app"}
-	if home, err := os.UserHomeDir(); err == nil {
-		paths = append(paths, filepath.Join(home, "Applications", "Codex.app"))
+	// The desktop app was renamed from Codex to ChatGPT, keeping its bundle id.
+	var paths []string
+	for _, name := range []string{"ChatGPT.app", "Codex.app"} {
+		paths = append(paths, filepath.Join("/Applications", name))
+		if home, err := os.UserHomeDir(); err == nil {
+			paths = append(paths, filepath.Join(home, "Applications", name))
+		}
 	}
 	for _, path := range paths {
 		if info, err := os.Stat(path); err == nil && info.IsDir() {
