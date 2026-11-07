@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/licoy/quosparr/internal/codex"
+	"github.com/licoy/quosparr/internal/codexdesktop"
 	"github.com/licoy/quosparr/internal/codexruntime"
 )
 
@@ -19,7 +20,10 @@ type CodexRuntimeView struct {
 	CheckedAt     time.Time
 	FailureStage  string
 	FailureReason string
-	target        string
+	// ProjectShare is the outcome of carrying the desktop app's projects
+	// over during the last switch ("projects_*"), empty when not attempted.
+	ProjectShare string
+	target       string
 }
 
 func runtimeTarget(a codex.ManagedAccount) codexruntime.Identity {
@@ -124,6 +128,9 @@ func (s *Service) switchCodexRuntime(ctx context.Context, id string, restart boo
 		return result, err
 	}
 
+	// The desktop app is closed now, if it is going to be restarted at all.
+	share := s.shareDesktopProjects(result.Account)
+	defer s.setProjectShare(share)
 	target := runtimeTargetKey(result.Account)
 	if legacyStart != nil {
 		state := "legacy_unverified"
@@ -145,6 +152,30 @@ func (s *Service) switchCodexRuntime(ctx context.Context, id string, restart boo
 		s.setRuntimeState("unverified", true, target)
 	}
 	return result, nil
+}
+
+func (s *Service) shareDesktopProjects(account codex.ManagedAccount) string {
+	if s.src.ShareDesktopProjects == nil || !s.Preferences().ShareCodexDesktopProjects {
+		return ""
+	}
+	outcome, err := s.src.ShareDesktopProjects(account)
+	switch {
+	case err != nil:
+		return "projects_failed"
+	case outcome == codexdesktop.Unchanged:
+		return ""
+	}
+	return "projects_" + string(outcome)
+}
+
+func (s *Service) setProjectShare(state string) {
+	if state == "" {
+		return
+	}
+	s.mu.Lock()
+	s.runtimeStatus.ProjectShare = state
+	s.publishLocked()
+	s.mu.Unlock()
 }
 
 // CheckCodexRuntime only inspects the existing daemon, never starts or stops it.

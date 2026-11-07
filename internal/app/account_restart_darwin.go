@@ -12,6 +12,7 @@ import (
 
 const codexRestartSupported = true
 const codexRestartDefault = true
+const codexDesktopShareSupported = true
 
 func accountOnMain(fn func()) {
 	done := make(chan struct{})
@@ -26,6 +27,15 @@ func prepareCodexDesktopRestart() (func() error, error) {
 		return nil, nil
 	}
 	return prepareCodexRestart(apps, fallback, openCodexApplication)
+}
+
+// codexDesktopRunning tells whether the desktop app is open.
+func codexDesktopRunning() bool {
+	apps := runningApplications(isCodexDesktop)
+	for _, app := range apps {
+		app.release()
+	}
+	return len(apps) > 0
 }
 
 func restartCodexDesktop() error {

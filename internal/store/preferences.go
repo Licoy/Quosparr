@@ -132,6 +132,10 @@ type Preferences struct {
 	// DisableMainPanelAnimation is Go-only: skip the native macOS popover
 	// animation when it opens. It is omitted while off.
 	DisableMainPanelAnimation bool `json:"disableMainPanelAnimation,omitempty"`
+	// ShareCodexDesktopProjects is Go-only: carry the ChatGPT desktop app's
+	// local projects into the account Codex switches to. It is omitted while
+	// off.
+	ShareCodexDesktopProjects bool `json:"shareCodexDesktopProjects,omitempty"`
 
 	// extra holds keys this version does not know, written back unchanged so
 	// that older and newer apps sharing the domain do not erase each other's

@@ -183,6 +183,7 @@ type accountForm struct {
 	selection          *accountSelection
 	restartAfterSwitch bool
 	runtimeApply       bool
+	desktopRestore     bool
 	switchName         string
 	switchRelay        bool
 	api                apiDraft
@@ -234,6 +235,7 @@ func renderCodexAccounts(c *ui.Context, u *settingsUI, f *accountForm, rt *liveA
 	}, func() {
 		u.accountAct(f, "", func() string { msg, _ := rt.switchCodexResult(l, view.ActiveID, true); return msg })
 	})
+	codexDesktopShareControls(c, u, f, rt)
 	// Settings keep the stored order, as for Claude and Grok, so that moves
 	// show; the panel pins the current account first.
 	rows := sortedCodex(view.Sidebar)

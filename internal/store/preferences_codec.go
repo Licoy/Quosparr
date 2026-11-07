@@ -92,6 +92,7 @@ func readPreferences(r *reader) Preferences {
 	p.StatusBar = readStatusBarLayout(r, "statusBarLayout")
 	p.PanelProviders = readPanelProviders(r, "panelProviders")
 	p.DisableMainPanelAnimation = r.bool("disableMainPanelAnimation", p.DisableMainPanelAnimation)
+	p.ShareCodexDesktopProjects = r.bool("shareCodexDesktopProjects", p.ShareCodexDesktopProjects)
 	return p
 }
 

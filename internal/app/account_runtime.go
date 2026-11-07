@@ -29,6 +29,9 @@ func codexRuntimeMessage(l l10n.Localizer, status runway.CodexRuntimeView) strin
 		}
 		message += "\n" + detail
 	}
+	if status.ProjectShare != "" {
+		message += "\n" + l.CodexRuntime(status.ProjectShare)
+	}
 	return message
 }
 

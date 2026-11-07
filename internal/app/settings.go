@@ -427,6 +427,12 @@ func (s *Settings) SetMainPanelHeight(h float64) bool {
 	return s.Update(func(p *store.Preferences) { p.MainPanelHeight = h })
 }
 
+// SetShareCodexDesktopProjects turns sharing of the desktop app's local
+// projects across Codex accounts on or off.
+func (s *Settings) SetShareCodexDesktopProjects(on bool) bool {
+	return s.Update(func(p *store.Preferences) { p.ShareCodexDesktopProjects = on })
+}
+
 // SetDisableMainPanelAnimation skips or restores the native panel animation.
 func (s *Settings) SetDisableMainPanelAnimation(on bool) bool {
 	return s.Update(func(p *store.Preferences) { p.DisableMainPanelAnimation = on })

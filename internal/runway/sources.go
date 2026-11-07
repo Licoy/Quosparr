@@ -9,6 +9,7 @@ import (
 	"github.com/licoy/quosparr/internal/apiquota"
 	"github.com/licoy/quosparr/internal/codex"
 	"github.com/licoy/quosparr/internal/codexapi"
+	"github.com/licoy/quosparr/internal/codexdesktop"
 	"github.com/licoy/quosparr/internal/codexruntime"
 	"github.com/licoy/quosparr/internal/export/swiftjson"
 	"github.com/licoy/quosparr/internal/netx"
@@ -104,6 +105,9 @@ type Sources struct {
 	RuntimeInspect  func(context.Context) (codexruntime.Snapshot, error)
 	RuntimeStop     func(context.Context, codexruntime.Snapshot) (codexruntime.Snapshot, error)
 	RuntimeStart    func(context.Context, codexruntime.Snapshot) (codexruntime.Snapshot, error)
+	// ShareDesktopProjects (optional) carries the desktop app's local projects
+	// into the partition of the account just installed; see codexdesktop.
+	ShareDesktopProjects func(codex.ManagedAccount) (codexdesktop.Outcome, error)
 	// RefreshAccounts / RefreshAccount poll the quota of managed accounts.
 	// Results carry the account id and generation; Generations (shared with
 	// the refresher) lets the Service drop stale ones.
@@ -120,10 +124,12 @@ func apiAuth(a codex.Auth) codexapi.Auth {
 // LiveConfig wires NewLiveSources. All paths live inside Store.
 type LiveConfig struct {
 	LegacyStop func() (func() error, error)
-	Store      *codex.Store
-	CodexHome  string
-	Quota      codexapi.QuotaClient
-	Refresher  codexapi.TokenRefresher
+	// DesktopSharer edits the desktop app's state; a nil Running disables it.
+	DesktopSharer codexdesktop.Sharer
+	Store         *codex.Store
+	CodexHome     string
+	Quota         codexapi.QuotaClient
+	Refresher     codexapi.TokenRefresher
 	// Repo is the local usage index; nil uses the direct scanner for costs.
 	Repo   *usage.Repository
 	Prices usage.PriceSource
@@ -192,11 +198,17 @@ func NewLiveSources(cfg LiveConfig) Sources {
 			}
 			return runtimeTarget(codex.NewManagedAccount("", auth, 0, "", "", "", l.Now())), nil
 		},
-		LegacyStop:      cfg.LegacyStop,
-		PrepareSwitch:   l.switcher.PrepareSwitch,
-		RuntimeInspect:  runtimeClient.Inspect,
-		RuntimeStop:     runtimeClient.Stop,
-		RuntimeStart:    runtimeClient.Start,
+		LegacyStop:     cfg.LegacyStop,
+		PrepareSwitch:  l.switcher.PrepareSwitch,
+		RuntimeInspect: runtimeClient.Inspect,
+		RuntimeStop:    runtimeClient.Stop,
+		RuntimeStart:   runtimeClient.Start,
+		ShareDesktopProjects: func(acc codex.ManagedAccount) (codexdesktop.Outcome, error) {
+			if acc.AuthMode == codex.AuthModeAPIKey {
+				return codexdesktop.Unchanged, nil
+			}
+			return cfg.DesktopSharer.Share(codexdesktop.Owner{UserID: acc.UserID, AccountID: acc.AccountID})
+		},
 		RefreshAccounts: l.accounts.RefreshAll,
 		RefreshAccount:  l.accounts.Refresh,
 		Generations:     l.gens,

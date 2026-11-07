@@ -128,6 +128,14 @@ const (
 	xLegacyRunningManual          textKey = "legacyRunningManual"
 	xLegacyQuitAndContinue        textKey = "legacyQuitAndContinue"
 	xLegacyQuitFailed             textKey = "legacyQuitFailed"
+	xCodexDesktopShare            textKey = "codexDesktopShare"
+	xCodexDesktopShareHint        textKey = "codexDesktopShareDescription"
+	xCodexDesktopRestore          textKey = "codexDesktopRestore"
+	xCodexDesktopRestoreHint      textKey = "codexDesktopRestoreDescription"
+	xCodexDesktopRestored         textKey = "codexDesktopRestored"
+	xCodexDesktopQuitFirst        textKey = "codexDesktopQuitFirst"
+	xCodexDesktopNoBackup         textKey = "codexDesktopNoBackup"
+	xCodexDesktopRestoreFailed    textKey = "codexDesktopRestoreFailed"
 )
 
 // extraTexts is indexed by textKey, then by position in l10n.Languages():
@@ -646,6 +654,48 @@ var extraTexts = map[textKey][7]string{
 	xLegacyQuitFailed: {
 		"CodexRunway did not quit", "CodexRunway 没有退出", "CodexRunway 沒有結束", "CodexRunway가 종료되지 않았습니다",
 		"CodexRunway が終了しませんでした", "CodexRunway не закрылся", "CodexRunway ne s’est pas fermé",
+	},
+	xCodexDesktopShare: {
+		"Share local projects in the ChatGPT desktop app", "在 ChatGPT 桌面端共享本机项目", "在 ChatGPT 桌面版共用本機專案", "ChatGPT 데스크톱 앱에서 로컬 프로젝트 공유",
+		"ChatGPT デスクトップアプリでローカルプロジェクトを共有", "Общие локальные проекты в приложении ChatGPT", "Partager les projets locaux dans l’app ChatGPT",
+	},
+	xCodexDesktopShareHint: {
+		"When switching accounts, carry projects bound to local folders and how chats are filed under them over to the new account. Applies only while the desktop app is closed or restarted after switching; a backup is made before every change.",
+		"切换账号时，把绑定本机文件夹的项目及其会话归类带到新账号。仅在桌面端已退出或切换后重启时生效，每次修改前自动备份。",
+		"切換帳號時，把綁定本機資料夾的專案及其對話歸類帶到新帳號。僅在桌面版已結束或切換後重新啟動時生效，每次修改前自動備份。",
+		"계정을 전환할 때 로컬 폴더에 연결된 프로젝트와 대화 분류를 새 계정으로 가져옵니다. 데스크톱 앱이 종료되어 있거나 전환 후 재시작할 때만 적용되며, 변경할 때마다 먼저 백업합니다.",
+		"アカウントを切り替えるときに、ローカルフォルダに紐づくプロジェクトと会話の分類を新しいアカウントへ引き継ぎます。デスクトップアプリが終了しているか、切り替え後に再起動する場合のみ有効で、変更のたびに先にバックアップします。",
+		"При переключении аккаунта переносит проекты, привязанные к локальным папкам, и распределение чатов по ним в новый аккаунт. Работает, только если приложение закрыто или перезапускается после переключения; перед каждым изменением создаётся резервная копия.",
+		"Lors d’un changement de compte, reprend les projets liés à des dossiers locaux et le classement des discussions dans le nouveau compte. Ne s’applique que si l’app est fermée ou redémarrée après le changement ; une sauvegarde précède chaque modification.",
+	},
+	xCodexDesktopRestore: {
+		"Restore desktop data", "恢复桌面端数据", "還原桌面版資料", "데스크톱 데이터 복원",
+		"デスクトップデータを復元", "Восстановить данные приложения", "Restaurer les données de l’app",
+	},
+	xCodexDesktopRestoreHint: {
+		"Put back the ChatGPT desktop data saved before Quosparr's last change. Quit the desktop app first; restoring again undoes it.",
+		"恢复到 Quosparr 上次修改前的 ChatGPT 桌面端数据。请先退出桌面端；再次恢复可撤销本次恢复。",
+		"還原到 Quosparr 上次修改前的 ChatGPT 桌面版資料。請先結束桌面版；再次還原可撤銷本次還原。",
+		"Quosparr가 마지막으로 변경하기 전의 ChatGPT 데스크톱 데이터로 되돌립니다. 먼저 데스크톱 앱을 종료하세요. 다시 복원하면 이번 복원이 취소됩니다.",
+		"Quosparr が最後に変更する前の ChatGPT デスクトップデータに戻します。先にデスクトップアプリを終了してください。もう一度復元すると今回の復元を取り消せます。",
+		"Возвращает данные приложения ChatGPT, сохранённые до последнего изменения Quosparr. Сначала закройте приложение; повторное восстановление отменяет это.",
+		"Rétablit les données de l’app ChatGPT enregistrées avant la dernière modification de Quosparr. Quittez d’abord l’app ; restaurer à nouveau annule l’opération.",
+	},
+	xCodexDesktopRestored: {
+		"Desktop data restored", "已恢复桌面端数据", "已還原桌面版資料", "데스크톱 데이터를 복원했습니다",
+		"デスクトップデータを復元しました", "Данные приложения восстановлены", "Données de l’app restaurées",
+	},
+	xCodexDesktopQuitFirst: {
+		"Quit the ChatGPT desktop app first", "请先退出 ChatGPT 桌面端", "請先結束 ChatGPT 桌面版", "먼저 ChatGPT 데스크톱 앱을 종료하세요",
+		"先に ChatGPT デスクトップアプリを終了してください", "Сначала закройте приложение ChatGPT", "Quittez d’abord l’app ChatGPT",
+	},
+	xCodexDesktopNoBackup: {
+		"No backup to restore", "没有可恢复的备份", "沒有可還原的備份", "복원할 백업이 없습니다",
+		"復元できるバックアップがありません", "Нет резервной копии для восстановления", "Aucune sauvegarde à restaurer",
+	},
+	xCodexDesktopRestoreFailed: {
+		"Restoring desktop data failed", "恢复桌面端数据失败", "還原桌面版資料失敗", "데스크톱 데이터 복원에 실패했습니다",
+		"デスクトップデータの復元に失敗しました", "Не удалось восстановить данные приложения", "Échec de la restauration des données de l’app",
 	},
 }
 

@@ -18,6 +18,7 @@ import (
 	"github.com/licoy/quosparr/internal/claudedesktop"
 	"github.com/licoy/quosparr/internal/codex"
 	"github.com/licoy/quosparr/internal/codexapi"
+	"github.com/licoy/quosparr/internal/codexdesktop"
 	"github.com/licoy/quosparr/internal/estimate"
 	"github.com/licoy/quosparr/internal/export"
 	"github.com/licoy/quosparr/internal/export/swiftjson"
@@ -178,6 +179,7 @@ type liveApp struct {
 	grok           *grokBridge
 	claudeMod      *claude.Module
 	claudeDesktop  *claudedesktop.Manager
+	desktopSharer  codexdesktop.Sharer
 	claudeB        *claudeBridge
 	codexCache     usage.CacheScanCache
 	grokCache      grok.CacheScanCache
@@ -241,6 +243,7 @@ func newRuntime(opts BackgroundOptions) *liveApp {
 	repo := openUsage(home, priceSource)
 	widgetRequirements := initialWidgetRequirements(opts.Settings)
 	widgets := newWidgetCoordinator(home, widgetRequirements != 0)
+	desktopSharer := codexdesktop.Sharer{CodexHome: platform.CodexDir(home), Dir: codexdesktop.DefaultDir(home), Running: codexDesktopRunning}
 	var svc *runway.Service
 	dispatch := &snapshotDispatch{post: mygo.RunOnMain, apply: func(snap runway.Snapshot) {
 		if opts.Host != nil && LiveService() == svc {
@@ -262,8 +265,9 @@ func newRuntime(opts BackgroundOptions) *liveApp {
 	svc = runway.New(runway.Options{
 		PricingVersion: func() string { return priceSource.PriceBook(context.Background()).Version() },
 		Sources: runway.NewLiveSources(runway.LiveConfig{
-			LegacyStop: prepareCodexDesktopRestart,
-			Store:      codexStore, CodexHome: platform.CodexDir(home),
+			LegacyStop:    prepareCodexDesktopRestart,
+			DesktopSharer: desktopSharer,
+			Store:         codexStore, CodexHome: platform.CodexDir(home),
 			Quota: codexapi.QuotaClient{}, Refresher: codexapi.TokenRefresher{}, Repo: repo, Prices: priceSource,
 		}),
 		Preferences:         prefs,
@@ -290,6 +294,7 @@ func newRuntime(opts BackgroundOptions) *liveApp {
 		repo: repo, widgets: widgets, dispatch: dispatch, widgetDispatch: widgetUI, alertDispatch: alertUI, version: opts.Version, langs: langs,
 	}
 	rt.claudeDesktop = newClaudeDesktopManager(home, cmod)
+	rt.desktopSharer = desktopSharer
 	bridge.pricingSnapshot = prices.manager.Snapshot
 	cbridge.pricingSnapshot = prices.manager.Snapshot
 	prices.changed = rt.pricesChanged

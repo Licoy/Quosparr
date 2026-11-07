@@ -98,7 +98,7 @@ func TestThirtyFourFieldsAllDifferFromDefaults(t *testing.T) {
 	typ := d.Type()
 	count := 0
 	for i := 0; i < typ.NumField(); i++ {
-		if typ.Field(i).Tag.Get("json") == "" || typ.Field(i).Name == "ModelPricing" || typ.Field(i).Name == "ThemeColor" || typ.Field(i).Name == "FontFamily" || typ.Field(i).Name == "QuotaResetTimeFormat" || typ.Field(i).Name == "ProxyTestURL" || typ.Field(i).Name == "ShowsSpeedAnalysis" || typ.Field(i).Name == "ShowsCacheAnalysis" || typ.Field(i).Name == "ShowsCreditsBalance" || typ.Field(i).Name == "ShowsSkills" || typ.Field(i).Name == "StatusBarProviders" || typ.Field(i).Name == "FloatingWindow" || typ.Field(i).Name == "StatusBar" || typ.Field(i).Name == "PanelProviders" || typ.Field(i).Name == "DisableMainPanelAnimation" || typ.Field(i).Name == "QuotaAlertThresholds" {
+		if typ.Field(i).Tag.Get("json") == "" || typ.Field(i).Name == "ModelPricing" || typ.Field(i).Name == "ThemeColor" || typ.Field(i).Name == "FontFamily" || typ.Field(i).Name == "QuotaResetTimeFormat" || typ.Field(i).Name == "ProxyTestURL" || typ.Field(i).Name == "ShowsSpeedAnalysis" || typ.Field(i).Name == "ShowsCacheAnalysis" || typ.Field(i).Name == "ShowsCreditsBalance" || typ.Field(i).Name == "ShowsSkills" || typ.Field(i).Name == "StatusBarProviders" || typ.Field(i).Name == "FloatingWindow" || typ.Field(i).Name == "StatusBar" || typ.Field(i).Name == "PanelProviders" || typ.Field(i).Name == "DisableMainPanelAnimation" || typ.Field(i).Name == "ShareCodexDesktopProjects" || typ.Field(i).Name == "QuotaAlertThresholds" {
 			continue // the unexported extra map, and the keys only Go writes
 		}
 		count++
@@ -198,6 +198,26 @@ func TestDisableMainPanelAnimationPreference(t *testing.T) {
 		if _, err := DecodePreferences([]byte(`{"disableMainPanelAnimation":` + bad + `}`)); !errors.Is(err, ErrCorrupt) {
 			t.Errorf("value %s: err = %v, want ErrCorrupt", bad, err)
 		}
+	}
+}
+
+func TestShareCodexDesktopProjectsPreference(t *testing.T) {
+	if mustDecode(t, `{}`).ShareCodexDesktopProjects {
+		t.Fatal("missing key decoded to true")
+	}
+	p := mustDecode(t, `{"shareCodexDesktopProjects":true}`)
+	if !p.ShareCodexDesktopProjects {
+		t.Fatal("explicit true was not decoded")
+	}
+	if enc, err := EncodePreferences(p); err != nil || !strings.Contains(string(enc), `"shareCodexDesktopProjects":true`) {
+		t.Fatalf("true was not encoded: %s %v", enc, err)
+	}
+	p.ShareCodexDesktopProjects = false
+	if enc, err := EncodePreferences(p); err != nil || strings.Contains(string(enc), "shareCodexDesktopProjects") {
+		t.Fatalf("false was not omitted: %s %v", enc, err)
+	}
+	if _, err := DecodePreferences([]byte(`{"shareCodexDesktopProjects":"true"}`)); !errors.Is(err, ErrCorrupt) {
+		t.Fatalf("err = %v, want ErrCorrupt", err)
 	}
 }
 
