@@ -22,6 +22,24 @@ class BuildNumberTests(unittest.TestCase):
   for candidate,feeds in (("99",[feed("87")]),("100",[feed("100")]),("101",[feed("102")]),("1.0.0",[feed("87")]),("100",[]),("100",[feed("unknown")])):
    with self.assertRaises(ValueError): builds.check(candidate,feeds)
 
+ def test_gh_retries_then_fails_closed(self):
+  calls=[]
+  def run(args,**kwargs):
+   calls.append(args)
+   if len(calls)<3: raise subprocess.CalledProcessError(1,args)
+   return subprocess.CompletedProcess(args,0,stdout=b"ok")
+  original,builds.subprocess.run=builds.subprocess.run,run
+  try:
+   self.assertEqual(builds.gh("api","x",delay=0),b"ok")
+   calls.clear()
+   def fail(args,**kwargs):
+    calls.append(args); raise subprocess.CalledProcessError(1,args)
+   builds.subprocess.run=fail
+   with self.assertRaises(subprocess.CalledProcessError): builds.gh("api","x",attempts=2,delay=0)
+   self.assertEqual(len(calls),2)
+  finally:
+   builds.subprocess.run=original
+
 class StageConfigTests(unittest.TestCase):
  def test_stable_uses_quosparr_repository(self):
   root=pathlib.Path(__file__).resolve().parents[2]

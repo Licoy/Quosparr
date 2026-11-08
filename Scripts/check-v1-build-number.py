@@ -5,6 +5,7 @@ import json
 import pathlib
 import re
 import subprocess
+import time
 import xml.etree.ElementTree as ET
 
 NS = "http://www.andymatuschak.org/xml-namespaces/sparkle"
@@ -36,8 +37,16 @@ def check(candidate, feeds):
     return max(builds)
 
 
-def gh(*args):
-    return subprocess.run(["gh", *args], check=True, stdout=subprocess.PIPE).stdout
+def gh(*args, attempts=4, delay=10):
+    # Runner networking to the API times out now and then; every call only
+    # reads, so retrying is safe and a lasting failure still fails closed.
+    for attempt in range(1, attempts + 1):
+        try:
+            return subprocess.run(["gh", *args], check=True, stdout=subprocess.PIPE).stdout
+        except subprocess.CalledProcessError:
+            if attempt == attempts:
+                raise
+            time.sleep(delay * attempt)
 
 
 def published_feeds(repository):
