@@ -4,6 +4,7 @@ package app
 func init() {
 	for key, texts := range map[textKey][7]string{
 		textKey("accountFailure_unknown"):             {"Unrecognized cause [unknown]", "原因未识别 [unknown]", "原因未識別 [unknown]", "원인을 식별하지 못했습니다 [unknown]", "原因を特定できません [unknown]", "Причина не определена [unknown]", "Cause non identifiée [unknown]"},
+		textKey("accountFailure_codex_desktop_quit"):  {"Codex did not quit in time; save your tasks, quit Codex manually and try again", "Codex 未能及时退出，请保存任务并手动退出 Codex 后重试", "Codex 未能及時結束，請儲存工作並手動結束 Codex 後重試", "Codex가 제때 종료되지 않았습니다. 작업을 저장하고 Codex를 직접 종료한 후 다시 시도하세요", "Codex が時間内に終了しませんでした。作業を保存し、Codex を手動で終了してから再試行してください", "Codex не завершился вовремя; сохраните задачи, закройте Codex вручную и повторите попытку", "Codex ne s’est pas fermé à temps ; enregistrez vos tâches, quittez Codex manuellement puis réessayez"},
 		textKey("accountFailure_permission"):          {"Permission denied", "没有访问权限", "沒有存取權限", "접근 권한이 없습니다", "アクセス権限がありません", "Доступ запрещён", "Accès refusé"},
 		textKey("accountFailure_read_only"):           {"Read-only storage", "存储为只读", "儲存為唯讀", "읽기 전용 저장소", "ストレージは読み取り専用です", "Хранилище доступно только для чтения", "Stockage en lecture seule"},
 		textKey("accountFailure_disk_full"):           {"Storage is full", "存储空间已满", "儲存空間已滿", "저장 공간이 가득 찼습니다", "空き容量がありません", "Недостаточно места", "Stockage plein"},

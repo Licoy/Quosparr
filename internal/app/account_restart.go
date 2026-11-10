@@ -3,6 +3,7 @@ package app
 import (
 	"context"
 	"errors"
+	"fmt"
 	"strings"
 	"time"
 
@@ -11,6 +12,12 @@ import (
 )
 
 var errRestartCodex = errors.New("Codex restart failed")
+
+// errCodexQuit lets the runtime status name the cause instead of [unknown].
+var errCodexQuit = fmt.Errorf("%w: %w", errRestartCodex, runway.ErrCodexDesktopQuit)
+
+// codexQuitLimit leaves room for the desktop app to save state before quitting.
+const codexQuitLimit = 10 * time.Second
 
 // runningApp is a running application that can be asked to quit.
 type runningApp struct {
@@ -41,17 +48,18 @@ func isCodexDesktop(bundleID, name string) bool {
 
 // runCodexRestart is also used by tests with fake processes and a fake opener.
 // A termination request must actually finish before the login is relaunched.
-func runCodexRestart(apps []runningApp, fallback string, open func(string) error) error {
-	start, err := prepareCodexRestart(apps, fallback, open)
+func runCodexRestart(apps []runningApp, fallback string, running func() bool, open func(string) error) error {
+	start, err := prepareCodexRestart(apps, fallback, running, open)
 	if err != nil {
 		return err
 	}
 	return start()
 }
 
-func prepareCodexRestart(apps []runningApp, fallback string, open func(string) error) (func() error, error) {
+// After a failed quit the returned recovery reopens the app only when it has
+// actually exited; running is checked again because the quit may finish late.
+func prepareCodexRestart(apps []runningApp, fallback string, running func() bool, open func(string) error) (func() error, error) {
 	path := fallback
-	stopped := false
 	start := func() error {
 		if path == "" {
 			return errRestartCodex
@@ -71,13 +79,14 @@ func prepareCodexRestart(apps []runningApp, fallback string, open func(string) e
 		if app.path != "" {
 			path = app.path
 		}
-		if !stopApp(app, 3*time.Second) {
-			if stopped {
-				return start, errRestartCodex
-			}
-			return nil, errRestartCodex
+		if !stopApp(app, codexQuitLimit) {
+			return func() error {
+				if running != nil && running() {
+					return nil
+				}
+				return start()
+			}, errCodexQuit
 		}
-		stopped = true
 	}
 	if path == "" {
 		return nil, errRestartCodex

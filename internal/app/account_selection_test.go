@@ -154,7 +154,7 @@ func TestCodexDesktopRestartUsesPreciseIdentity(t *testing.T) {
 	// runway/codex_runtime_test.go; this test retains exact desktop matching.
 	fake := runningApp{bundleID: "com.openai.codex", path: "/fake/Codex.app", terminate: func() bool { calls++; return true }, stopped: func() bool { return true }}
 	unrelated := runningApp{bundleID: "com.example.editor", name: "Editor", terminate: func() bool { t.Fatal("unrelated app terminated"); return false }}
-	if err := runCodexRestart([]runningApp{unrelated, fake}, "", func(path string) error {
+	if err := runCodexRestart([]runningApp{unrelated, fake}, "", nil, func(path string) error {
 		if path != "/fake/Codex.app" {
 			t.Fatal("wrong launch path")
 		}
@@ -163,7 +163,7 @@ func TestCodexDesktopRestartUsesPreciseIdentity(t *testing.T) {
 		t.Fatal(err)
 	}
 	fake.terminate = func() bool { return false }
-	if err := runCodexRestart([]runningApp{fake}, "", func(string) error { t.Fatal("opened app after rejected termination"); return nil }); !errors.Is(err, errRestartCodex) {
+	if err := runCodexRestart([]runningApp{fake}, "", nil, func(string) error { t.Fatal("opened app after rejected termination"); return nil }); !errors.Is(err, errRestartCodex) {
 		t.Fatal("termination failure hidden")
 	}
 }

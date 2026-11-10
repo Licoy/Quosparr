@@ -26,7 +26,7 @@ func prepareCodexDesktopRestart() (func() error, error) {
 	if len(apps) == 0 {
 		return nil, nil
 	}
-	return prepareCodexRestart(apps, fallback, openCodexApplication)
+	return prepareCodexRestart(apps, fallback, codexDesktopRunning, openCodexApplication)
 }
 
 // codexDesktopRunning tells whether the desktop app is open.
@@ -39,7 +39,7 @@ func codexDesktopRunning() bool {
 }
 
 func restartCodexDesktop() error {
-	return runCodexRestart(runningApplications(isCodexDesktop), findCodexApplication(), openCodexApplication)
+	return runCodexRestart(runningApplications(isCodexDesktop), findCodexApplication(), codexDesktopRunning, openCodexApplication)
 }
 
 // runningApplications returns the running applications that match; the

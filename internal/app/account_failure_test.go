@@ -52,7 +52,7 @@ func TestAccountFailureSafeDetailsInEveryLanguage(t *testing.T) {
 				t.Fatal("missing safe failure classification")
 			}
 		}
-		for _, code := range []string{"read_keychain", "write_index", "read_usage", "refresh", "rollback_failed", "command", "not_private", "unsupported_version"} {
+		for _, code := range []string{"read_keychain", "write_index", "read_usage", "refresh", "rollback_failed", "command", "not_private", "unsupported_version", "codex_desktop_quit"} {
 			if text := accountReasonText(l, code); text == "" || text == accountReasonText(l, "unknown") {
 				t.Fatalf("missing classification translation: %s", code)
 			}

@@ -12,6 +12,9 @@ import (
 
 var ErrCodexRuntime = errors.New("Codex runtime operation failed before file update")
 
+// ErrCodexDesktopQuit marks a LegacyStop failure where the desktop app did not exit.
+var ErrCodexDesktopQuit = errors.New("Codex desktop did not quit")
+
 // CodexRuntimeView contains no server text or account identifiers for display.
 // State names are localized by the UI, and survive ordinary quota refreshes.
 type CodexRuntimeView struct {
@@ -242,6 +245,9 @@ func (s *Service) setRuntimeFailure(state string, updated bool, target string, e
 func runtimeFailureCodes(err error) (string, string) {
 	if err == nil {
 		return "", ""
+	}
+	if errors.Is(err, ErrCodexDesktopQuit) {
+		return "", "codex_desktop_quit"
 	}
 	var failure *codexruntime.Error
 	if !errors.As(err, &failure) {

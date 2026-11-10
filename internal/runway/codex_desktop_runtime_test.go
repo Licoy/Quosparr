@@ -289,7 +289,7 @@ func TestCodexQuitFailureRestoresAlreadyStoppedDesktop(t *testing.T) {
 							return errors.New("synthetic reopen error")
 						}
 						return nil
-					}, errors.New("synthetic quit error")
+					}, ErrCodexDesktopQuit
 				}
 			})
 			if err := s.SwitchAccountWithRestart(context.Background(), af.b.ID, true); !errors.Is(err, ErrCodexRuntime) {
@@ -299,7 +299,7 @@ func TestCodexQuitFailureRestoresAlreadyStoppedDesktop(t *testing.T) {
 			if recoveryFails {
 				want = "recovery_failed"
 			}
-			if status := s.Snapshot().Accounts.Runtime; opens != 1 || status.FilesUpdated || status.State != want {
+			if status := s.Snapshot().Accounts.Runtime; opens != 1 || status.FilesUpdated || status.State != want || status.FailureReason != "codex_desktop_quit" {
 				t.Fatalf("opens=%d status=%+v", opens, status)
 			}
 		})
