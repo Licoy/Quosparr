@@ -39,6 +39,11 @@ func recoveryUITest(t *testing.T, l l10n.Localizer) (*ui.Tester, **codexRecovery
 	return tt, &d, queue, writes
 }
 
+func hasSummary(tt *ui.Tester, l l10n.Localizer, projects, threads, skipped int) bool {
+	_, ok := tt.Find(tx(l, xProjectSummary, projects, threads, skipped))
+	return ok
+}
+
 func recoveryDelivery(t *testing.T, queue chan func()) {
 	t.Helper()
 	select {
@@ -52,25 +57,22 @@ func recoveryDelivery(t *testing.T, queue chan func()) {
 func TestCodexRecoveryPreviewSelectionFailureAndCancel(t *testing.T) {
 	l := l10n.New(l10n.English)
 	tt, slot, queue, writes := recoveryUITest(t, l)
-	if err := tt.Click(tx(l, xProjectPreview)); err != nil {
+	if err := tt.Click(tx(l, xProjectConfirm)); err != nil {
 		t.Fatal(err)
 	}
-	if (*slot).busy || *writes != 0 {
-		t.Fatal("preview without explicit source started")
+	if (*slot).busy || (*slot).plan != nil || *writes != 0 {
+		t.Fatal("confirmation without explicit source started")
 	}
 	label := desktopSourceLabel(l, (*slot).sources[1], 1, nil, false)
 	if err := tt.Click(label); err != nil {
 		t.Fatal(err)
 	}
-	if (*slot).selected != 1 {
-		t.Fatal("source selection not retained")
-	}
-	if err := tt.Click(tx(l, xProjectPreview)); err != nil {
-		t.Fatal(err)
+	if (*slot).selected != 1 || !(*slot).busy {
+		t.Fatal("selecting a source did not start its preview")
 	}
 	recoveryDelivery(t, queue)
 	tt.Frame()
-	if !tt.HasText(tx(l, xProjectSummary, 1, 3, 2)) || *writes != 0 {
+	if !hasSummary(tt, l, 1, 3, 2) || *writes != 0 {
 		t.Fatalf("preview did not validate counts: %v", tt.Texts())
 	}
 	if err := tt.Click(tx(l, xProjectConfirm)); err != nil {
@@ -119,16 +121,8 @@ func TestCodexRecoveryEntryAndErrors(t *testing.T) {
 		tt := ui.NewTester(func(c *ui.Context) {
 			ui.Column(c).Fill().Children(func() { codexRecoveryEntry(c, l, &d, rt, view, false, false, func(fn func()) { fn() }) })
 		}, 620, 180)
-		if codexDesktopShareSupported && !tt.HasText(tx(l, xProjectRecover)) {
-			t.Fatal("recovery entry absent")
-		}
-		if api {
-			if err := tt.Click(tx(l, xProjectRecover)); err != nil && codexDesktopShareSupported {
-				t.Fatal(err)
-			}
-			if d != nil {
-				t.Fatal("API account opened recovery")
-			}
+		if shown := tt.HasText(tx(l, xProjectRecover)); shown != (codexDesktopShareSupported && !api) {
+			t.Fatalf("recovery entry shown=%v for api=%v", shown, api)
 		}
 	}
 	for _, err := range []error{codexdesktop.ErrPartialWrite, codexdesktop.ErrConflict, codexdesktop.ErrStateChanged, runway.ErrDesktopProjectTargetChanged, runway.ErrDesktopProjectRestart, errors.New("private-token-internal-path")} {
@@ -180,9 +174,6 @@ func TestCodexRecoveryReviewArtifact(t *testing.T) {
 	l := l10n.New(l10n.SimplifiedChinese)
 	tt, slot, queue, _ := recoveryUITest(t, l)
 	if err := tt.Click(desktopSourceLabel(l, (*slot).sources[1], 1, nil, false)); err != nil {
-		t.Fatal(err)
-	}
-	if err := tt.Click(tx(l, xProjectPreview)); err != nil {
 		t.Fatal(err)
 	}
 	recoveryDelivery(t, queue)
@@ -279,7 +270,7 @@ func TestCodexRecoverySuccessfulSkipsRemainVisible(t *testing.T) {
 	}
 	recoveryDelivery(t, queue)
 	tt.Frame()
-	if !d.done || !tt.HasText(tx(l, xProjectSummary, 1, 3, 2)) || !tt.HasText(tx(l, xProjectSkipThread)) {
+	if !d.done || !hasSummary(tt, l, 1, 3, 2) || !tt.HasText(tx(l, xProjectSkipThread)) {
 		t.Fatalf("successful skip summary hidden: %v", tt.Texts())
 	}
 }

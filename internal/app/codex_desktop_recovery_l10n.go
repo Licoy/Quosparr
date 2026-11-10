@@ -5,12 +5,8 @@ import "github.com/licoy/quosparr/internal/l10n"
 const (
 	xProjectNothingRecoverable textKey = "codexProjectNothingRecoverable"
 	xProjectRecover            textKey = "codexProjectRecover"
-	xProjectRecoveryHint       textKey = "codexProjectRecoveryHint"
-	xProjectSelected           textKey = "codexProjectSelected"
 	xProjectSnapshot           textKey = "codexProjectSnapshot"
-	xProjectCount              textKey = "codexProjectCount"
 	xProjectSummary            textKey = "codexProjectSummary"
-	xProjectPreview            textKey = "codexProjectPreview"
 	xProjectConfirm            textKey = "codexProjectConfirm"
 	xProjectRecovered          textKey = "codexProjectRecovered"
 	xProjectNoSource           textKey = "codexProjectNoSource"
@@ -31,18 +27,38 @@ const (
 	xProjectDatabase           textKey = "codexProjectDatabase"
 	xProjectIO                 textKey = "codexProjectIO"
 	xProjectReopen             textKey = "codexProjectReopen"
+	xProjectRecoveryHint       textKey = "codexProjectRecoveryHint"
+	xProjectSection            textKey = "codexProjectSection"
+	xProjectSectionHint        textKey = "codexProjectSectionHint"
+	xProjectSourceHeading      textKey = "codexProjectSourceHeading"
+	xProjectSourceDetail       textKey = "codexProjectSourceDetail"
+	xProjectPreviewHeading     textKey = "codexProjectPreviewHeading"
+	xProjectStatProjects       textKey = "codexProjectStatProjects"
+	xProjectStatThreads        textKey = "codexProjectStatThreads"
+	xProjectStatSkipped        textKey = "codexProjectStatSkipped"
+	xProjectSkipExists         textKey = "codexProjectSkipExists"
+	xProjectSkipProjectless    textKey = "codexProjectSkipProjectless"
+	xProjectDone               textKey = "codexProjectDone"
 )
 
 func init() {
 	for key, texts := range map[textKey][7]string{
 		xProjectNothingRecoverable: {"No projects or chats can be recovered from this source", "此来源没有可恢复的项目或聊天", "此來源沒有可還原的專案或對話", "이 원본에서 복원할 수 있는 프로젝트나 대화가 없습니다", "このソースから復元できるプロジェクトや会話がありません", "Из этого источника нельзя восстановить проекты или чаты", "Aucun projet ni discussion ne peut être récupéré depuis cette source"},
 		xProjectRecover:            {"Restore projects from a local account", "从本机账号恢复项目", "從本機帳號還原專案", "로컬 계정에서 프로젝트 복원", "ローカルアカウントからプロジェクトを復元", "Восстановить проекты из локального аккаунта", "Restaurer les projets d’un compte local"},
-		xProjectRecoveryHint:       {"Choose a saved source, preview the changes, then confirm recovery into the currently signed-in account; the ChatGPT desktop app will quit and reopen as needed", "请选择保存的来源，预览后确认恢复到当前登录账号，操作会按需退出并重新打开 ChatGPT 桌面端", "請選擇儲存的來源，預覽後確認還原至目前登入帳號，操作會視需要結束並重新開啟 ChatGPT 桌面版", "저장된 원본을 선택하고 미리 본 뒤 현재 로그인 계정으로 복원하세요; 필요하면 ChatGPT Desktop를 종료하고 재시작합니다", "保存済みのソースを選び、確認後に現在ログイン中のアカウントへ復元します、必要に応じて ChatGPT Desktop を停止・再起動します", "Выберите сохранённый источник и проверьте изменения перед восстановлением в текущий аккаунт; ChatGPT Desktop будет остановлен и перезапущен при необходимости", "Choisissez une source enregistrée, vérifiez puis confirmez la restauration dans le compte connecté actuel ; ChatGPT Desktop sera arrêté et redémarré si nécessaire"},
-		xProjectSelected:           {"Selected source", "已选择此来源", "已選擇此來源", "선택한 원본", "選択中のソース", "Выбранный источник", "Source sélectionnée"},
+		xProjectRecoveryHint:       {"Copies the local projects and chat grouping another account left on this Mac into the signed-in account. Pick a source to preview it; nothing changes until you confirm, and ChatGPT Desktop quits and reopens as needed", "把其他账号留在本机的项目与聊天分组复制到当前登录账号。选择来源即可预览，确认前不会修改任何数据，需要时会自动退出并重新打开 ChatGPT 桌面端", "把其他帳號留在本機的專案與對話分組複製到目前登入帳號。選擇來源即可預覽，確認前不會修改任何資料，需要時會自動結束並重新開啟 ChatGPT 桌面版", "다른 계정이 이 Mac에 남긴 로컬 프로젝트와 대화 분류를 현재 로그인 계정으로 복사합니다. 원본을 선택하면 미리 볼 수 있고, 확인 전에는 아무것도 바뀌지 않으며 필요하면 ChatGPT Desktop을 종료 후 다시 엽니다", "他のアカウントがこの Mac に残したローカルプロジェクトと会話の分類を、ログイン中のアカウントへコピーします。ソースを選ぶとプレビューでき、確定するまで何も変更されません。必要に応じて ChatGPT Desktop を終了・再起動します", "Копирует локальные проекты и распределение чатов, оставленные другим аккаунтом на этом Mac, в текущий аккаунт. Выберите источник для предпросмотра; до подтверждения ничего не меняется, ChatGPT Desktop при необходимости будет перезапущен", "Copie dans le compte connecté les projets locaux et le classement des discussions laissés sur ce Mac par un autre compte. Choisissez une source pour l’aperçu ; rien ne change avant confirmation, et ChatGPT Desktop est relancé si nécessaire"},
+		xProjectSection:            {"Local desktop projects", "桌面端本机项目", "桌面版本機專案", "데스크톱 로컬 프로젝트", "デスクトップのローカルプロジェクト", "Локальные проекты приложения", "Projets locaux de l’app"},
+		xProjectSectionHint:        {"If projects vanished from the ChatGPT Desktop sidebar after switching accounts, restore them from another account on this Mac", "切换账号后 ChatGPT 桌面端侧栏的项目不见了，可从本机其他账号恢复", "切換帳號後 ChatGPT 桌面版側欄的專案不見了，可從本機其他帳號還原", "계정 전환 후 ChatGPT Desktop 사이드바에서 프로젝트가 사라졌다면 이 Mac의 다른 계정에서 복원하세요", "アカウント切り替え後に ChatGPT Desktop のサイドバーからプロジェクトが消えた場合、この Mac の別アカウントから復元できます", "Если после смены аккаунта проекты пропали с боковой панели ChatGPT Desktop, восстановите их из другого аккаунта на этом Mac", "Si des projets ont disparu de la barre latérale de ChatGPT Desktop après un changement de compte, restaurez-les depuis un autre compte de ce Mac"},
+		xProjectSourceHeading:      {"Source", "选择来源", "選擇來源", "원본", "ソース", "Источник", "Source"},
+		xProjectSourceDetail:       {"%@ projects · %@ chats", "%@ 个项目 · %@ 个聊天", "%@ 個專案 · %@ 個對話", "프로젝트 %@개 · 대화 %@개", "プロジェクト %@ 件 · 会話 %@ 件", "Проектов: %@ · Чатов: %@", "%@ projets · %@ discussions"},
+		xProjectPreviewHeading:     {"Will restore", "将恢复", "將還原", "복원 예정", "復元内容", "Будет восстановлено", "Sera restauré"},
+		xProjectStatProjects:       {"Projects", "项目", "專案", "프로젝트", "プロジェクト", "Проекты", "Projets"},
+		xProjectStatThreads:        {"Chats", "聊天", "對話", "대화", "会話", "Чаты", "Discussions"},
+		xProjectStatSkipped:        {"Skipped", "跳过", "略過", "건너뜀", "スキップ", "Пропущено", "Ignorés"},
+		xProjectSkipExists:         {"The current account already has some of these folders as projects; they are kept as they are", "当前账号已添加过部分同一文件夹的项目，保持原样", "目前帳號已新增過部分相同資料夾的專案，保持原樣", "현재 계정에 같은 폴더의 프로젝트가 이미 있어 그대로 둡니다", "現在のアカウントには同じフォルダのプロジェクトが既にあるため、そのままにします", "В текущем аккаунте уже есть проекты для некоторых из этих папок; они не изменяются", "Le compte actuel a déjà des projets pour certains de ces dossiers ; ils restent inchangés"},
+		xProjectSkipProjectless:    {"Some chats are kept outside projects in the current account and stay there", "部分聊天在当前账号中不属于任何项目，保持原样", "部分對話在目前帳號中不屬於任何專案，保持原樣", "일부 대화는 현재 계정에서 프로젝트 밖에 있어 그대로 둡니다", "一部の会話は現在のアカウントでプロジェクト外にあるため、そのままにします", "Некоторые чаты в текущем аккаунте не входят в проекты и остаются как есть", "Certaines discussions sont hors projet dans le compte actuel et y restent"},
+		xProjectDone:               {"Done", "完成", "完成", "완료", "完了", "Готово", "Terminé"},
 		xProjectSnapshot:           {"Local snapshot %@", "本机快照 %@", "本機快照 %@", "로컬 스냅샷 %@", "ローカルスナップショット %@", "Локальный снимок %@", "Instantané local %@"},
-		xProjectCount:              {"%@ projects", "%@ 个项目", "%@ 個專案", "프로젝트 %@개", "%@ 件のプロジェクト", "Проектов: %@", "%@ projets"},
 		xProjectSummary:            {"Projects: %@ · Recoverable chats: %@ · Skipped entries: %@", "项目：%@ · 可恢复聊天：%@ · 跳过条目：%@", "專案：%@ · 可還原對話：%@ · 略過項目：%@", "프로젝트: %@ · 복원 가능한 대화: %@ · 건너뜀: %@", "プロジェクト: %@ · 復元可能な会話: %@ · スキップ: %@", "Проекты: %@ · Восстанавливаемые чаты: %@ · Пропущено: %@", "Projets : %@ · Discussions récupérables : %@ · Éléments ignorés : %@"},
-		xProjectPreview:            {"Preview recovery", "预览恢复", "預覽還原", "복원 미리 보기", "復元をプレビュー", "Предпросмотр восстановления", "Aperçu de la restauration"},
 		xProjectConfirm:            {"Confirm recovery", "确认恢复", "確認還原", "복원 확인", "復元を確認", "Подтвердить восстановление", "Confirmer la restauration"},
 		xProjectRecovered:          {"Projects restored to the current account", "已恢复项目到当前账号", "已還原專案至目前帳號", "현재 계정으로 프로젝트를 복원했습니다", "現在のアカウントにプロジェクトを復元しました", "Проекты восстановлены в текущем аккаунте", "Projets restaurés dans le compte actuel"},
 		xProjectNoSource:           {"No saved local projects are available", "没有可用的本机项目来源", "沒有可用的本機專案來源", "저장된 로컬 프로젝트가 없습니다", "保存済みのローカルプロジェクトがありません", "Нет сохранённых локальных проектов", "Aucun projet local enregistré disponible"},
@@ -74,6 +90,10 @@ func desktopSkipReason(l l10n.Localizer, reason string) string {
 		return tx(l, xProjectSkipRemote)
 	case "missing_thread":
 		return tx(l, xProjectSkipThread)
+	case "project_exists":
+		return tx(l, xProjectSkipExists)
+	case "target_projectless_thread":
+		return tx(l, xProjectSkipProjectless)
 	case "missing_project", "missing_project_mapping", "project_roots_mismatch", "projectless_thread", "unmapped_thread":
 		return tx(l, xProjectSkipMapping)
 	default:
