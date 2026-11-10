@@ -88,22 +88,6 @@ func mergeHosts(src, dst json.RawMessage) (json.RawMessage, error) {
 	}
 	return encode(b), nil
 }
-func mergeOrders(src, dst json.RawMessage) (json.RawMessage, error) {
-	a, aok := decodeObject(src)
-	b, bok := decodeObject(dst)
-	if !aok || !bok {
-		return nil, ErrUnknownFormat
-	}
-	b = orEmpty(b)
-	for id, raw := range a {
-		merged, err := mergeValue(raw, b[id])
-		if err != nil {
-			return nil, err
-		}
-		b[id] = merged
-	}
-	return encode(b), nil
-}
 func mergeMap(src, dst json.RawMessage, conflict bool) (json.RawMessage, error) {
 	a, aok := decodeObject(src)
 	b, bok := decodeObject(dst)

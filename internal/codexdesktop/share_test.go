@@ -173,7 +173,7 @@ func TestThreadValidationAndIsolation(t *testing.T) {
 	doc["thread-project-membership-host-ids"] = map[string]any{"t1": "local"}
 	doc["projectless-thread-ids"] = []string{"projectless"}
 	doc["pinned-thread-ids"] = []string{"t1", "missing", "projectless", "t2"}
-	doc["sidebar-project-thread-orders"] = map[string]any{"p1": []string{"t1", "missing", "t2"}}
+	doc["sidebar-project-thread-orders"] = map[string]any{"p1": map[string]any{"sortKey": "created_at", "threadIds": []string{"t1", "missing", "t2"}}}
 	f.write(doc)
 	p, err := f.sharer.Prepare(Request{alice.Key(), bob})
 	must(t, err)
@@ -191,7 +191,7 @@ func TestThreadValidationAndIsolation(t *testing.T) {
 		t.Fatal("invalid pinned chat")
 	}
 	orders, _ := decodeObject(target.Globals["sidebar-project-thread-orders"])
-	if !sameJSON(orders["p1"], encode([]string{"t1"})) {
+	if !sameJSON(orders["p1"], encode(map[string]any{"sortKey": "created_at", "threadIds": []string{"t1"}})) {
 		t.Fatal("invalid chat order")
 	}
 }

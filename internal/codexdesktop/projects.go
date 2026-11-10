@@ -23,6 +23,7 @@ var projectAtoms = []string{"unified-sidebar-project-order-v1"}
 type selection struct {
 	part                     partition
 	projects, threads, roots map[string]bool
+	threadProjects           map[string]string
 	summary                  Summary
 	names                    []string
 	host                     string
@@ -38,7 +39,7 @@ func (v *selection) skip(reason string) {
 	v.summary.Reasons = append(v.summary.Reasons, reason)
 }
 func validated(p partition, cat catalog, home string) (partition, Summary, []string, error) {
-	v := selection{part: partition{object{}, object{}}, projects: map[string]bool{}, threads: map[string]bool{}, roots: map[string]bool{}, host: "local:" + home}
+	v := selection{part: partition{object{}, object{}}, projects: map[string]bool{}, threads: map[string]bool{}, threadProjects: map[string]string{}, roots: map[string]bool{}, host: "local:" + home}
 	projects, ok := decodeObject(p.Globals["local-projects"])
 	if !ok {
 		return v.part, v.summary, nil, ErrUnknownFormat
@@ -196,6 +197,7 @@ func (v *selection) selectThreads(p partition, cat catalog) error {
 		}
 		selected[thread] = encode(clean)
 		v.threads[thread] = true
+		v.threadProjects[thread] = id
 		v.summary.Threads++
 		if membership != "" {
 			selectedHosts[thread] = encode(membership)
@@ -221,7 +223,7 @@ func (v *selection) selectMetadata(p partition) error {
 	if err := copyIDs(v.part.Globals, p.Globals, "electron-saved-workspace-roots", v.roots); err != nil {
 		return err
 	}
-	for _, key := range []string{"project-appearances", "electron-workspace-root-labels", "sidebar-project-thread-orders"} {
+	for _, key := range []string{"project-appearances", "electron-workspace-root-labels"} {
 		values, ok := decodeObject(p.Globals[key])
 		if !ok {
 			return ErrUnknownFormat
@@ -235,22 +237,14 @@ func (v *selection) selectMetadata(p partition) error {
 			if !allowed {
 				continue
 			}
-			if key == "sidebar-project-thread-orders" {
-				tmp := object{key: raw}
-				out := object{}
-				if err := copyIDs(out, tmp, key, v.threads); err != nil {
-					return err
-				}
-				raw = out[key]
-				if raw == nil {
-					continue
-				}
-			}
 			selected[id] = raw
 		}
 		if len(selected) > 0 {
 			v.part.Globals[key] = encode(selected)
 		}
+	}
+	if err := v.selectOrders(p); err != nil {
+		return err
 	}
 	// Unified sidebar keys are an app-specific encoding; copy only keys whose
 	// supported local-project encoding has been verified, never opaque values.
