@@ -24,6 +24,8 @@ type selection struct {
 	part                     partition
 	projects, threads, roots map[string]bool
 	threadProjects           map[string]string
+	claimed                  map[string]string
+	projectless              map[string]bool
 	summary                  Summary
 	names                    []string
 	host                     string
@@ -38,8 +40,15 @@ func (v *selection) skip(reason string) {
 	}
 	v.summary.Reasons = append(v.summary.Reasons, reason)
 }
-func validated(p partition, cat catalog, home string) (partition, Summary, []string, error) {
+
+// validated selects the source's local projects for dst. Entries dst already
+// decided differently, a project it re-added under another ID or a chat it
+// keeps outside projects, are skipped rather than failing the whole copy.
+func validated(p, dst partition, cat catalog, home string) (partition, Summary, []string, error) {
 	v := selection{part: partition{object{}, object{}}, projects: map[string]bool{}, threads: map[string]bool{}, threadProjects: map[string]string{}, roots: map[string]bool{}, host: "local:" + home}
+	if err := v.readTarget(dst); err != nil {
+		return v.part, v.summary, nil, err
+	}
 	projects, ok := decodeObject(p.Globals["local-projects"])
 	if !ok {
 		return v.part, v.summary, nil, ErrUnknownFormat
@@ -74,6 +83,10 @@ func validated(p partition, cat catalog, home string) (partition, Summary, []str
 		dbp, found := cat.Projects[dbID]
 		if !found {
 			v.skip("missing_project")
+			continue
+		}
+		if owner, taken := v.claimed[dbID]; taken && owner != id {
+			v.skip("project_exists")
 			continue
 		}
 		var roots []string
@@ -123,6 +136,34 @@ func validated(p partition, cat catalog, home string) (partition, Summary, []str
 	sort.Strings(v.summary.Reasons)
 	return v.part, v.summary, v.names, nil
 }
+func (v *selection) readTarget(dst partition) error {
+	v.claimed, v.projectless = map[string]string{}, map[string]bool{}
+	hosts, ok := decodeObject(dst.Globals["app-server-project-id-by-legacy-project-id-by-host"])
+	if !ok {
+		return ErrUnknownFormat
+	}
+	mapping, ok := decodeObject(hosts[v.host])
+	if !ok {
+		return ErrUnknownFormat
+	}
+	for id, raw := range mapping {
+		var server string
+		if json.Unmarshal(raw, &server) != nil {
+			return ErrUnknownFormat
+		}
+		v.claimed[server] = id
+	}
+	if raw := dst.Globals["projectless-thread-ids"]; raw != nil {
+		var ids []string
+		if json.Unmarshal(raw, &ids) != nil {
+			return ErrUnknownFormat
+		}
+		for _, id := range ids {
+			v.projectless[id] = true
+		}
+	}
+	return nil
+}
 func cloudProject(id string, item object) bool {
 	if strings.HasPrefix(id, "g-p-") {
 		return true
@@ -159,6 +200,10 @@ func (v *selection) selectThreads(p partition, cat catalog) error {
 	for _, thread := range sortedKeys(assignments) {
 		if projectless[thread] {
 			v.skip("projectless_thread")
+			continue
+		}
+		if v.projectless[thread] {
+			v.skip("target_projectless_thread")
 			continue
 		}
 		item, ok := decodeObject(assignments[thread])
@@ -217,6 +262,7 @@ func (v *selection) selectMetadata(p partition) error {
 			return err
 		}
 	}
+	v.completeOrder()
 	if err := copyIDs(v.part.Globals, p.Globals, "pinned-thread-ids", v.threads); err != nil {
 		return err
 	}
@@ -256,6 +302,28 @@ func (v *selection) selectMetadata(p partition) error {
 		return err
 	}
 	return nil
+}
+
+// completeOrder lists every copied project in project-order, so none relies
+// on the desktop app re-deriving a missing order entry.
+func (v *selection) completeOrder() {
+	var order []string
+	_ = json.Unmarshal(v.part.Globals["project-order"], &order)
+	listed := map[string]bool{}
+	for _, id := range order {
+		listed[id] = true
+	}
+	missing := []string{}
+	for id := range v.projects {
+		if !listed[id] {
+			missing = append(missing, id)
+		}
+	}
+	sort.Strings(missing)
+	order = append(order, missing...)
+	if len(order) > 0 {
+		v.part.Globals["project-order"] = encode(order)
+	}
 }
 func copyIDs(dst, src object, key string, allowed map[string]bool) error {
 	raw, found := src[key]

@@ -125,6 +125,9 @@ func TestRestoreEmptyTargetAndMissingBackup(t *testing.T) {
 	if found {
 		t.Fatal("empty target partition not removed")
 	}
+	if err := f.sharer.RestoreLatest(); !errors.Is(err, ErrNoBackup) {
+		t.Fatalf("undo was undone: %v", err)
+	}
 	f.running = true
 	if err := f.sharer.RestoreLatest(); !errors.Is(err, ErrDesktopRunning) {
 		t.Fatal(err)

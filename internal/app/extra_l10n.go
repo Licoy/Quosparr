@@ -690,8 +690,8 @@ var extraTexts = map[textKey][7]string{
 		"先に ChatGPT デスクトップアプリを終了してください", "Сначала закройте приложение ChatGPT", "Quittez d’abord l’app ChatGPT",
 	},
 	xCodexDesktopNoBackup: {
-		"No backup to restore", "没有可恢复的备份", "沒有可還原的備份", "복원할 백업이 없습니다",
-		"復元できるバックアップがありません", "Нет резервной копии для восстановления", "Aucune sauvegarde à restaurer",
+		"No sharing to undo", "没有可撤销的共享", "沒有可撤銷的共用", "취소할 공유가 없습니다",
+		"取り消せる共有がありません", "Нет переноса для отмены", "Aucun partage à annuler",
 	},
 	xCodexDesktopRestoreFailed: {
 		"Restoring desktop data failed", "恢复桌面端数据失败", "還原桌面版資料失敗", "데스크톱 데이터 복원에 실패했습니다",

@@ -17,6 +17,7 @@ type undoRecord struct {
 	Before  partition `json:"before"`
 	After   partition `json:"after"`
 	Existed bool      `json:"existed"`
+	Reverts bool      `json:"reverts,omitempty"`
 }
 type fileSnapshot struct {
 	Name   string
@@ -221,7 +222,8 @@ func (s Sharer) pruneBackups() error {
 // RestoreLatest reverses only this operation's shared fields, identified by
 // account key even if the application moved them between active and inactive.
 // Any change to the target's shared fields rejects the undo; unrelated state
-// and every other account remain intact.
+// and every other account remain intact. An undo is itself never undone, so a
+// second request cannot silently copy the projects back.
 func (s Sharer) RestoreLatest() error {
 	editMu.Lock()
 	defer editMu.Unlock()
@@ -247,6 +249,9 @@ func (s Sharer) RestoreLatest() error {
 	if json.Unmarshal(data, &record) != nil || record.Version != 1 || record.Target == "" {
 		return ErrUnknownFormat
 	}
+	if record.Reverts {
+		return ErrNoBackup
+	}
 	doc, err := s.readState()
 	if err != nil {
 		return err
@@ -269,7 +274,7 @@ func (s Sharer) RestoreLatest() error {
 			doc.root[rendererKey] = encode(doc.renderer)
 		}
 	}
-	reverse := undoRecord{Target: record.Target, Before: record.After, After: record.Before, Existed: true}
+	reverse := undoRecord{Target: record.Target, Before: record.After, After: record.Before, Existed: true, Reverts: true}
 	return s.commit(doc.original, encode(doc.root), reverse)
 }
 func replaceShared(dst *partition, src partition) {

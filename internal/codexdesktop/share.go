@@ -113,7 +113,7 @@ func (s Sharer) Sources() ([]Source, error) {
 			invalid = err
 			continue
 		}
-		_, summary, names, err := validated(part, cat, s.CodexHome)
+		_, summary, names, err := validated(part, partition{object{}, object{}}, cat, s.CodexHome)
 		if err != nil {
 			invalid = err
 			continue
@@ -163,7 +163,7 @@ func (s Sharer) Prepare(req Request) (*Plan, error) {
 	if err != nil {
 		return nil, err
 	}
-	selected, summary, _, err := validated(src, cat, s.CodexHome)
+	selected, summary, _, err := validated(src, dst, cat, s.CodexHome)
 	if err != nil {
 		return nil, err
 	}
@@ -211,7 +211,7 @@ func (s Sharer) Apply(plan *Plan) (Outcome, error) {
 	if digest(encode(cat)) != plan.catalogPrint {
 		return Unchanged, ErrStateChanged
 	}
-	selected, _, _, err := validated(src, cat, s.CodexHome)
+	selected, _, _, err := validated(src, dst, cat, s.CodexHome)
 	if err != nil {
 		return Unchanged, err
 	}
