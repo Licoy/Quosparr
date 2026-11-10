@@ -71,6 +71,7 @@ func (a *App) codexAccountsPage(c *ui.Context, l l10n.Localizer, prefs store.Pre
 			apply = func() { a.accountsRun("", func() string { return ac.Switch(view.ActiveID, true) }) }
 		}
 		codexRuntimeControls(c, l, view, &st.runtimeApply, st.busy, check, apply)
+		codexRecoveryEntry(c, l, &st.recovery, currentRuntime(), view, prefs.AccountPrivacyModeEnabled, st.busy, func(fn func()) { runOnMain(func() { fn(); a.redrawPanel() }) })
 		a.accountsList(c, func() {
 			if len(view.Sidebar) == 0 {
 				accountEmpty(c, l.Text(l10n.KeyAccountsEmpty))

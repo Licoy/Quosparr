@@ -1,6 +1,7 @@
 package app
 
 import (
+	"context"
 	"errors"
 
 	"github.com/egoist/mygo/ui"
@@ -28,8 +29,21 @@ func codexShareOption(c *ui.Context, l l10n.Localizer, on *bool, busy bool, rest
 	}
 }
 
+func (rt *liveApp) undoDesktopProjects() error {
+	target, err := rt.svc.DesktopProjectOwner()
+	if err == nil {
+		_, err = rt.svc.RestoreDesktopProjects(context.Background(), target, func() (codexdesktop.Outcome, error) {
+			if err := rt.desktopSharer.RestoreLatest(); err != nil {
+				return "", err
+			}
+			return codexdesktop.Shared, nil
+		})
+	}
+	return err
+}
+
 func (rt *liveApp) restoreDesktopProjects(l l10n.Localizer) string {
-	err := rt.desktopSharer.RestoreLatest()
+	err := rt.undoDesktopProjects()
 	switch {
 	case err == nil:
 		return tx(l, xCodexDesktopRestored)
@@ -38,5 +52,5 @@ func (rt *liveApp) restoreDesktopProjects(l l10n.Localizer) string {
 	case errors.Is(err, codexdesktop.ErrNoBackup):
 		return tx(l, xCodexDesktopNoBackup)
 	}
-	return tx(l, xCodexDesktopRestoreFailed) + ": " + err.Error()
+	return desktopRecoveryError(l, err)
 }

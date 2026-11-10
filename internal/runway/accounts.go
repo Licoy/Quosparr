@@ -255,7 +255,7 @@ func (s *Service) SwitchAccountWithRestart(ctx context.Context, id string, resta
 	s.codexAuthMu.Lock()
 	defer s.codexAuthMu.Unlock()
 	res, err := s.switchCodexRuntime(ctx, id, restart)
-	if err != nil {
+	if err != nil && res.Account.ID == "" {
 		s.mu.Lock()
 		s.accountMessage = ""
 		s.reloadIndexLocked()
@@ -272,11 +272,14 @@ func (s *Service) SwitchAccountWithRestart(ctx context.Context, id string, resta
 	s.planHint = res.Account.PlanType
 	s.reloadIndexLocked()
 	s.accountMessage, s.lastErr = "", ""
+	if err != nil {
+		s.lastErr = s.switchFailureTextLocked(err)
+	}
 	s.publishLocked()
 	s.mu.Unlock()
 
 	succeeded = true
-	return nil
+	return err
 }
 
 func (s *Service) switchFailureTextLocked(err error) string {
@@ -287,6 +290,11 @@ func (s *Service) switchFailureTextLocked(err error) string {
 	switch {
 	case errors.Is(err, ErrCodexRuntime):
 		return lc.CodexRuntime(s.runtimeStatus.State)
+	case errors.Is(err, ErrDesktopProjects):
+		if !s.runtimeStatus.FilesUpdated {
+			return lc.CodexRuntime(s.runtimeStatus.State)
+		}
+		return lc.CodexRuntime("updated") + "\n" + lc.CodexRuntime(s.runtimeStatus.ProjectShare)
 	case errors.Is(err, codex.ErrRollbackFailed):
 		return lc.CodexRuntime("rollback_failed")
 	case errors.Is(err, codex.ErrSwitchFilesChanged):

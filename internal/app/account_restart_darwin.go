@@ -23,7 +23,7 @@ func accountOnMain(fn func()) {
 func prepareCodexDesktopRestart() (func() error, error) {
 	apps := runningApplications(isCodexDesktop)
 	fallback := findCodexApplication()
-	if len(apps) == 0 && fallback == "" {
+	if len(apps) == 0 {
 		return nil, nil
 	}
 	return prepareCodexRestart(apps, fallback, openCodexApplication)

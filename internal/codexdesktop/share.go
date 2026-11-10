@@ -1,49 +1,23 @@
-// Package codexdesktop shares the local projects of the ChatGPT desktop app
-// (bundle com.openai.codex) between the accounts Quosparr switches.
-//
-// The app keeps its state in <CODEX_HOME>/.codex-global-state.json and an
-// identical ".bak" copy it falls back to. Since it isolates accounts, the key
-// "electron-account-renderer-state-v1" holds
-//
-//	{"owner": <key>|null, "inactive": {<key>: {"atoms": {...}, "globals": {...}}}}
-//
-// where a key is the hex SHA-256 of the JSON array ["<userId>","<accountId>"].
-// The top level of the file holds the owner's values; when the app selects
-// another account it stashes them under the owner's key and loads the
-// target's stash. Share writes the owner's project keys into the target's
-// stash while the app is closed, so its next launch shows the same projects.
-//
-// Only projectGlobals and projectAtoms are carried; remote hosts, queued
-// follow-ups and per-account preferences stay isolated. The file is changed
-// only after a backup in Dir/backups, and never while the app runs. When the
-// target's project values are still exactly what Share last wrote there
-// (fingerprints in Dir/shared-state.json), the source replaces them, so a
-// removed project disappears everywhere; once the target changed on its own,
-// for example after a switch without sharing, both sides are merged instead.
+// Package codexdesktop copies validated local project metadata between explicit
+// desktop account partitions, without editing SQLite, credentials or sessions.
 package codexdesktop
 
 import (
-	"bytes"
 	"crypto/sha256"
 	"encoding/hex"
-	"encoding/json"
 	"errors"
-	"os"
 	"path/filepath"
+	"sync"
 	"time"
 
 	"github.com/licoy/quosparr/internal/platform"
 )
 
 const (
-	// StateFileName is the desktop app's state file inside CODEX_HOME.
 	StateFileName = ".codex-global-state.json"
 	rendererKey   = "electron-account-renderer-state-v1"
 	atomsKey      = "electron-persisted-atom-state"
 	writtenFile   = "shared-state.json"
-	backupPrefix  = "global-state-"
-	backupExt     = ".json"
-	backupKeep    = 10
 )
 
 var (
@@ -51,73 +25,67 @@ var (
 	ErrUnknownFormat  = errors.New("codexdesktop: unrecognized desktop state")
 	ErrNoBackup       = errors.New("codexdesktop: no backup to restore")
 	ErrUnavailable    = errors.New("codexdesktop: the desktop app cannot be detected")
-	errStateChanged   = errors.New("codexdesktop: desktop state changed during the update")
+	ErrNoSource       = errors.New("codexdesktop: select a source account")
+	ErrConflict       = errors.New("codexdesktop: conflicting local project metadata")
+	ErrStateChanged   = errors.New("codexdesktop: desktop state changed during the update")
+	ErrPartialWrite   = errors.New("codexdesktop: partial write; backup retained")
+	ErrValidation     = errors.New("codexdesktop: local project metadata could not be validated")
+	ErrDatabase       = errors.New("codexdesktop: local project database unavailable or unsupported")
+	ErrIO             = errors.New("codexdesktop: cannot read or write desktop state")
 )
 
-// Outcome is what Share did; the UI localizes it.
 type Outcome string
 
 const (
-	Shared      Outcome = "shared"
-	Unchanged   Outcome = "unchanged"
-	Running     Outcome = "running"
-	Unsupported Outcome = "unsupported"
+	Shared          Outcome = "shared"
+	SharedWithSkips Outcome = "shared_with_skips"
+	Unchanged       Outcome = "unchanged"
+	Running         Outcome = "running"
+	Unsupported     Outcome = "unsupported"
 )
 
-// projectGlobals are the account-scoped globals that describe local
-// projects and the threads filed under them.
-var projectGlobals = []string{
-	"active-workspace-roots",
-	"electron-saved-workspace-roots",
-	"electron-workspace-root-labels",
-	"local-projects",
-	"app-server-project-id-by-legacy-project-id-by-host",
-	"app-server-projects-migration-by-host",
-	"app-server-pending-project-deletions-by-host",
-	"selected-project",
-	"project-writable-roots",
-	"project-appearances",
-	"project-files",
-	"pinned-thread-ids",
-	"app-server-migrated-pinned-thread-ids-by-host",
-	"pinned-project-ids",
-	"sidebar-project-thread-orders",
-	"sidebar-thread-metadata",
-	"thread-project-assignments",
-	"thread-project-membership-host-ids",
-	"thread-writable-roots",
-	"thread-workspace-root-hints",
-	"thread-projectless-output-directories",
-	"projectless-thread-ids",
-	"project-order",
-}
-
-// projectAtoms are the account-scoped renderer atoms that order projects.
-var projectAtoms = []string{"unified-sidebar-project-order-v1"}
-
-// Owner is the identity the desktop app partitions its state by.
 type Owner struct{ UserID, AccountID string }
 
-// Key is the app's partition key: hex SHA-256 of JSON [userId, accountId].
 func (o Owner) Key() string {
 	sum := sha256.Sum256(encode([]string{o.UserID, o.AccountID}))
 	return hex.EncodeToString(sum[:])
 }
-
-// DefaultDir is ~/.quosparr/codex-desktop under home.
 func DefaultDir(home string) string { return filepath.Join(platform.RunwayDir(home), "codex-desktop") }
 
-// Sharer edits the desktop state of one CODEX_HOME.
 type Sharer struct {
-	CodexHome string
-	// Dir holds the shared pool and the backups.
-	Dir string
-	// Running reports whether the desktop app is open; nil cannot tell, so
-	// nothing is ever written.
-	Running func() bool
-	// Now is the clock; nil means time.Now.
-	Now func() time.Time
+	CodexHome   string
+	Dir         string
+	Running     func() bool
+	Now         func() time.Time
+	writeAtomic func(string, []byte) error
 }
+type Source struct {
+	Key      string
+	Projects int
+	Threads  int
+	Names    []string
+}
+type Request struct {
+	SourceKey string
+	Target    Owner
+}
+type Summary struct {
+	Projects int
+	Threads  int
+	Skipped  int
+	Reasons  []string
+}
+
+// Plan is an immutable preview; Apply revalidates its private contents.
+type Plan struct {
+	Summary                                Summary
+	request                                Request
+	sourcePrint, targetPrint, catalogPrint string
+	selectedPrint                          string
+	home, dir                              string
+}
+
+var editMu sync.Mutex
 
 func (s Sharer) now() time.Time {
 	if s.Now != nil {
@@ -125,147 +93,188 @@ func (s Sharer) now() time.Time {
 	}
 	return time.Now()
 }
-
 func (s Sharer) statePath() string   { return filepath.Join(s.CodexHome, StateFileName) }
 func (s Sharer) writtenPath() string { return filepath.Join(s.Dir, writtenFile) }
 
-func (s Sharer) backups() platform.BackupPolicy {
-	return platform.BackupPolicy{Dir: filepath.Join(s.Dir, "backups"), Prefix: backupPrefix, Ext: backupExt, Keep: backupKeep}
+func (s Sharer) Sources() ([]Source, error) {
+	doc, err := s.readState()
+	if err != nil {
+		return nil, err
+	}
+	cat, err := s.catalog()
+	if err != nil {
+		return nil, err
+	}
+	out := []Source{}
+	var invalid error
+	for _, key := range doc.keys() {
+		part, _, err := doc.partition(key)
+		if err != nil {
+			invalid = err
+			continue
+		}
+		_, summary, names, err := validated(part, cat, s.CodexHome)
+		if err != nil {
+			invalid = err
+			continue
+		}
+		if summary.Projects > 0 {
+			out = append(out, Source{key, summary.Projects, summary.Threads, names})
+			continue
+		}
+		for _, reason := range summary.Reasons {
+			if reason != "cloud_project" && reason != "remote_project" {
+				invalid = ErrValidation
+			}
+		}
+	}
+	if len(out) == 0 {
+		if invalid != nil {
+			return nil, invalid
+		}
+		return nil, ErrNoSource
+	}
+	return out, nil
 }
 
-// Share carries the active owner's projects into target's partition. A
-// missing file, an app without account isolation, or target already being
-// the owner leave everything as it is.
+func (s Sharer) Prepare(req Request) (*Plan, error) {
+	if req.SourceKey == "" {
+		return nil, ErrNoSource
+	}
+	if req.Target.UserID == "" || req.Target.AccountID == "" {
+		return nil, ErrUnavailable
+	}
+	doc, err := s.readState()
+	if err != nil {
+		return nil, err
+	}
+	src, found, err := doc.partition(req.SourceKey)
+	if err != nil {
+		return nil, err
+	}
+	if !found {
+		return nil, ErrNoSource
+	}
+	dst, _, err := doc.partition(req.Target.Key())
+	if err != nil {
+		return nil, err
+	}
+	cat, err := s.catalog()
+	if err != nil {
+		return nil, err
+	}
+	selected, summary, _, err := validated(src, cat, s.CodexHome)
+	if err != nil {
+		return nil, err
+	}
+	if _, err := mergePartition(dst, selected); err != nil {
+		return nil, err
+	}
+	return &Plan{summary, req, partitionPrint(src), partitionPrint(dst), digest(encode(cat)), partitionPrint(selected), s.CodexHome, s.Dir}, nil
+}
+
+func (s Sharer) Apply(plan *Plan) (Outcome, error) {
+	editMu.Lock()
+	defer editMu.Unlock()
+	if plan == nil || plan.home != s.CodexHome || plan.dir != s.Dir {
+		return Unchanged, ErrStateChanged
+	}
+	if err := s.stopped(); err != nil {
+		return Unchanged, err
+	}
+	fresh, err := s.Prepare(plan.request)
+	if err != nil {
+		return Unchanged, err
+	}
+	if fresh.sourcePrint != plan.sourcePrint || fresh.targetPrint != plan.targetPrint || fresh.catalogPrint != plan.catalogPrint || fresh.selectedPrint != plan.selectedPrint {
+		return Unchanged, ErrStateChanged
+	}
+	doc, err := s.readState()
+	if err != nil {
+		return Unchanged, err
+	}
+	src, _, err := doc.partition(plan.request.SourceKey)
+	if err != nil {
+		return Unchanged, err
+	}
+	dst, existed, err := doc.partition(plan.request.Target.Key())
+	if err != nil {
+		return Unchanged, err
+	}
+	if partitionPrint(src) != plan.sourcePrint || partitionPrint(dst) != plan.targetPrint {
+		return Unchanged, ErrStateChanged
+	}
+	cat, err := s.catalog()
+	if err != nil {
+		return Unchanged, err
+	}
+	if digest(encode(cat)) != plan.catalogPrint {
+		return Unchanged, ErrStateChanged
+	}
+	selected, _, _, err := validated(src, cat, s.CodexHome)
+	if err != nil {
+		return Unchanged, err
+	}
+	next, err := mergePartition(dst, selected)
+	if err != nil {
+		return Unchanged, err
+	}
+	if sameJSON(encode(dst), encode(next)) {
+		return Unchanged, nil
+	}
+	doc.setPartition(plan.request.Target.Key(), next)
+	record := undoRecord{Target: plan.request.Target.Key(), Before: relatedValues(dst), After: relatedValues(next), Existed: existed}
+	if err := s.commit(doc.original, encode(doc.root), record); err != nil {
+		if errors.Is(err, ErrPartialWrite) {
+			return Shared, err
+		}
+		return Unchanged, err
+	}
+	if fresh.Summary.Skipped > 0 {
+		return SharedWithSkips, nil
+	}
+	return Shared, nil
+}
+
+func (s Sharer) ShareFrom(source, target Owner) (Outcome, error) {
+	plan, err := s.Prepare(Request{SourceKey: source.Key(), Target: target})
+	if err != nil {
+		return Unchanged, err
+	}
+	return s.Apply(plan)
+}
+
+// Share uses only the explicit active owner, never an inferred inactive source.
 func (s Sharer) Share(target Owner) (Outcome, error) {
-	if target.UserID == "" || target.AccountID == "" || s.Running == nil {
+	if s.Running == nil || target.UserID == "" || target.AccountID == "" {
 		return Unsupported, nil
 	}
 	if s.Running() {
 		return Running, nil
 	}
-	written := s.loadWritten()
-	outcome, print := Unchanged, ""
-	err := s.edit(func(old []byte) ([]byte, error) {
-		if len(old) == 0 {
-			return old, nil
-		}
-		out, fp, err := shareState(old, target.Key(), written)
-		if err != nil {
-			return nil, err
-		}
-		print = fp
-		if !bytes.Equal(out, old) {
-			outcome = Shared
-		}
-		return out, nil
-	})
-	switch {
-	case errors.Is(err, ErrDesktopRunning):
-		return Running, nil
-	case errors.Is(err, ErrUnknownFormat):
-		return Unsupported, nil
-	case err != nil:
+	doc, err := s.readState()
+	if err != nil {
 		return Unchanged, err
 	}
-	if print != "" && written[target.Key()] != print {
-		written[target.Key()] = print
-		if err := s.saveWritten(written); err != nil {
-			return outcome, err
-		}
+	if doc.owner == "" {
+		return Unchanged, ErrNoSource
 	}
-	return outcome, nil
+	plan, err := s.Prepare(Request{SourceKey: doc.owner, Target: target})
+	if err != nil {
+		return Unchanged, err
+	}
+	outcome, err := s.Apply(plan)
+	if errors.Is(err, ErrDesktopRunning) {
+		return Running, nil
+	}
+	return outcome, err
 }
-
-// RestoreLatest puts back the state saved before the last change Quosparr
-// made. The current state is backed up first, so a second restore undoes it.
-func (s Sharer) RestoreLatest() error {
+func (s Sharer) stopped() error {
 	if s.Running == nil {
 		return ErrUnavailable
 	}
 	if s.Running() {
 		return ErrDesktopRunning
 	}
-	path, err := s.latestBackup()
-	if err != nil {
-		return err
-	}
-	data, err := os.ReadFile(path)
-	if err != nil {
-		return err
-	}
-	if !json.Valid(data) {
-		return ErrUnknownFormat
-	}
-	return s.edit(func([]byte) ([]byte, error) { return data, nil })
-}
-
-// edit rewrites the state file after a backup, refusing at the last moment
-// if the app was opened or the file changed, then mirrors the ".bak" copy.
-func (s Sharer) edit(fn func(old []byte) ([]byte, error)) error {
-	path := s.statePath()
-	var read, written []byte
-	err := platform.EditFileWithBackupChecked(path, s.backups(), s.now(), func(old []byte) ([]byte, error) {
-		read = old
-		out, err := fn(old)
-		written = out
-		return out, err
-	}, func() error {
-		if s.Running() {
-			return ErrDesktopRunning
-		}
-		if now, err := os.ReadFile(path); err != nil || !bytes.Equal(now, read) {
-			return errStateChanged
-		}
-		return nil
-	})
-	if err != nil || bytes.Equal(read, written) {
-		return err
-	}
-	// The app reads the copy only when the main file is unreadable, and
-	// rewrites both on its next save, so a stale copy is harmless.
-	_ = platform.WriteFileAtomic(path+".bak", written, 0o644)
 	return nil
-}
-
-func (s Sharer) latestBackup() (string, error) {
-	p := s.backups()
-	matches, err := filepath.Glob(filepath.Join(p.Dir, p.Prefix+"*"+p.Ext))
-	if err != nil {
-		return "", err
-	}
-	if len(matches) == 0 {
-		return "", ErrNoBackup
-	}
-	// Fixed-width UTC timestamps sort chronologically.
-	latest := matches[0]
-	for _, m := range matches[1:] {
-		latest = max(latest, m)
-	}
-	return latest, nil
-}
-
-type writtenState struct {
-	// Written maps a partition key to the fingerprint of the project values
-	// Share last left there.
-	Written map[string]string `json:"written"`
-}
-
-// loadWritten reads the fingerprints; an unreadable file counts as empty,
-// which only makes the next share merge instead of replace.
-func (s Sharer) loadWritten() map[string]string {
-	var f writtenState
-	if data, err := os.ReadFile(s.writtenPath()); err == nil {
-		_ = json.Unmarshal(data, &f)
-	}
-	if f.Written == nil {
-		f.Written = map[string]string{}
-	}
-	return f.Written
-}
-
-func (s Sharer) saveWritten(written map[string]string) error {
-	if err := platform.EnsurePrivateDirectory(s.Dir); err != nil {
-		return err
-	}
-	return platform.WriteFileAtomic(s.writtenPath(), encode(writtenState{Written: written}), 0o600)
 }

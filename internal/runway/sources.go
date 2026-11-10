@@ -105,9 +105,9 @@ type Sources struct {
 	RuntimeInspect  func(context.Context) (codexruntime.Snapshot, error)
 	RuntimeStop     func(context.Context, codexruntime.Snapshot) (codexruntime.Snapshot, error)
 	RuntimeStart    func(context.Context, codexruntime.Snapshot) (codexruntime.Snapshot, error)
-	// ShareDesktopProjects (optional) carries the desktop app's local projects
-	// into the partition of the account just installed; see codexdesktop.
-	ShareDesktopProjects func(codex.ManagedAccount) (codexdesktop.Outcome, error)
+	// PrepareDesktopProjects reads and validates the exact source before credentials change,
+	// returning the project write to apply after the credential commit.
+	PrepareDesktopProjects func(source, target codexdesktop.Owner) (func() (codexdesktop.Outcome, error), error)
 	// RefreshAccounts / RefreshAccount poll the quota of managed accounts.
 	// Results carry the account id and generation; Generations (shared with
 	// the refresher) lets the Service drop stale ones.
@@ -196,18 +196,28 @@ func NewLiveSources(cfg LiveConfig) Sources {
 			if err != nil {
 				return codexruntime.Identity{}, err
 			}
-			return runtimeTarget(codex.NewManagedAccount("", auth, 0, "", "", "", l.Now())), nil
+			account := codex.NewManagedAccount("", auth, 0, "", "", "", l.Now())
+			identity := runtimeTarget(account)
+			identity.UserID = account.UserID
+			return identity, nil
 		},
 		LegacyStop:     cfg.LegacyStop,
 		PrepareSwitch:  l.switcher.PrepareSwitch,
 		RuntimeInspect: runtimeClient.Inspect,
 		RuntimeStop:    runtimeClient.Stop,
 		RuntimeStart:   runtimeClient.Start,
-		ShareDesktopProjects: func(acc codex.ManagedAccount) (codexdesktop.Outcome, error) {
-			if acc.AuthMode == codex.AuthModeAPIKey {
-				return codexdesktop.Unchanged, nil
+		PrepareDesktopProjects: func(source, target codexdesktop.Owner) (func() (codexdesktop.Outcome, error), error) {
+			if cfg.DesktopSharer.Running == nil {
+				return func() (codexdesktop.Outcome, error) { return codexdesktop.Unsupported, nil }, nil
 			}
-			return cfg.DesktopSharer.Share(codexdesktop.Owner{UserID: acc.UserID, AccountID: acc.AccountID})
+			if cfg.DesktopSharer.Running() {
+				return nil, codexdesktop.ErrDesktopRunning
+			}
+			plan, err := cfg.DesktopSharer.Prepare(codexdesktop.Request{SourceKey: source.Key(), Target: target})
+			if err != nil {
+				return nil, err
+			}
+			return func() (codexdesktop.Outcome, error) { return cfg.DesktopSharer.Apply(plan) }, nil
 		},
 		RefreshAccounts: l.accounts.RefreshAll,
 		RefreshAccount:  l.accounts.Refresh,

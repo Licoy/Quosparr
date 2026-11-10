@@ -183,6 +183,7 @@ type accountForm struct {
 	selection          *accountSelection
 	restartAfterSwitch bool
 	runtimeApply       bool
+	recovery           *codexRecoveryDialog
 	shareProjects      bool
 	switchName         string
 	switchRelay        bool
@@ -265,6 +266,7 @@ func renderCodexAccounts(c *ui.Context, u *settingsUI, f *accountForm, rt *liveA
 	})
 	accountEditor(c, u, f)
 	accountSelectionEditor(c, u, f, rt)
+	codexRecoveryEntry(c, l, &f.recovery, rt, view, u.s.Prefs().AccountPrivacyModeEnabled, f.busy, u.post)
 	if len(rows) == 0 {
 		ui.Text(c, l.Text(l10n.KeyAccountsEmpty)).FontSize(12).TextColor(c.Theme().TextMuted)
 	}

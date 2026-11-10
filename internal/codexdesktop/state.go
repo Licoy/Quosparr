@@ -6,139 +6,144 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"reflect"
+	"sort"
 )
 
-// object is a JSON object whose values are kept verbatim.
 type object = map[string]json.RawMessage
+type partition struct {
+	Globals object `json:"globals"`
+	Atoms   object `json:"atoms"`
+}
+type state struct {
+	root, renderer, inactive object
+	owner                    string
+	original                 []byte
+}
 
-// shareState returns data with the owner's project keys written into the
-// target's partition, and the fingerprint of the target's project values.
-// Data comes back unchanged, with no fingerprint when nothing was shared,
-// if the app does not isolate accounts, nobody is signed in or the target is
-// already the owner. written holds the fingerprints of earlier shares.
-func shareState(data []byte, target string, written map[string]string) ([]byte, string, error) {
-	doc, ok := decodeObject(data)
-	if !ok || doc == nil {
-		return nil, "", ErrUnknownFormat
+func (s Sharer) readState() (*state, error) {
+	data, _, err := readRegular(s.statePath())
+	if err != nil {
+		return nil, err
 	}
-	raw, found := doc[rendererKey]
-	if !found {
-		return data, "", nil
+	root, ok := decodeObject(data)
+	if !ok || root == nil {
+		return nil, ErrUnknownFormat
 	}
-	renderer, ok := decodeObject(raw)
+	renderer, ok := decodeObject(root[rendererKey])
 	if !ok || renderer == nil {
-		return nil, "", ErrUnknownFormat
+		return nil, ErrUnknownFormat
+	}
+	inactive, ok := decodeObject(renderer["inactive"])
+	if !ok || inactive == nil {
+		return nil, ErrUnknownFormat
 	}
 	var owner *string
-	ownerRaw, hasOwner := renderer["owner"]
-	inactive, ok := decodeObject(renderer["inactive"])
-	if !hasOwner || json.Unmarshal(ownerRaw, &owner) != nil || !ok || inactive == nil {
-		return nil, "", ErrUnknownFormat
+	raw, found := renderer["owner"]
+	if !found || json.Unmarshal(raw, &owner) != nil {
+		return nil, ErrUnknownFormat
 	}
-	if owner == nil || *owner == target {
-		return data, "", nil
-	}
-	entry := object{}
-	if old, found := inactive[target]; found {
-		if entry, ok = decodeObject(old); !ok || entry == nil {
-			return nil, "", ErrUnknownFormat
+	key := ""
+	if owner != nil {
+		key = *owner
+		if key == "" {
+			return nil, ErrUnknownFormat
 		}
 	}
-	atoms, okAtoms := decodeObject(entry["atoms"])
-	globals, okGlobals := decodeObject(entry["globals"])
-	ownerAtoms, okOwner := decodeObject(doc[atomsKey])
-	if !okAtoms || !okGlobals || !okOwner {
-		return nil, "", ErrUnknownFormat
+	return &state{root, renderer, inactive, key, data}, nil
+}
+func (d *state) keys() []string {
+	keys := []string{}
+	if d.owner != "" {
+		keys = append(keys, d.owner)
 	}
-	atoms, globals = orEmpty(atoms), orEmpty(globals)
-	replace := written[target] != "" && written[target] == fingerprint(globals, atoms)
+	for key := range d.inactive {
+		if key != d.owner {
+			keys = append(keys, key)
+		}
+	}
+	sort.Strings(keys)
+	return keys
+}
+func (d *state) partition(key string) (partition, bool, error) {
+	empty := partition{object{}, object{}}
+	if key == d.owner && key != "" {
+		atoms, ok := decodeObject(d.root[atomsKey])
+		if !ok {
+			return empty, false, ErrUnknownFormat
+		}
+		globals := object{}
+		for k, v := range d.root {
+			if k != rendererKey && k != atomsKey {
+				globals[k] = v
+			}
+		}
+		return partition{globals, orEmpty(atoms)}, true, nil
+	}
+	raw, found := d.inactive[key]
+	if !found {
+		return empty, false, nil
+	}
+	entry, ok := decodeObject(raw)
+	if !ok || entry == nil {
+		return empty, false, ErrUnknownFormat
+	}
+	globals, gok := decodeObject(entry["globals"])
+	atoms, aok := decodeObject(entry["atoms"])
+	if !gok || !aok {
+		return empty, false, ErrUnknownFormat
+	}
+	return partition{orEmpty(globals), orEmpty(atoms)}, true, nil
+}
+func (d *state) setPartition(key string, p partition) {
+	if key == d.owner && key != "" {
+		for _, k := range projectGlobals {
+			delete(d.root, k)
+		}
+		for _, k := range projectGlobals {
+			if v, ok := p.Globals[k]; ok {
+				d.root[k] = v
+			}
+		}
+		d.root[atomsKey] = encode(p.Atoms)
+	} else {
+		entry, _ := decodeObject(d.inactive[key])
+		entry = orEmpty(entry)
+		entry["globals"], entry["atoms"] = encode(p.Globals), encode(p.Atoms)
+		d.inactive[key] = encode(entry)
+	}
+	d.renderer["inactive"] = encode(d.inactive)
+	d.root[rendererKey] = encode(d.renderer)
+}
+func digest(data []byte) string { sum := sha256.Sum256(data); return hex.EncodeToString(sum[:]) }
+func partitionPrint(p partition) string {
+	var value any
+	_ = json.Unmarshal(encode(relatedValues(p)), &value)
+	return digest(encode(value))
+}
+func sharedValues(p partition) partition {
+	out := partition{object{}, object{}}
 	for _, key := range projectGlobals {
-		carry(globals, key, doc, replace)
+		if v, ok := p.Globals[key]; ok {
+			out.Globals[key] = v
+		}
 	}
 	for _, key := range projectAtoms {
-		carry(atoms, key, ownerAtoms, replace)
-	}
-	if _, found := inactive[target]; !found && len(atoms) == 0 && len(globals) == 0 {
-		return data, "", nil
-	}
-	print := fingerprint(globals, atoms)
-	entry["atoms"], entry["globals"] = encode(atoms), encode(globals)
-	next := encode(entry)
-	if sameJSON(next, inactive[target]) {
-		return data, print, nil
-	}
-	inactive[target] = next
-	renderer["inactive"] = encode(inactive)
-	doc[rendererKey] = encode(renderer)
-	return encode(doc), print, nil
-}
-
-// fingerprint hashes the shared project values of a partition, independent
-// of key order and spacing.
-func fingerprint(globals, atoms object) string {
-	values := map[string]any{}
-	add := func(prefix string, from object, keys []string) {
-		for _, key := range keys {
-			var v any
-			if raw, ok := from[key]; ok && json.Unmarshal(raw, &v) == nil {
-				values[prefix+key] = v
-			}
+		if v, ok := p.Atoms[key]; ok {
+			out.Atoms[key] = v
 		}
 	}
-	add("globals/", globals, projectGlobals)
-	add("atoms/", atoms, projectAtoms)
-	data, _ := json.Marshal(values) // maps marshal with sorted keys
-	sum := sha256.Sum256(data)
-	return hex.EncodeToString(sum[:])
+	return out
 }
 
-// carry sets dst[key] from src: as is when replacing (a missing source value
-// removes it), otherwise merged with what dst already holds.
-func carry(dst object, key string, src object, replace bool) {
-	value, found := src[key]
-	switch {
-	case !found && replace:
-		delete(dst, key)
-	case !found:
-	case replace:
-		dst[key] = value
-	default:
-		dst[key] = union(value, dst[key])
+// projectless IDs are a validation input, never copied to another account.
+func relatedValues(p partition) partition {
+	out := sharedValues(p)
+	if raw, found := p.Globals["projectless-thread-ids"]; found {
+		out.Globals["projectless-thread-ids"] = raw
 	}
+	return out
 }
 
-// union merges two objects (src wins on a shared key) or two arrays (src
-// first, then dst's other items); any other pair yields src.
-func union(src, dst json.RawMessage) json.RawMessage {
-	if dst == nil {
-		return src
-	}
-	so, okS := decodeObject(src)
-	do, okD := decodeObject(dst)
-	if okS && okD && so != nil && do != nil {
-		for k, v := range so {
-			do[k] = v
-		}
-		return encode(do)
-	}
-	var sa, da []json.RawMessage
-	if json.Unmarshal(src, &sa) == nil && json.Unmarshal(dst, &da) == nil && sa != nil && da != nil {
-		seen := map[string]bool{}
-		for _, v := range sa {
-			seen[string(compact(v))] = true
-		}
-		for _, v := range da {
-			if !seen[string(compact(v))] {
-				sa = append(sa, v)
-			}
-		}
-		return encode(sa)
-	}
-	return src
-}
-
-// decodeObject reads a JSON object; a missing or null value is a nil map,
-// and anything else that is not an object fails.
 func decodeObject(raw json.RawMessage) (object, bool) {
 	if raw == nil {
 		return nil, true
@@ -149,35 +154,22 @@ func decodeObject(raw json.RawMessage) (object, bool) {
 	}
 	return o, true
 }
-
 func orEmpty(o object) object {
 	if o == nil {
 		return object{}
 	}
 	return o
 }
-
-// sameJSON compares two documents regardless of key order and spacing.
 func sameJSON(a, b []byte) bool {
 	var va, vb any
 	return json.Unmarshal(a, &va) == nil && json.Unmarshal(b, &vb) == nil && reflect.DeepEqual(va, vb)
 }
-
-func compact(raw json.RawMessage) []byte {
-	var buf bytes.Buffer
-	if json.Compact(&buf, raw) != nil {
-		return raw
-	}
-	return buf.Bytes()
-}
-
-// encode writes JSON without HTML escaping, as JavaScript's JSON.stringify.
 func encode(v any) []byte {
-	var buf bytes.Buffer
-	enc := json.NewEncoder(&buf)
+	var b bytes.Buffer
+	enc := json.NewEncoder(&b)
 	enc.SetEscapeHTML(false)
 	if err := enc.Encode(v); err != nil {
-		panic(err) // only maps, slices and raw JSON already validated are encoded
+		panic(err)
 	}
-	return bytes.TrimSuffix(buf.Bytes(), []byte("\n"))
+	return bytes.TrimSuffix(b.Bytes(), []byte("\n"))
 }

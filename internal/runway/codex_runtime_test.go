@@ -252,19 +252,24 @@ func TestCodexSwitchSharesDesktopProjectsBeforeRestart(t *testing.T) {
 		calls   []string
 	}{
 		{"disabled", false, codexdesktop.Shared, nil, "", []string{"prepare", "inspect", "stop", "write", "start"}},
-		{"shared", true, codexdesktop.Shared, nil, "projects_shared", []string{"prepare", "inspect", "stop", "write", "share", "start"}},
-		{"unchanged", true, codexdesktop.Unchanged, nil, "", []string{"prepare", "inspect", "stop", "write", "share", "start"}},
-		{"app_open", true, codexdesktop.Running, nil, "projects_running", []string{"prepare", "inspect", "stop", "write", "share", "start"}},
-		{"failed", true, "", errors.New("synthetic share failure"), "projects_failed", []string{"prepare", "inspect", "stop", "write", "share", "start"}},
+		{"shared", true, codexdesktop.Shared, nil, "projects_shared", []string{"prepare", "inspect", "stop", "prepare-share", "write", "share", "start"}},
+		{"unchanged", true, codexdesktop.Unchanged, nil, "", []string{"prepare", "inspect", "stop", "prepare-share", "write", "share", "start"}},
+		{"app_open", true, codexdesktop.Running, nil, "projects_running", []string{"prepare", "inspect", "stop", "prepare-share", "write", "share", "start"}},
+		{"partial", true, "", codexdesktop.ErrPartialWrite, "projects_partial", []string{"prepare", "inspect", "stop", "prepare-share", "write", "share", "start"}},
+		{"skipped", true, codexdesktop.SharedWithSkips, nil, "projects_shared_with_skips", []string{"prepare", "inspect", "stop", "prepare-share", "write", "share", "start"}},
+		{"failed", true, "", errors.New("synthetic share failure"), "projects_failed", []string{"prepare", "inspect", "stop", "prepare-share", "write", "share", "start"}},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			f := newFake(t)
 			af := newAccountFixture(t, f)
+			af.b.UserID = "target-user"
 			auth, _ := af.st.LoadCredential(af.b.ID)
 			calls := []string{}
+			official := codexruntime.Identity{UserID: "source-user", AccountID: af.a.AccountID}
 			current := codexruntime.Snapshot{Status: codexruntime.Running, Identity: runtimeTarget(af.b)}
 			commit := func() (codex.SwitchResult, error) {
 				calls = append(calls, "write")
+				official = runtimeTarget(af.b)
 				if err := af.st.SetActiveAccount(af.b.ID, t0); err != nil {
 					return codex.SwitchResult{}, err
 				}
@@ -293,22 +298,33 @@ func TestCodexSwitchSharesDesktopProjectsBeforeRestart(t *testing.T) {
 					current.Status = codexruntime.Running
 					return current, nil
 				}
-				o.Sources.ShareDesktopProjects = func(acc codex.ManagedAccount) (codexdesktop.Outcome, error) {
-					calls = append(calls, "share")
-					if acc.ID != af.b.ID {
-						t.Errorf("shared into %s, want the installed account", acc.ID)
+				o.Sources.RuntimeIdentity = func() (codexruntime.Identity, error) {
+					return official, nil
+				}
+				loadIndex := o.Sources.LoadIndex
+				o.Sources.LoadIndex = func() (codex.AccountIndex, error) {
+					idx, err := loadIndex()
+					for i := range idx.Accounts {
+						idx.Accounts[i].UserID = "target-user"
 					}
-					return tc.outcome, tc.err
+					return idx, err
+				}
+				o.Sources.PrepareDesktopProjects = func(source, target codexdesktop.Owner) (func() (codexdesktop.Outcome, error), error) {
+					calls = append(calls, "prepare-share")
+					if source.UserID != "source-user" || target.UserID != "target-user" || target.AccountID != af.b.AccountID {
+						t.Fatal("wrong source or target")
+					}
+					return func() (codexdesktop.Outcome, error) { calls = append(calls, "share"); return tc.outcome, tc.err }, nil
 				}
 			})
-			if err := s.SwitchAccountWithRestart(context.Background(), af.b.ID, true); err != nil {
-				t.Fatalf("a share outcome must not fail the switch: %v", err)
+			if err := s.SwitchAccountWithRestart(context.Background(), af.b.ID, true); (err != nil) != (tc.err != nil) {
+				t.Fatalf("switch error=%v", err)
 			}
 			if !reflect.DeepEqual(calls, tc.calls) {
 				t.Fatalf("calls %v want %v", calls, tc.calls)
 			}
 			settle(t, s)
-			if status := s.Snapshot().Accounts.Runtime; status.ProjectShare != tc.want || status.State != "matched" {
+			if status := s.Snapshot().Accounts.Runtime; status.ProjectShare != tc.want || status.State != "matched" || !status.FilesUpdated {
 				t.Fatalf("status=%+v", status)
 			}
 		})

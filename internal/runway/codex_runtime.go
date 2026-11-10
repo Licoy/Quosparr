@@ -51,12 +51,9 @@ func runtimeState(snapshot codexruntime.Snapshot, target codexruntime.Identity, 
 // switchCodexRuntime runs under both the switch flag and credential-operation lock.
 func (s *Service) switchCodexRuntime(ctx context.Context, id string, restart bool) (codex.SwitchResult, error) {
 	commit := func() (codex.SwitchResult, error) { return s.src.SwitchAccount(ctx, id) }
-	var stopped *codexruntime.Snapshot
-	var original codexruntime.Identity
-	var legacyStart func() error
 	if restart {
-		if s.src.PrepareSwitch == nil || s.src.RuntimeInspect == nil {
-			s.setRuntimeFailure("preflight_failed", false, "", nil)
+		if s.src.PrepareSwitch == nil {
+			s.setRuntimeState("preflight_failed", false, "")
 			return codex.SwitchResult{}, ErrCodexRuntime
 		}
 		prepared, err := s.src.PrepareSwitch(ctx, id)
@@ -65,107 +62,100 @@ func (s *Service) switchCodexRuntime(ctx context.Context, id string, restart boo
 			return codex.SwitchResult{}, err
 		}
 		commit = prepared
-		before, err := s.src.RuntimeInspect(ctx)
-		if (before.Status == codexruntime.Unsupported || before.Status == codexruntime.NotRunning) && s.src.LegacyStop != nil {
-			legacyStart, err = s.src.LegacyStop()
-			if err != nil {
-				s.setRuntimeFailure("stop_failed", false, "", err)
-				return codex.SwitchResult{}, ErrCodexRuntime
-			}
-			if before.Status == codexruntime.Unsupported && legacyStart == nil {
-				s.setRuntimeState("preflight_failed", false, "")
-				return codex.SwitchResult{}, ErrCodexRuntime
-			}
-		} else if err != nil || (before.Status != codexruntime.Running && before.Status != codexruntime.NotRunning) {
-			s.setRuntimeFailure("preflight_failed", false, "", err)
+	}
+	var source codexdesktop.Owner
+	share := ""
+	enabled := s.src.PrepareDesktopProjects != nil && s.Preferences().ShareCodexDesktopProjects
+	if enabled {
+		var err error
+		source, err = s.desktopIdentity()
+		if err != nil {
+			share = "projects_unsupported"
+			enabled = false
+		}
+	}
+	stopped := stoppedCodex{}
+	if restart {
+		var err error
+		stopped, err = s.stopCodex(ctx)
+		if err != nil {
+			s.setRuntimeFailure(stopped.failure, false, "", err)
 			return codex.SwitchResult{}, ErrCodexRuntime
 		}
-		if before.Status == codexruntime.Running {
-			if s.src.RuntimeStop == nil || s.src.RuntimeStart == nil {
-				s.setRuntimeState("preflight_failed", false, "")
-				return codex.SwitchResult{}, ErrCodexRuntime
+	}
+	if enabled {
+		current, err := s.desktopIdentity()
+		if err != nil || current != source {
+			_, recoveryErr := stopped.restore(s, ctx)
+			if recoveryErr != nil {
+				s.setRuntimeFailure("recovery_failed", false, "", recoveryErr)
+			} else {
+				s.setRuntimeState("projects_prepare_failed", false, "")
 			}
-			after, err := s.src.RuntimeStop(ctx, before)
-			if err != nil || after.Status != codexruntime.NotRunning {
-				s.setRuntimeFailure("stop_failed", false, "", err)
-				return codex.SwitchResult{}, ErrCodexRuntime
+			return codex.SwitchResult{}, errors.Join(ErrDesktopProjects, ErrDesktopProjectTargetChanged, recoveryErr)
+		}
+	}
+	var apply func() (codexdesktop.Outcome, error)
+	if enabled {
+		s.mu.Lock()
+		account, ok := s.index.Account(id)
+		s.mu.Unlock()
+		target := codexdesktop.Owner{UserID: account.UserID, AccountID: account.AccountID}
+		if !ok || account.AuthMode == codex.AuthModeAPIKey || target.UserID == "" || target.AccountID == "" {
+			share = "projects_unsupported"
+		} else {
+			var err error
+			apply, err = s.src.PrepareDesktopProjects(source, target)
+			if err == nil && apply == nil {
+				err = ErrDesktopProjects
 			}
-			stopped = &after
-			original = before.Identity
+			if errors.Is(err, codexdesktop.ErrDesktopRunning) && !restart {
+				share = "projects_running"
+				apply = nil
+			} else if err != nil {
+				_, recoveryErr := stopped.restore(s, ctx)
+				if recoveryErr != nil {
+					s.setRuntimeFailure("recovery_failed", false, "", recoveryErr)
+				} else {
+					s.setRuntimeState("projects_prepare_failed", false, "")
+				}
+				s.setProjectShare(projectShareState("", err))
+				return codex.SwitchResult{}, errors.Join(ErrDesktopProjects, recoveryErr)
+			}
+		}
+	}
+	if enabled {
+		current, err := s.desktopIdentity()
+		if err != nil || current != source {
+			_, recoveryErr := stopped.restore(s, ctx)
+			if recoveryErr != nil {
+				s.setRuntimeFailure("recovery_failed", false, "", recoveryErr)
+			} else {
+				s.setRuntimeState("projects_prepare_failed", false, "")
+			}
+			return codex.SwitchResult{}, errors.Join(ErrDesktopProjects, ErrDesktopProjectTargetChanged, recoveryErr)
 		}
 	}
 	result, err := commit()
 	if err != nil {
-		state := "credential_failed"
-		var recoveryFailure error
-		if stopped != nil {
-			// Cancellation of the requested switch must not prevent restoration.
-			recovery, cancel := context.WithTimeout(context.WithoutCancel(ctx), 15*time.Second)
-			recovered, recoveryErr := s.src.RuntimeStart(recovery, *stopped)
-			cancel()
-			switch {
-			case recoveryErr != nil || recovered.Status != codexruntime.Running:
-				state = "recovery_failed"
-				recoveryFailure = recoveryErr
-			case recovered.Compare(original) != codexruntime.Matched:
-				state = "write_failed_restarted_unverified"
-			default:
-				state = "write_failed_recovered"
-			}
-		}
-		if legacyStart != nil {
-			if recoveryErr := legacyStart(); recoveryErr != nil {
-				state = "recovery_failed"
-				recoveryFailure = recoveryErr
-			} else {
-				state = "write_failed_restarted_unverified"
-			}
-		}
+		state, recoveryErr := stopped.restore(s, ctx)
 		if errors.Is(err, codex.ErrRollbackFailed) {
 			state = "rollback_failed"
 		}
-		s.setRuntimeFailure(state, false, "", recoveryFailure)
+		s.setRuntimeFailure(state, false, "", recoveryErr)
 		return result, err
 	}
-
-	// The desktop app is closed now, if it is going to be restarted at all.
-	share := s.shareDesktopProjects(result.Account)
-	defer s.setProjectShare(share)
-	target := runtimeTargetKey(result.Account)
-	if legacyStart != nil {
-		state := "legacy_unverified"
-		if err := legacyStart(); err != nil {
-			state = "start_failed"
-		}
-		s.setRuntimeState(state, true, target)
-	} else if stopped != nil {
-		snapshot, startErr := s.src.RuntimeStart(ctx, *stopped)
-		if startErr != nil {
-			s.setRuntimeFailure("start_failed", true, target, startErr)
-		} else {
-			s.recordRuntimeSnapshot(snapshot, result.Account, nil)
-		}
-	} else if s.src.RuntimeInspect != nil {
-		snapshot, inspectErr := s.src.RuntimeInspect(ctx)
-		s.recordRuntimeSnapshot(snapshot, result.Account, inspectErr)
-	} else {
-		s.setRuntimeState("unverified", true, target)
+	var shareErr error
+	if apply != nil {
+		outcome, err := apply()
+		share, shareErr = projectShareState(outcome, err), err
+	}
+	stopped.start(s, ctx, result.Account)
+	s.setProjectShare(share)
+	if shareErr != nil {
+		return result, ErrDesktopProjects
 	}
 	return result, nil
-}
-
-func (s *Service) shareDesktopProjects(account codex.ManagedAccount) string {
-	if s.src.ShareDesktopProjects == nil || !s.Preferences().ShareCodexDesktopProjects {
-		return ""
-	}
-	outcome, err := s.src.ShareDesktopProjects(account)
-	switch {
-	case err != nil:
-		return "projects_failed"
-	case outcome == codexdesktop.Unchanged:
-		return ""
-	}
-	return "projects_" + string(outcome)
 }
 
 func (s *Service) setProjectShare(state string) {

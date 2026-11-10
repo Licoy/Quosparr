@@ -62,6 +62,7 @@ type accountsState struct {
 	page           store.Provider
 
 	// Pending confirmations, by account id.
+	recovery      *codexRecoveryDialog
 	desktop       *desktopDialog
 	desktopSwitch bool
 	switchID      string
@@ -84,6 +85,9 @@ type accountsState struct {
 func (s *accountsState) closePage() {
 	if s.desktop != nil {
 		s.desktop.close()
+	}
+	if s.recovery != nil && !s.recovery.busy {
+		s.recovery = nil
 	}
 	s.desktopSwitch = false
 	s.runtimeApply = false

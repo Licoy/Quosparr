@@ -51,6 +51,16 @@ func runCodexRestart(apps []runningApp, fallback string, open func(string) error
 
 func prepareCodexRestart(apps []runningApp, fallback string, open func(string) error) (func() error, error) {
 	path := fallback
+	stopped := false
+	start := func() error {
+		if path == "" {
+			return errRestartCodex
+		}
+		if err := open(path); err != nil {
+			return errRestartCodex
+		}
+		return nil
+	}
 	for _, app := range apps {
 		if app.release != nil {
 			defer app.release()
@@ -62,18 +72,17 @@ func prepareCodexRestart(apps []runningApp, fallback string, open func(string) e
 			path = app.path
 		}
 		if !stopApp(app, 3*time.Second) {
+			if stopped {
+				return start, errRestartCodex
+			}
 			return nil, errRestartCodex
 		}
+		stopped = true
 	}
 	if path == "" {
 		return nil, errRestartCodex
 	}
-	return func() error {
-		if err := open(path); err != nil {
-			return errRestartCodex
-		}
-		return nil
-	}, nil
+	return start, nil
 }
 
 func rtSwitchCodex(l l10n.Localizer, id string, restartAfter bool) string {

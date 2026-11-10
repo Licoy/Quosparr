@@ -1,309 +1,197 @@
 package codexdesktop
 
 import (
-	"encoding/json"
+	"bytes"
 	"errors"
 	"os"
 	"path/filepath"
 	"reflect"
 	"testing"
-	"time"
+
+	"github.com/licoy/quosparr/internal/platform"
 )
-
-var (
-	alice = Owner{UserID: "user-alice", AccountID: "acct-a"}
-	bob   = Owner{UserID: "user-bob", AccountID: "acct-b"}
-	t0    = time.Date(2026, 11, 7, 12, 0, 0, 0, time.UTC)
-)
-
-type fixture struct {
-	t       *testing.T
-	sharer  Sharer
-	running bool
-}
-
-func newFixture(t *testing.T) *fixture {
-	root := t.TempDir()
-	f := &fixture{t: t}
-	clock := t0
-	f.sharer = Sharer{
-		CodexHome: filepath.Join(root, "codex"),
-		Dir:       filepath.Join(root, "quosparr", "codex-desktop"),
-		Running:   func() bool { return f.running },
-		Now:       func() time.Time { clock = clock.Add(time.Second); return clock },
-	}
-	if err := os.MkdirAll(f.sharer.CodexHome, 0o700); err != nil {
-		t.Fatal(err)
-	}
-	return f
-}
-
-func (f *fixture) write(doc map[string]any) {
-	f.t.Helper()
-	data, err := json.Marshal(doc)
-	if err != nil {
-		f.t.Fatal(err)
-	}
-	if err := os.WriteFile(f.sharer.statePath(), data, 0o644); err != nil {
-		f.t.Fatal(err)
-	}
-}
-
-func (f *fixture) read() map[string]any {
-	f.t.Helper()
-	data, err := os.ReadFile(f.sharer.statePath())
-	if err != nil {
-		f.t.Fatal(err)
-	}
-	var doc map[string]any
-	if err := json.Unmarshal(data, &doc); err != nil {
-		f.t.Fatal(err)
-	}
-	return doc
-}
-
-func (f *fixture) share(target Owner) Outcome {
-	f.t.Helper()
-	got, err := f.sharer.Share(target)
-	if err != nil {
-		f.t.Fatal(err)
-	}
-	return got
-}
-
-// partition returns the stashed globals and atoms of o.
-func partition(t *testing.T, doc map[string]any, o Owner) (globals, atoms map[string]any) {
-	t.Helper()
-	renderer := doc[rendererKey].(map[string]any)
-	entry, ok := renderer["inactive"].(map[string]any)[o.Key()].(map[string]any)
-	if !ok {
-		t.Fatalf("no partition for %s", o.UserID)
-	}
-	return entry["globals"].(map[string]any), entry["atoms"].(map[string]any)
-}
-
-// aliceActive is Alice's state at the top level, Bob's stashed.
-func aliceActive(bobGlobals map[string]any) map[string]any {
-	inactive := map[string]any{}
-	if bobGlobals != nil {
-		inactive[bob.Key()] = map[string]any{"atoms": map[string]any{"thread-sort-key": "bob"}, "globals": bobGlobals}
-	}
-	return map[string]any{
-		rendererKey:         map[string]any{"owner": alice.Key(), "inactive": inactive},
-		"local-projects":    map[string]any{"p1": map[string]any{"id": "p1", "rootPaths": []string{"/w/one"}}},
-		"project-order":     []string{"p1"},
-		"remote-projects":   []any{map[string]any{"hostId": "h"}},
-		"queued-follow-ups": map[string]any{"t": []any{}},
-		"opaqueWindows":     true,
-		atomsKey: map[string]any{
-			"unified-sidebar-project-order-v1": []string{"p1"},
-			"sidebar-collapsed-sections-v1":    map[string]any{"chats": true},
-		},
-	}
-}
 
 func TestOwnerKeyMatchesDesktopApp(t *testing.T) {
-	// sha256 of the JavaScript JSON.stringify(["user-alice","acct-a"]).
-	if got := alice.Key(); got != "a4515b3f87fe32de6cea9d6e7591c4efd6ac44581c64240d12c1e50f410911db" {
-		t.Fatalf("key = %s", got)
+	if alice.Key() != "a4515b3f87fe32de6cea9d6e7591c4efd6ac44581c64240d12c1e50f410911db" {
+		t.Fatal("wrong partition hash")
 	}
 	if string(encode([]string{"<a>&", "b"})) != `["<a>&","b"]` {
-		t.Fatal("identity JSON is HTML-escaped unlike JSON.stringify")
+		t.Fatal("escaped identity JSON")
 	}
 }
-
-func TestShareCreatesTargetPartitionWithOnlyProjectKeys(t *testing.T) {
+func TestPrepareReadOnlyAndShareLocalOnly(t *testing.T) {
 	f := newFixture(t)
-	f.write(aliceActive(nil))
-	if got := f.share(bob); got != Shared {
-		t.Fatalf("outcome %q", got)
+	doc := f.active(nil)
+	doc["app-server-pending-project-deletions-by-host"] = map[string]any{"local": []string{"p1"}}
+	f.write(doc)
+	before, _ := os.ReadFile(f.sharer.statePath())
+	p, err := f.sharer.Prepare(Request{alice.Key(), bob})
+	must(t, err)
+	if p.Summary.Projects != 1 {
+		t.Fatalf("summary=%+v", p.Summary)
 	}
-	doc := f.read()
-	globals, atoms := partition(t, doc, bob)
-	if !reflect.DeepEqual(globals["local-projects"], doc["local-projects"]) || !reflect.DeepEqual(globals["project-order"], []any{"p1"}) {
-		t.Fatalf("projects not carried: %v", globals)
+	after, _ := os.ReadFile(f.sharer.statePath())
+	if !bytes.Equal(before, after) || len(f.backups()) != 0 {
+		t.Fatal("preview wrote files")
 	}
-	for _, private := range []string{"remote-projects", "queued-follow-ups", "opaqueWindows"} {
-		if _, ok := globals[private]; ok {
-			t.Errorf("%s crossed accounts", private)
+	got, err := f.sharer.Apply(p)
+	must(t, err)
+	if got != Shared {
+		t.Fatal(got)
+	}
+	target := f.target()
+	if !hasProject(target, "p1") {
+		t.Fatal("project missing")
+	}
+	for _, private := range []string{"remote-projects", "theme", "app-server-pending-project-deletions-by-host"} {
+		if target.Globals[private] != nil {
+			t.Fatal("private field copied", private)
 		}
 	}
-	if !reflect.DeepEqual(atoms, map[string]any{"unified-sidebar-project-order-v1": []any{"p1"}}) {
-		t.Fatalf("atoms = %v", atoms)
+	if !sameJSON(target.Atoms["unified-sidebar-project-order-v1"], encode([]string{"codex:project:p1"})) {
+		t.Fatalf("unsafe sidebar %s", target.Atoms["unified-sidebar-project-order-v1"])
 	}
-	if renderer := doc[rendererKey].(map[string]any); renderer["owner"] != alice.Key() {
-		t.Fatal("owner changed")
-	}
-	if backups, _ := filepath.Glob(filepath.Join(f.sharer.Dir, "backups", "*")); len(backups) != 1 {
-		t.Fatalf("backups = %v", backups)
+	projects, _ := decodeObject(target.Globals["local-projects"])
+	item, _ := decodeObject(projects["p1"])
+	if !sameJSON(item["createdAt"], encode(12)) || !sameJSON(item["updatedAt"], encode(15)) {
+		t.Fatal("project timestamps lost")
 	}
 	bak, err := os.ReadFile(f.sharer.statePath() + ".bak")
-	if main, _ := os.ReadFile(f.sharer.statePath()); err != nil || string(bak) != string(main) {
-		t.Fatal("the .bak copy does not mirror the state file")
+	must(t, err)
+	main, _ := os.ReadFile(f.sharer.statePath())
+	if !bytes.Equal(bak, main) {
+		t.Fatal("bak differs")
+	}
+	for _, path := range []string{filepath.Join(f.backups()[0], "state.json"), filepath.Join(f.backups()[0], "undo.json")} {
+		must(t, platform.VerifyOwnerOnly(path, 0o600))
+	}
+	if f.share() != Unchanged || len(f.backups()) != 1 {
+		t.Fatal("second share changed data")
 	}
 }
-
-func TestFirstShareMergesThenReplacesWhatItWrote(t *testing.T) {
-	f := newFixture(t)
-	f.write(aliceActive(map[string]any{
-		"local-projects":  map[string]any{"p2": map[string]any{"id": "p2"}},
-		"project-order":   []string{"p2"},
-		"remote-projects": []any{"bob-host"},
-	}))
-	f.share(bob)
-	globals, atoms := partition(t, f.read(), bob)
-	if got := globals["local-projects"].(map[string]any); len(got) != 2 {
-		t.Fatalf("merge lost projects: %v", got)
-	}
-	if !reflect.DeepEqual(globals["project-order"], []any{"p1", "p2"}) || !reflect.DeepEqual(globals["remote-projects"], []any{"bob-host"}) {
-		t.Fatalf("globals = %v", globals)
-	}
-	if atoms["thread-sort-key"] != "bob" {
-		t.Fatal("bob's own atoms were dropped")
-	}
-
-	// Bob's partition is still what Share wrote: Alice removed p1, Bob follows.
-	doc := aliceActive(nil)
-	doc[rendererKey] = f.read()[rendererKey]
-	doc["local-projects"] = map[string]any{}
-	delete(doc, "project-order")
-	f.write(doc)
-	f.share(bob)
-	globals, _ = partition(t, f.read(), bob)
-	if len(globals["local-projects"].(map[string]any)) != 0 {
-		t.Fatalf("removed project survived: %v", globals["local-projects"])
-	}
-	if _, ok := globals["project-order"]; ok {
-		t.Fatal("a key the owner no longer has was kept")
-	}
-	if !reflect.DeepEqual(globals["remote-projects"], []any{"bob-host"}) {
-		t.Fatal("isolated key was touched")
-	}
-}
-
-func TestShareMergesAfterTargetChangedOnItsOwn(t *testing.T) {
-	f := newFixture(t)
-	f.write(aliceActive(nil))
-	f.share(bob)
-
-	// Bob added p3 in a session that was not shared back.
-	doc := f.read()
-	renderer := doc[rendererKey].(map[string]any)
-	entry := renderer["inactive"].(map[string]any)[bob.Key()].(map[string]any)
-	entry["globals"].(map[string]any)["local-projects"].(map[string]any)["p3"] = map[string]any{"id": "p3"}
-	f.write(doc)
-	f.share(bob)
-	globals, _ := partition(t, f.read(), bob)
-	if got := globals["local-projects"].(map[string]any); len(got) != 2 || got["p3"] == nil {
-		t.Fatalf("bob's own project was replaced away: %v", got)
-	}
-}
-
-func TestShareLeavesStateAlone(t *testing.T) {
-	signedOut := aliceActive(nil)
-	signedOut[rendererKey] = map[string]any{"owner": nil, "inactive": map[string]any{}}
-	legacy := aliceActive(nil)
-	delete(legacy, rendererKey)
-	for name, tc := range map[string]struct {
-		doc     map[string]any
-		target  Owner
-		running bool
-		want    Outcome
-	}{
-		"target is owner": {aliceActive(nil), alice, false, Unchanged},
-		"signed out":      {signedOut, bob, false, Unchanged},
-		"no isolation":    {legacy, bob, false, Unchanged},
-		"app running":     {aliceActive(nil), bob, true, Running},
-		"no identity":     {aliceActive(nil), Owner{AccountID: "acct-b"}, false, Unsupported},
-		"unknown format":  {map[string]any{rendererKey: map[string]any{"owner": 3, "inactive": map[string]any{}}}, bob, false, Unsupported},
-	} {
-		t.Run(name, func(t *testing.T) {
+func TestExplicitSourceAcrossPartitionLocations(t *testing.T) {
+	for _, owner := range []string{"", bob.Key(), alice.Key()} {
+		t.Run(owner, func(t *testing.T) {
 			f := newFixture(t)
-			f.write(tc.doc)
-			before, _ := os.ReadFile(f.sharer.statePath())
-			f.running = tc.running
-			if got := f.share(tc.target); got != tc.want {
-				t.Fatalf("outcome %q, want %q", got, tc.want)
+			doc := f.active(nil)
+			if owner != alice.Key() {
+				moveOwner(doc, owner)
 			}
-			after, _ := os.ReadFile(f.sharer.statePath())
-			if string(before) != string(after) {
-				t.Fatal("state file changed")
-			}
-			if backups, _ := filepath.Glob(filepath.Join(f.sharer.Dir, "backups", "*")); len(backups) != 0 {
-				t.Fatal("backup made without a change")
+			f.write(doc)
+			if f.share() != Shared || !hasProject(f.target(), "p1") {
+				t.Fatal("source/target location was mistaken")
 			}
 		})
 	}
-	t.Run("missing file", func(t *testing.T) {
-		f := newFixture(t)
-		if got := f.share(bob); got != Unchanged {
-			t.Fatalf("outcome %q", got)
-		}
-		if _, err := os.Stat(f.sharer.statePath()); !errors.Is(err, os.ErrNotExist) {
-			t.Fatal("state file was created")
-		}
-	})
-	t.Run("undetectable app", func(t *testing.T) {
-		f := newFixture(t)
-		f.write(aliceActive(nil))
-		f.sharer.Running = nil
-		if got := f.share(bob); got != Unsupported {
-			t.Fatalf("outcome %q", got)
-		}
-	})
 }
-
-func TestSecondShareIsANoOp(t *testing.T) {
+func TestAdditiveMergePreservesHostMappingsAndSettings(t *testing.T) {
 	f := newFixture(t)
-	f.write(aliceActive(nil))
-	f.share(bob)
-	if got := f.share(bob); got != Unchanged {
-		t.Fatalf("outcome %q", got)
+	target := f.globals("p2")
+	target["theme"] = "bob-theme"
+	f.write(f.active(target))
+	f.share()
+	p := f.target()
+	if !hasProject(p, "p1") || !hasProject(p, "p2") {
+		t.Fatal("project lost")
 	}
-	if backups, _ := filepath.Glob(filepath.Join(f.sharer.Dir, "backups", "*")); len(backups) != 1 {
-		t.Fatalf("backups = %d", len(backups))
+	hosts, _ := decodeObject(p.Globals["app-server-project-id-by-legacy-project-id-by-host"])
+	mapping, _ := decodeObject(hosts["local:"+f.sharer.CodexHome])
+	if len(mapping) != 2 {
+		t.Fatal("host mapping overwritten")
+	}
+	if !sameJSON(p.Globals["theme"], encode("bob-theme")) || !sameJSON(p.Atoms["thread-sort-key"], encode("bob")) {
+		t.Fatal("target settings changed")
+	}
+	doc := f.read()
+	doc["local-projects"] = map[string]any{}
+	delete(doc, "project-order")
+	f.write(doc)
+	f.share()
+	if !hasProject(f.target(), "p1") || !hasProject(f.target(), "p2") {
+		t.Fatal("source deletion propagated")
 	}
 }
-
-func TestShareRefusesWhenAppOpensBeforeWrite(t *testing.T) {
-	f := newFixture(t)
-	f.write(aliceActive(nil))
-	before, _ := os.ReadFile(f.sharer.statePath())
-	calls := 0
-	f.sharer.Running = func() bool { calls++; return calls > 1 }
-	if got := f.share(bob); got != Running {
-		t.Fatalf("outcome %q", got)
-	}
-	if after, _ := os.ReadFile(f.sharer.statePath()); string(after) != string(before) {
-		t.Fatal("state written while the app was open")
+func TestProjectAndMappingConflicts(t *testing.T) {
+	for _, kind := range []string{"roots", "mapping", "cloud"} {
+		t.Run(kind, func(t *testing.T) {
+			f := newFixture(t)
+			target := f.globals("p1")
+			switch kind {
+			case "roots":
+				target["local-projects"].(map[string]any)["p1"].(map[string]any)["rootPaths"] = []string{f.roots["p2"]}
+			case "mapping":
+				target["app-server-project-id-by-legacy-project-id-by-host"].(map[string]any)["local:"+f.sharer.CodexHome].(map[string]any)["p1"] = "different"
+			case "cloud":
+				target["local-projects"].(map[string]any)["p1"].(map[string]any)["chatGptBacking"] = map[string]any{"id": "secret"}
+			}
+			f.write(f.active(target))
+			before, _ := os.ReadFile(f.sharer.statePath())
+			_, err := f.sharer.Prepare(Request{alice.Key(), bob})
+			if !errors.Is(err, ErrConflict) {
+				t.Fatalf("err=%v", err)
+			}
+			after, _ := os.ReadFile(f.sharer.statePath())
+			if !bytes.Equal(before, after) {
+				t.Fatal("conflict wrote data")
+			}
+		})
 	}
 }
-
-func TestRestoreLatestUndoesShare(t *testing.T) {
+func TestCloudProjectsNeverCrossAccounts(t *testing.T) {
+	for _, field := range []string{"chatGptBacking", "chatGptBackingCreation", "retiredChatGptBacking", "chatGptBackingRecoveryPending", "g-p-"} {
+		t.Run(field, func(t *testing.T) {
+			f := newFixture(t)
+			doc := f.active(nil)
+			id := "p1"
+			if field == "g-p-" {
+				id = "g-p-mirror"
+				doc["local-projects"] = map[string]any{id: map[string]any{"id": id}}
+			} else {
+				doc["local-projects"].(map[string]any)[id].(map[string]any)[field] = true
+			}
+			f.write(doc)
+			p, err := f.sharer.Prepare(Request{alice.Key(), bob})
+			must(t, err)
+			if p.Summary.Projects != 0 || p.Summary.Skipped != 1 || !reflect.DeepEqual(p.Summary.Reasons, []string{"cloud_project"}) {
+				t.Fatalf("%+v", p.Summary)
+			}
+			got, err := f.sharer.Apply(p)
+			must(t, err)
+			if got != Unchanged {
+				t.Fatal("cloud project shared")
+			}
+		})
+	}
+}
+func TestThreadValidationAndIsolation(t *testing.T) {
 	f := newFixture(t)
-	if err := f.sharer.RestoreLatest(); !errors.Is(err, ErrNoBackup) {
-		t.Fatalf("err = %v", err)
+	doc := f.active(nil)
+	assignment := func(project, kind string) map[string]any {
+		return map[string]any{"projectId": project, "projectKind": kind, "hostId": "local"}
 	}
-	f.write(aliceActive(nil))
-	original, _ := os.ReadFile(f.sharer.statePath())
-	f.share(bob)
-	f.running = true
-	if err := f.sharer.RestoreLatest(); !errors.Is(err, ErrDesktopRunning) {
-		t.Fatalf("err = %v", err)
+	doc["thread-project-assignments"] = map[string]any{"t1": assignment("p1", "local"), "missing": assignment("p1", "local"), "projectless": assignment("p1", "local"), "t2": assignment("p1", "remote")}
+	doc["thread-project-membership-host-ids"] = map[string]any{"t1": "local"}
+	doc["projectless-thread-ids"] = []string{"projectless"}
+	doc["pinned-thread-ids"] = []string{"t1", "missing", "projectless", "t2"}
+	doc["sidebar-project-thread-orders"] = map[string]any{"p1": []string{"t1", "missing", "t2"}}
+	f.write(doc)
+	p, err := f.sharer.Prepare(Request{alice.Key(), bob})
+	must(t, err)
+	if p.Summary.Threads != 1 || p.Summary.Skipped != 3 {
+		t.Fatalf("%+v", p.Summary)
 	}
-	f.running = false
-	if err := f.sharer.RestoreLatest(); err != nil {
-		t.Fatal(err)
+	_, err = f.sharer.Apply(p)
+	must(t, err)
+	target := f.target()
+	assignments, _ := decodeObject(target.Globals["thread-project-assignments"])
+	if len(assignments) != 1 || assignments["t1"] == nil {
+		t.Fatal("invalid chat copied")
 	}
-	if restored, _ := os.ReadFile(f.sharer.statePath()); string(restored) != string(original) {
-		t.Fatal("restore did not bring back the original state")
+	if !sameJSON(target.Globals["pinned-thread-ids"], encode([]string{"t1"})) {
+		t.Fatal("invalid pinned chat")
 	}
-	if bak, _ := os.ReadFile(f.sharer.statePath() + ".bak"); string(bak) != string(original) {
-		t.Fatal("restore did not mirror the .bak copy")
+	orders, _ := decodeObject(target.Globals["sidebar-project-thread-orders"])
+	if !sameJSON(orders["p1"], encode([]string{"t1"})) {
+		t.Fatal("invalid chat order")
 	}
-	// The shared state was backed up, so restoring again undoes the restore.
-	if err := f.sharer.RestoreLatest(); err != nil {
-		t.Fatal(err)
-	}
-	partition(t, f.read(), bob)
 }
