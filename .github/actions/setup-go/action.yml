@@ -1,0 +1,32 @@
+name: Set up Go with a rolling build cache
+description: >-
+  setup-go keys its cache on go.sum alone and never saves over an exact hit, so
+  the build cache froze at the last dependency change and every later commit
+  recompiled more. This keys on the commit and restores the newest earlier
+  cache, so each run starts from its predecessor's build output.
+inputs:
+  cache-job:
+    description: CI job whose cache to share; defaults to the current job
+    default: ""
+runs:
+  using: composite
+  steps:
+    - uses: actions/setup-go@v6
+      with:
+        go-version-file: go.mod
+        cache: false
+    - id: dirs
+      shell: bash
+      run: |
+        {
+          echo 'paths<<EOF'
+          go env GOCACHE GOMODCACHE
+          echo EOF
+        } >> "$GITHUB_OUTPUT"
+    - uses: actions/cache@v6
+      with:
+        path: ${{ steps.dirs.outputs.paths }}
+        key: go-${{ inputs.cache-job || github.job }}-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('go.mod', 'go.sum') }}-${{ github.sha }}
+        restore-keys: |
+          go-${{ inputs.cache-job || github.job }}-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('go.mod', 'go.sum') }}-
+          go-${{ inputs.cache-job || github.job }}-${{ runner.os }}-${{ runner.arch }}-

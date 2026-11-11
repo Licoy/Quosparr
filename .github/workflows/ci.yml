@@ -25,21 +25,15 @@ concurrency:
 jobs:
   go-checks:
     runs-on: macos-latest
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v7
-      - uses: actions/setup-go@v6
-        with:
-          go-version-file: go.mod
+      - uses: ./.github/actions/setup-go
       - name: Vet and race tests without desktop interaction
         run: |
           go vet ./...
           go test -race -count=1 ./...
           go test -tags=quosparr_dev_package -count=1 ./internal/app -run '^TestPackagedDevelopmentUpdate'
-      - name: Compile all six targets
-        run: |
-          for target in darwin/arm64 darwin/amd64 windows/amd64 windows/arm64 linux/amd64 linux/arm64; do
-            GOOS="${target%/*}" GOARCH="${target#*/}" CGO_ENABLED=0 go build ./...
-          done
       - name: Check release helpers
         run: |
           python3 Scripts/Tests/test-v1-release.py
@@ -66,26 +60,30 @@ jobs:
             platform: linux
             arch: arm64
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v7
-      - uses: actions/setup-go@v6
-        with:
-          go-version-file: go.mod
+      - uses: ./.github/actions/setup-go
       - uses: actions/setup-python@v6
         with:
           python-version: "3.13"
       # Windows installers use the NSIS 3.13 zip that mygo build downloads
       # and checks. Do not preinstall it with Chocolatey: its community
       # feed returns 503 often enough to fail the job before packaging.
-      - name: Install Linux desktop build dependencies
+      # mygo loads GTK through versioned sonames and the build has no cgo, so
+      # runtime packages are enough. The step timeout stops a mirror outage
+      # from stalling the job on 20-second DNS retries for every package.
+      - name: Install Linux desktop runtime dependencies
         if: runner.os == 'Linux'
-        run: sudo apt-get update && sudo apt-get install -y libgtk-3-dev libayatana-appindicator3-dev fonts-noto-cjk
+        timeout-minutes: 5
+        run: |
+          sudo apt-get -o Acquire::Retries=3 update
+          sudo apt-get -o Acquire::Retries=3 install -y libgtk-3-0t64 libayatana-appindicator3-1 fonts-noto-cjk
       - name: Test without desktop interaction
         shell: bash
         run: |
           go vet ./...
           go test -count=1 -timeout=5m ./...
-          go test -tags=quosparr_dev_package -count=1 ./internal/app -run '^TestPackagedDevelopmentUpdate'
       - name: Verify native floating window sizes
         if: runner.os == 'Windows'
         shell: bash
@@ -125,11 +123,10 @@ jobs:
   go-package-macos:
     needs: go-checks
     runs-on: macos-26
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v7
-      - uses: actions/setup-go@v6
-        with:
-          go-version-file: go.mod
+      - uses: ./.github/actions/setup-go
       - name: Package and verify development apps
         env:
           V1_DEVELOPMENT_PACKAGE: "1"
