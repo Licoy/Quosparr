@@ -19,10 +19,12 @@ type CommandRunner interface {
 
 // KeychainStore is the macOS generic-password item Claude Code uses.
 // Service and Account are injectable. A nil Runner uses /usr/bin/security.
+// A zero Timeout bounds each invocation by securityTimeout.
 type KeychainStore struct {
 	Service string
 	Account string
 	Runner  CommandRunner
+	Timeout time.Duration
 }
 
 const (
@@ -70,7 +72,11 @@ func (k KeychainStore) withTimeout(ctx context.Context) (context.Context, contex
 	if ctx == nil {
 		ctx = context.Background()
 	}
-	return context.WithTimeout(ctx, securityTimeout)
+	timeout := k.Timeout
+	if timeout <= 0 {
+		timeout = securityTimeout
+	}
+	return context.WithTimeout(ctx, timeout)
 }
 
 // Load runs `find-generic-password -s <service> -a <account> -w`.

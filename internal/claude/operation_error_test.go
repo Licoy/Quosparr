@@ -11,6 +11,7 @@ import (
 	"strings"
 	"syscall"
 	"testing"
+	"time"
 )
 
 type errorCommandRunner struct {
@@ -147,7 +148,7 @@ func (deadlineCommandRunner) Run(ctx context.Context, _ string, _ []string, _ []
 	return nil, -1, nil
 }
 func TestKeychainOwnTimeoutWinsExitStatus(t *testing.T) {
-	_, err := (KeychainStore{Runner: deadlineCommandRunner{}}).Load(context.Background())
+	_, err := (KeychainStore{Runner: deadlineCommandRunner{}, Timeout: time.Millisecond}).Load(context.Background())
 	requireOperation(t, err, StageReadKeychain, KindTimeout)
 	if !errors.Is(err, context.DeadlineExceeded) {
 		t.Fatal("deadline cause lost")

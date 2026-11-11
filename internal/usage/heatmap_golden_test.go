@@ -80,6 +80,11 @@ func loadZone(t *testing.T, name string) *time.Location {
 // scenarios, including zones whose midnight does not exist or repeats, and
 // compares a digest of every cell and chart point with the Swift builder's.
 func TestHeatmapMatchesSwiftGolden(t *testing.T) {
+	if raceEnabled {
+		// Pure single-goroutine math: the detector finds nothing here and
+		// makes the 3,420 scenarios ten times slower; non-race runs cover it.
+		t.Skip("covered by non-race runs")
+	}
 	all, local := goldenMaps()
 	locs := map[string]*time.Location{}
 	bad := 0
