@@ -266,7 +266,9 @@ func runtimeFailureCodes(err error) (string, string) {
 	switch failure.Reason {
 	case "timeout_or_cancelled":
 		reason = "timeout"
-	case "invalid_home", "untrusted_home", "no_trusted_binary", "untrusted_socket":
+	case "no_trusted_binary":
+		reason = "no_trusted_binary"
+	case "invalid_home", "untrusted_home", "untrusted_socket":
 		reason = "permission"
 	case "socket_unavailable", "unavailable", "closed", "read_failed", "write_failed":
 		reason = "connect"

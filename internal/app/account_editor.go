@@ -12,6 +12,7 @@ func (f *accountForm) closeEditor() {
 	f.mode, f.editID, f.paste = "", "", ""
 	f.alias, f.note, f.switchName, f.editorError = "", "", "", ""
 	f.selection, f.api, f.switchRelay, f.switchShare = nil, apiDraft{}, false, false
+	f.switchAPI = false
 	f.desktopSwitch = false
 }
 
@@ -109,7 +110,7 @@ func accountEditorFields(c *ui.Context, u *settingsUI, f *accountForm) {
 	}
 	switch f.mode {
 	case "switch":
-		ui.Text(c, l.Textf(l10n.KeyAccountsSwitchConfirmMessage, f.switchName)).FontSize(12)
+		ui.Text(c, codexProjectShareNotice(l, l.Textf(l10n.KeyAccountsSwitchConfirmMessage, f.switchName), f.switchAPI)).FontSize(12)
 		if f.switchRelay {
 			ui.Text(c, tx(l, xAPIHintCodex)).FontSize(12).TextColor(c.Theme().TextMuted)
 		}

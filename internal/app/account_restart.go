@@ -111,6 +111,9 @@ func (rt *liveApp) switchCodexResult(l l10n.Localizer, id string, restartAfter b
 	err := rt.svc.SwitchAccountWithRestart(context.Background(), id, restartAfter)
 	status := rt.svc.Snapshot().Accounts.Runtime
 	if err != nil {
+		if errors.Is(err, runway.ErrDesktopProjects) {
+			return codexRuntimeMessage(l, status), status.FilesUpdated
+		}
 		if errors.Is(err, runway.ErrCodexRuntime) {
 			return codexRuntimeMessage(l, status), false
 		}

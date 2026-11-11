@@ -212,7 +212,7 @@ func (a *App) codexSwitchConfirm(c *ui.Context, l l10n.Localizer, anchor ui.Elem
 	st, id := &a.panelState.accounts, acc.ID
 	open := st.switchID == id
 	share := codexShareOffered(acc) && ac.RestoreDesktop != nil
-	confirmPopover(c, l, anchor, &open, l.Text(l10n.KeyAccountsSwitchConfirmTitle), l.Textf(l10n.KeyAccountsSwitchConfirmMessage, name),
+	confirmPopover(c, l, anchor, &open, l.Text(l10n.KeyAccountsSwitchConfirmTitle), codexProjectShareNotice(l, l.Textf(l10n.KeyAccountsSwitchConfirmMessage, name), acc.AuthMode == codex.AuthModeAPIKey),
 		l.Text(l10n.KeyAccountsMakeCurrent), func() {
 			restartChoice(c, l, st)
 			if share {

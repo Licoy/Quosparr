@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/egoist/mygo/ui"
+	"github.com/licoy/quosparr/internal/codex"
 	"github.com/licoy/quosparr/internal/l10n"
 	"github.com/licoy/quosparr/internal/runway"
 )
@@ -24,6 +25,9 @@ func codexRuntimeMessage(l l10n.Localizer, status runway.CodexRuntimeView) strin
 	}
 	if status.FailureReason != "" {
 		detail := accountReasonText(l, status.FailureReason)
+		if status.FailureReason == "no_trusted_binary" {
+			detail = l.CodexRuntime("no_trusted_binary")
+		}
 		if status.FailureStage != "" {
 			detail = accountReasonText(l, status.FailureStage) + ": " + detail
 		}
@@ -54,7 +58,14 @@ func codexRuntimeControls(c *ui.Context, l l10n.Localizer, view runway.AccountsV
 			if button.Clicked() {
 				*open = true
 			}
-			confirmPopover(c, l, button, open, l.CodexRuntime("apply"), l.CodexRuntime("restart_hint"), l.CodexRuntime("apply"), nil, func() {
+			message := l.CodexRuntime("restart_hint")
+			for _, account := range view.Sidebar {
+				if account.ID == view.ActiveID {
+					message = codexProjectShareNotice(l, message, account.AuthMode == codex.AuthModeAPIKey)
+					break
+				}
+			}
+			confirmPopover(c, l, button, open, l.CodexRuntime("apply"), message, l.CodexRuntime("apply"), nil, func() {
 				if apply != nil {
 					apply()
 				}

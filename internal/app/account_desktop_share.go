@@ -16,6 +16,13 @@ func codexShareOffered(acc codex.ManagedAccount) bool {
 	return codexDesktopShareSupported && acc.AuthMode != codex.AuthModeAPIKey
 }
 
+func codexProjectShareNotice(l l10n.Localizer, message string, api bool) string {
+	if codexDesktopShareSupported && api {
+		message += "\n\n" + l.CodexRuntime("projects_api_unsupported")
+	}
+	return message
+}
+
 // codexShareOption is the switch dialogs' choice to carry the desktop app's
 // local projects to the new account, and the way to undo Quosparr's last
 // change to its data.

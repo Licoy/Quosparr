@@ -273,9 +273,13 @@ func TestNotRunningAndUntrustedSocket(t *testing.T) {
 	}
 }
 func TestNoBinary(t *testing.T) {
+	c, _ := fixture(t)
 	t.Setenv("PATH", t.TempDir())
-	s, err := (Client{CodexHome: t.TempDir()}).Inspect(context.Background())
-	if s.Status != Unsupported || err == nil {
+	if err := os.Remove(filepath.Join(c.CodexHome, "packages", "app-server-daemon", "current", "bin", "codex")); err != nil {
+		t.Fatal(err)
+	}
+	s, err := c.Inspect(context.Background())
+	if s.Status != Unsupported || err == nil || err.Error() != "codex runtime: discovery: no_trusted_binary" {
 		t.Fatal("missing binary not reported")
 	}
 }

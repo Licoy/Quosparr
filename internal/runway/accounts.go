@@ -294,7 +294,11 @@ func (s *Service) switchFailureTextLocked(err error) string {
 		if !s.runtimeStatus.FilesUpdated {
 			return lc.CodexRuntime(s.runtimeStatus.State)
 		}
-		return lc.CodexRuntime("updated") + "\n" + lc.CodexRuntime(s.runtimeStatus.ProjectShare)
+		message := lc.CodexRuntime("updated")
+		if s.runtimeStatus.State == "start_failed" {
+			message += "\n" + lc.CodexRuntime("start_failed")
+		}
+		return message + "\n" + lc.CodexRuntime(s.runtimeStatus.ProjectShare)
 	case errors.Is(err, codex.ErrRollbackFailed):
 		return lc.CodexRuntime("rollback_failed")
 	case errors.Is(err, codex.ErrSwitchFilesChanged):

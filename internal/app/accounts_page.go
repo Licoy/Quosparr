@@ -188,6 +188,7 @@ type accountForm struct {
 	switchName         string
 	switchRelay        bool
 	switchShare        bool
+	switchAPI          bool
 	api                apiDraft
 }
 
@@ -567,7 +568,14 @@ func (rt *liveApp) moveCodex(id string, dir int) string {
 }
 
 func (rt *liveApp) switchCodex(l l10n.Localizer, id, name string) string {
-	confirmed, err := confirmDialog(l, l.Text(l10n.KeyAccountsSwitchConfirmTitle), l.Textf(l10n.KeyAccountsSwitchConfirmMessage, name), "", l.Text(l10n.KeyAccountsMakeCurrent))
+	message := l.Textf(l10n.KeyAccountsSwitchConfirmMessage, name)
+	for _, account := range rt.svc.Snapshot().Accounts.Sidebar {
+		if account.ID == id {
+			message = codexProjectShareNotice(l, message, account.AuthMode == codex.AuthModeAPIKey)
+			break
+		}
+	}
+	confirmed, err := confirmDialog(l, l.Text(l10n.KeyAccountsSwitchConfirmTitle), message, "", l.Text(l10n.KeyAccountsMakeCurrent))
 	if err != nil {
 		return accountFailure(l, l.Text(l10n.KeyStatusError), err)
 	}

@@ -24,24 +24,55 @@ func TestUnsafeBinaryParent(t *testing.T) {
 }
 
 func TestStaleSocketIsNotRunning(t *testing.T) {
-	c, _ := fixture(t)
-	entry := filepath.Join(c.CodexHome, "app-server-control", "app-server-control.sock")
-	target, err := os.Readlink(entry)
-	if err != nil {
-		t.Fatal(err)
+	for _, mode := range []string{"with_binary", "without_binary"} {
+		t.Run(mode, func(t *testing.T) {
+			c, _ := fixture(t)
+			if mode == "without_binary" {
+				t.Setenv("PATH", t.TempDir())
+				if err := os.Remove(filepath.Join(c.CodexHome, "packages", "app-server-daemon", "current", "bin", "codex")); err != nil {
+					t.Fatal(err)
+				}
+			}
+			entry := filepath.Join(c.CodexHome, "app-server-control", "app-server-control.sock")
+			target, err := os.Readlink(entry)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if err = os.Remove(target); err != nil {
+				t.Fatal(err)
+			}
+			listener, err := net.ListenUnix("unix", &net.UnixAddr{Name: target, Net: "unix"})
+			if err != nil {
+				t.Fatal(err)
+			}
+			listener.SetUnlinkOnClose(false)
+			listener.Close()
+			os.Chmod(target, 0600)
+			if inspect(t, c).Status != NotRunning {
+				t.Fatal("stale endpoint reported running")
+			}
+		})
 	}
-	if err = os.Remove(target); err != nil {
-		t.Fatal(err)
-	}
-	listener, err := net.ListenUnix("unix", &net.UnixAddr{Name: target, Net: "unix"})
-	if err != nil {
-		t.Fatal(err)
-	}
-	listener.SetUnlinkOnClose(false)
-	listener.Close()
-	os.Chmod(target, 0600)
-	if inspect(t, c).Status != NotRunning {
-		t.Fatal("stale endpoint reported running")
+}
+
+func TestAbsentSocketWithoutBinary(t *testing.T) {
+	t.Setenv("PATH", t.TempDir())
+	for _, mode := range []string{"missing_control", "private_control"} {
+		t.Run(mode, func(t *testing.T) {
+			c := Client{CodexHome: t.TempDir()}
+			if mode == "private_control" {
+				if err := os.Mkdir(filepath.Join(c.CodexHome, "app-server-control"), 0700); err != nil {
+					t.Fatal(err)
+				}
+			}
+			s := inspect(t, c)
+			if s.Status != NotRunning {
+				t.Fatalf("missing endpoint: %s", s.Status)
+			}
+			if _, err := c.Start(context.Background(), s); err == nil || err.Error() != "codex runtime: start: no_trusted_binary" {
+				t.Fatalf("start without binary: %v", err)
+			}
+		})
 	}
 }
 
@@ -63,11 +94,65 @@ func TestInheritedCommandOutputIsBounded(t *testing.T) {
 	}
 }
 func TestAbsentSocketDoesNotBypassParentTrust(t *testing.T) {
+	t.Setenv("PATH", t.TempDir())
+	for _, dir := range []string{"home", "control"} {
+		t.Run(dir, func(t *testing.T) {
+			c := Client{CodexHome: t.TempDir()}
+			unsafePath, want := c.CodexHome, "codex runtime: discovery: untrusted_home"
+			if dir == "control" {
+				unsafePath = filepath.Join(c.CodexHome, "app-server-control")
+				want = "codex runtime: connection: untrusted_socket"
+				if err := os.Mkdir(unsafePath, 0700); err != nil {
+					t.Fatal(err)
+				}
+			}
+			if err := os.Chmod(unsafePath, 0777); err != nil {
+				t.Fatal(err)
+			}
+			s, err := c.Inspect(context.Background())
+			if err == nil || err.Error() != want || s.Status == NotRunning {
+				t.Fatalf("absent socket bypassed unsafe directory: status=%s err=%v", s.Status, err)
+			}
+		})
+	}
+}
+
+func TestStopWithoutSocketPreservesStartBinary(t *testing.T) {
 	c, _ := fixture(t)
-	os.Remove(filepath.Join(c.CodexHome, "app-server-control", "app-server-control.sock"))
-	os.Chmod(filepath.Join(c.CodexHome, "app-server-control"), 0777)
-	if _, err := c.Inspect(context.Background()); err == nil {
-		t.Fatal("absent socket bypassed unsafe directory")
+	entry := filepath.Join(c.CodexHome, "app-server-control", "app-server-control.sock")
+	target, err := os.Readlink(entry)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("QUOSPARR_TEST_SOCKET", target)
+	binary := filepath.Join(c.CodexHome, "packages", "app-server-daemon", "current", "bin", "codex")
+	data, err := os.ReadFile(binary)
+	if err != nil {
+		t.Fatal(err)
+	}
+	script := strings.Replace(string(data), "stop) ", "stop) rm \"$CODEX_HOME/app-server-control/app-server-control.sock\"; ", 1)
+	script = strings.Replace(script, "start) ", "start) ln -s \"$QUOSPARR_TEST_SOCKET\" \"$CODEX_HOME/app-server-control/app-server-control.sock\"; ", 1)
+	if err = os.WriteFile(binary, []byte(script), 0700); err != nil {
+		t.Fatal(err)
+	}
+	before := inspect(t, c)
+	stopped, err := c.Stop(context.Background(), before)
+	if err != nil || stopped.Status != NotRunning {
+		t.Fatalf("stop: %v", err)
+	}
+	if _, err = os.Lstat(entry); !os.IsNotExist(err) {
+		t.Fatalf("stop kept endpoint: %v", err)
+	}
+	if stopped.binary != before.binary || stopped.binaryInfo == nil || !os.SameFile(stopped.binaryInfo, before.binaryInfo) {
+		t.Fatal("stopped snapshot lost trusted binary identity")
+	}
+	started, err := c.Start(context.Background(), stopped)
+	if err != nil || started.Status != Running {
+		t.Fatalf("start: %v", err)
+	}
+	actions, err := os.ReadFile(filepath.Join(c.CodexHome, "actions"))
+	if err != nil || string(actions) != "stopstart" {
+		t.Fatalf("unexpected control actions: %q, %v", actions, err)
 	}
 }
 

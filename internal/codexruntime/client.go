@@ -140,11 +140,8 @@ func (c Client) Inspect(ctx context.Context) (Snapshot, error) {
 	}
 	ctx, cancel := boundedContext(ctx)
 	defer cancel()
-	s.binary, s.binaryInfo, err = discover(home)
-	if err != nil {
-		s.Status = Unsupported
-		return s, err
-	}
+	binary, binaryInfo, binaryErr := discover(home)
+	s.binary, s.binaryInfo = binary, binaryInfo
 	socket := filepath.Join(home, "app-server-control", "app-server-control.sock")
 	homeInfo, homeErr := os.Stat(home)
 	if homeErr != nil || !homeInfo.IsDir() || !trusted(homeInfo) || !trustedDirectoryPath(home) {
@@ -187,6 +184,10 @@ func (c Client) Inspect(ctx context.Context) (Snapshot, error) {
 		return s, failure("connection", "unavailable")
 	}
 	probe.Close()
+	if binaryErr != nil {
+		s.Status = Unsupported
+		return s, binaryErr
+	}
 	data, err := command(ctx, s.binary, home, "version")
 	if err != nil {
 		return s, err
@@ -242,6 +243,9 @@ func (c Client) control(ctx context.Context, expected Snapshot, action string, b
 	current, err := c.Inspect(ctx)
 	if err != nil {
 		return current, err
+	}
+	if current.Status == before && current.binaryInfo == nil {
+		return current, failure(action, "no_trusted_binary")
 	}
 	if expected.Status != before || !same(expected, current) {
 		return current, failure(action, "state_changed")
