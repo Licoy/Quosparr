@@ -20,7 +20,7 @@ func (u *settingsUI) mcpAddReview(c *ui.Context, actions MCPActions) {
 		ui.Text(c, tx(l, xMCPTargets)).FontSize(13).FontWeight(600)
 		ui.Text(c, tx(l, xMCPTargetsHint)).FontSize(11).TextColor(t.TextMuted)
 	})
-	for _, p := range store.Providers() {
+	for _, p := range toolProviders() {
 		u.mcpTargetCard(c, p, actions, retrying)
 	}
 	if w.err != nil && !slices.ContainsFunc(w.plans, func(p mcpAddTarget) bool { return p.err != nil }) {

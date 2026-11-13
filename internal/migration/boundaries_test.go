@@ -10,6 +10,7 @@ import (
 
 	"github.com/licoy/quosparr/internal/claude"
 	"github.com/licoy/quosparr/internal/codex"
+	"github.com/licoy/quosparr/internal/gemini"
 	"github.com/licoy/quosparr/internal/grok"
 	"github.com/licoy/quosparr/internal/platform"
 )
@@ -44,6 +45,12 @@ func indexFixture(t *testing.T, provider, active string, ids ...string) string {
 			idx.Accounts = append(idx.Accounts, claude.ManagedAccount{ID: id, SortIndex: i, Identity: claude.CredentialIdentity{AccountUUID: id, OrganizationUUID: "org"}, CreatedAt: time.Unix(1700000000, 0).UTC()})
 		}
 		data, err = json.Marshal(idx)
+	} else if provider == "gemini-index.json" {
+		idx := gemini.AccountIndex{Version: 1, CurrentAccountID: active}
+		for i, id := range ids {
+			idx.Accounts = append(idx.Accounts, gemini.ManagedAccount{ID: id, SortIndex: i, Identity: gemini.Identity{Subject: id}, CreatedAt: time.Unix(1700000000, 0).UTC()})
+		}
+		data, err = json.Marshal(idx)
 	} else {
 		idx := codex.AccountIndex{Version: 1, ActiveAccountID: active}
 		for i, id := range ids {
@@ -57,7 +64,7 @@ func indexFixture(t *testing.T, provider, active string, ids ...string) string {
 	return string(data)
 }
 func TestMigrationMergesBothLibrariesWithoutChangingNewSelection(t *testing.T) {
-	for _, provider := range []string{"index.json", "grok-index.json", "claude-index.json"} {
+	for _, provider := range []string{"index.json", "grok-index.json", "claude-index.json", "gemini-index.json"} {
 		t.Run(provider, func(t *testing.T) {
 			home := t.TempDir()
 			old := filepath.Join(home, ".codex-runway")

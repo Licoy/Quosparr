@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/licoy/quosparr/internal/claude"
+	"github.com/licoy/quosparr/internal/gemini"
 	"github.com/licoy/quosparr/internal/platform"
 )
 
@@ -46,6 +47,12 @@ func SelfCheck(w io.Writer, home, version string) {
 		line("claude config: missing")
 	}
 	line("claude credentials file: %s", presence(claude.CredentialsFilePath(claudeDir)))
+	if gemini.ClientInstalled(home) {
+		line("antigravity client: present")
+	} else {
+		line("antigravity client: missing")
+	}
+	line("antigravity login file: %s", anyPresence(gemini.OfficialFiles(home)))
 	line("not ported yet: %s", strings.Join(NotPortedChecks, ", "))
 }
 
@@ -100,6 +107,16 @@ func describeLock(path, home string) string {
 func presence(path string) string {
 	if exists(path) {
 		return "present"
+	}
+	return "missing"
+}
+
+// anyPresence is "present" when one of paths exists.
+func anyPresence(paths []string) string {
+	for _, path := range paths {
+		if exists(path) {
+			return "present"
+		}
 	}
 	return "missing"
 }

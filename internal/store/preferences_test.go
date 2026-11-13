@@ -335,7 +335,7 @@ func TestEnumRawValuesMatchSwift(t *testing.T) {
 		got  []string
 		want []string
 	}{
-		"provider":      {conv(Providers()), strs("codex", "claude", "grok")},
+		"provider":      {conv(Providers()), strs("codex", "claude", "gemini", "grok")},
 		"language":      {conv(Languages()), strs("system", "english", "simplifiedChinese", "traditionalChinese", "korean", "japanese", "russian", "french")},
 		"appearance":    {conv(Appearances()), strs("system", "light", "dark")},
 		"background":    {conv(PanelBackgrounds()), strs("translucent", "opaque")},
@@ -756,8 +756,9 @@ func TestPanelProvidersAreGoOnlyAndLenient(t *testing.T) {
 	}
 	for raw, want := range map[string][]Provider{
 		`["grok","codex","codex"]`: {ProviderCodex, ProviderGrok},
-		`["claude","gemini"]`:      {ProviderClaude},
-		`["gemini"]`:               nil,
+		`["claude","gemini"]`:      {ProviderClaude, ProviderGemini},
+		`["claude","cursor"]`:      {ProviderClaude},
+		`["cursor"]`:               nil,
 		`[]`:                       nil,
 		`"codex"`:                  nil,
 		`[1]`:                      nil,

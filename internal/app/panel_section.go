@@ -27,8 +27,13 @@ func panelBody(c *ui.Context, l l10n.Localizer, prefs store.Preferences, snap ru
 	grok := prefs.SelectedProvider == store.ProviderGrok
 	claude := prefs.SelectedProvider == store.ProviderClaude
 	local := grok || claude
+	gemini := prefs.SelectedProvider == store.ProviderGemini
 	first := true
 	for _, m := range store.NormalizeModuleOrder(prefs.MainPanelModuleOrder) {
+		if gemini && m != store.ModuleQuota {
+			// Only the quota is read for Gemini; its local sessions are not scanned yet.
+			continue
+		}
 		if local && m == store.ModuleResetCredits && snap.Codex.ResetCreditSummary == nil {
 			continue
 		}
@@ -76,6 +81,8 @@ func panelModule(c *ui.Context, l l10n.Localizer, m store.Module, prefs store.Pr
 	switch m {
 	case store.ModuleQuota:
 		switch {
+		case prefs.SelectedProvider == store.ProviderGemini:
+			panelGeminiQuota(c, l, snap, acts, first, state, state.resetSwitch(prefs.QuotaResetTimeFormat))
 		case claude:
 			panelClaudeQuota(c, l, snap, acts, first, state, state.resetSwitch(prefs.QuotaResetTimeFormat), prefs.AccountPrivacyModeEnabled)
 		case grok:
@@ -125,6 +132,8 @@ func sectionRefreshing(snap runway.Snapshot, section runway.Section) bool {
 		return snap.Grok.Refreshing
 	case store.ProviderClaude:
 		return snap.Claude.Refreshing
+	case store.ProviderGemini:
+		return snap.Gemini.Refreshing
 	default:
 		return snap.Refresh.Has(section)
 	}

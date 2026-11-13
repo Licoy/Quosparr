@@ -70,6 +70,7 @@ struct L10n: Sendable {
 
 enum L10nKey: String, CaseIterable, Sendable {
     case available
+    case geminiNotInstalled
     case grokCLIUnavailable
     case notLoggedIn
     case rateLimitResetQuestionCurrent
@@ -99,8 +100,12 @@ enum L10nKey: String, CaseIterable, Sendable {
     case widgetOverviewTitle
     case widgetProviderBoth
     case widgetProviderClaude
+    case widgetProviderClaudeGemini
     case widgetProviderCodex
     case widgetProviderCodexClaude
+    case widgetProviderCodexGemini
+    case widgetProviderGemini
+    case widgetProviderGeminiGrok
     case widgetProviderGrok
     case widgetProviderGrokClaude
     case widgetRemaining
@@ -122,6 +127,7 @@ enum L10nKey: String, CaseIterable, Sendable {
 extension L10n {
     static let en: [L10nKey: String] = [
         .available: "Available",
+        .geminiNotInstalled: "Antigravity is not installed",
         .grokCLIUnavailable: "Grok CLI is not installed",
         .notLoggedIn: "Not logged in",
         .rateLimitResetQuestionCurrent: "Any new Codex reset today?",
@@ -145,8 +151,12 @@ extension L10n {
         .widgetBalance: "Balance",
         .widgetProviderBoth: "Codex + Grok",
         .widgetProviderClaude: "Claude",
+        .widgetProviderClaudeGemini: "Claude + Gemini",
         .widgetProviderCodex: "Codex",
         .widgetProviderCodexClaude: "Codex + Claude",
+        .widgetProviderCodexGemini: "Codex + Gemini",
+        .widgetProviderGemini: "Gemini",
+        .widgetProviderGeminiGrok: "Gemini + Grok",
         .widgetProviderGrok: "Grok",
         .widgetProviderGrokClaude: "Grok + Claude",
         .widgetCost: "API equivalent",
@@ -173,6 +183,7 @@ extension L10n {
 
     static let zhHans: [L10nKey: String] = [
         .available: "可用",
+        .geminiNotInstalled: "未安装 Antigravity",
         .grokCLIUnavailable: "未安装 Grok CLI",
         .notLoggedIn: "未登录",
         .rateLimitResetQuestionCurrent: "今天有新的 Codex 重置吗？",
@@ -196,8 +207,12 @@ extension L10n {
         .widgetBalance: "余额",
         .widgetProviderBoth: "Codex + Grok",
         .widgetProviderClaude: "Claude",
+        .widgetProviderClaudeGemini: "Claude + Gemini",
         .widgetProviderCodex: "Codex",
         .widgetProviderCodexClaude: "Codex + Claude",
+        .widgetProviderCodexGemini: "Codex + Gemini",
+        .widgetProviderGemini: "Gemini",
+        .widgetProviderGeminiGrok: "Gemini + Grok",
         .widgetProviderGrok: "Grok",
         .widgetProviderGrokClaude: "Grok + Claude",
         .widgetCost: "API 等价成本",
@@ -224,6 +239,7 @@ extension L10n {
 
     static let zhHant: [L10nKey: String] = [
         .available: "可用",
+        .geminiNotInstalled: "未安裝 Antigravity",
         .grokCLIUnavailable: "未安裝 Grok CLI",
         .notLoggedIn: "未登入",
         .rateLimitResetQuestionCurrent: "今天有新的 Codex 重設嗎？",
@@ -247,8 +263,12 @@ extension L10n {
         .widgetBalance: "餘額",
         .widgetProviderBoth: "Codex + Grok",
         .widgetProviderClaude: "Claude",
+        .widgetProviderClaudeGemini: "Claude + Gemini",
         .widgetProviderCodex: "Codex",
         .widgetProviderCodexClaude: "Codex + Claude",
+        .widgetProviderCodexGemini: "Codex + Gemini",
+        .widgetProviderGemini: "Gemini",
+        .widgetProviderGeminiGrok: "Gemini + Grok",
         .widgetProviderGrok: "Grok",
         .widgetProviderGrokClaude: "Grok + Claude",
         .widgetCost: "API 等价成本",
@@ -275,6 +295,7 @@ extension L10n {
 
     static let ko: [L10nKey: String] = [
         .available: "사용 가능",
+        .geminiNotInstalled: "Antigravity가 설치되어 있지 않습니다",
         .grokCLIUnavailable: "Grok CLI가 설치되어 있지 않습니다",
         .notLoggedIn: "로그인되지 않음",
         .rateLimitResetQuestionCurrent: "오늘 새로운 Codex 초기화가 있었나요?",
@@ -298,8 +319,12 @@ extension L10n {
         .widgetBalance: "잔액",
         .widgetProviderBoth: "Codex + Grok",
         .widgetProviderClaude: "Claude",
+        .widgetProviderClaudeGemini: "Claude + Gemini",
         .widgetProviderCodex: "Codex",
         .widgetProviderCodexClaude: "Codex + Claude",
+        .widgetProviderCodexGemini: "Codex + Gemini",
+        .widgetProviderGemini: "Gemini",
+        .widgetProviderGeminiGrok: "Gemini + Grok",
         .widgetProviderGrok: "Grok",
         .widgetProviderGrokClaude: "Grok + Claude",
         .widgetCost: "API 환산",
@@ -326,6 +351,7 @@ extension L10n {
 
     static let ja: [L10nKey: String] = [
         .available: "利用可能",
+        .geminiNotInstalled: "Antigravity がインストールされていません",
         .grokCLIUnavailable: "Grok CLI がインストールされていません",
         .notLoggedIn: "未サインイン",
         .rateLimitResetQuestionCurrent: "今日、新しい Codex リセットはあった？",
@@ -349,8 +375,12 @@ extension L10n {
         .widgetBalance: "残高",
         .widgetProviderBoth: "Codex + Grok",
         .widgetProviderClaude: "Claude",
+        .widgetProviderClaudeGemini: "Claude + Gemini",
         .widgetProviderCodex: "Codex",
         .widgetProviderCodexClaude: "Codex + Claude",
+        .widgetProviderCodexGemini: "Codex + Gemini",
+        .widgetProviderGemini: "Gemini",
+        .widgetProviderGeminiGrok: "Gemini + Grok",
         .widgetProviderGrok: "Grok",
         .widgetProviderGrokClaude: "Grok + Claude",
         .widgetCost: "API 換算",
@@ -377,6 +407,7 @@ extension L10n {
 
     static let ru: [L10nKey: String] = [
         .available: "Доступно",
+        .geminiNotInstalled: "Antigravity не установлен",
         .grokCLIUnavailable: "Grok CLI не установлен",
         .notLoggedIn: "Не выполнен вход",
         .rateLimitResetQuestionCurrent: "Был ли сегодня новый сброс Codex?",
@@ -400,8 +431,12 @@ extension L10n {
         .widgetBalance: "Баланс",
         .widgetProviderBoth: "Codex + Grok",
         .widgetProviderClaude: "Claude",
+        .widgetProviderClaudeGemini: "Claude + Gemini",
         .widgetProviderCodex: "Codex",
         .widgetProviderCodexClaude: "Codex + Claude",
+        .widgetProviderCodexGemini: "Codex + Gemini",
+        .widgetProviderGemini: "Gemini",
+        .widgetProviderGeminiGrok: "Gemini + Grok",
         .widgetProviderGrok: "Grok",
         .widgetProviderGrokClaude: "Grok + Claude",
         .widgetCost: "Эквивалент API",
@@ -428,6 +463,7 @@ extension L10n {
 
     static let fr: [L10nKey: String] = [
         .available: "Disponible",
+        .geminiNotInstalled: "Antigravity n’est pas installé",
         .grokCLIUnavailable: "Le CLI Grok n’est pas installé",
         .notLoggedIn: "Non connecté",
         .rateLimitResetQuestionCurrent: "Une nouvelle réinitialisation Codex aujourd’hui ?",
@@ -451,8 +487,12 @@ extension L10n {
         .widgetBalance: "Solde",
         .widgetProviderBoth: "Codex + Grok",
         .widgetProviderClaude: "Claude",
+        .widgetProviderClaudeGemini: "Claude + Gemini",
         .widgetProviderCodex: "Codex",
         .widgetProviderCodexClaude: "Codex + Claude",
+        .widgetProviderCodexGemini: "Codex + Gemini",
+        .widgetProviderGemini: "Gemini",
+        .widgetProviderGeminiGrok: "Gemini + Grok",
         .widgetProviderGrok: "Grok",
         .widgetProviderGrokClaude: "Grok + Claude",
         .widgetCost: "Équivalent API",

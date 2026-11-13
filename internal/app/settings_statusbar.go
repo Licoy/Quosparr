@@ -343,5 +343,7 @@ func statusBarSample(l l10n.Localizer, p store.Preferences) TrayRender {
 			meter(five, 18, runway.HealthRed, 48*time.Minute), meter(week, 64, runway.HealthGreen, 120*time.Hour)}},
 		Grok: runway.GrokState{Availability: runway.GrokReady, Meters: []runway.Meter{
 			meter(week, 85, runway.HealthGreen, 30*time.Hour), meter(month, 52, runway.HealthGreen, 400*time.Hour)}},
+		Gemini: runway.GeminiState{Availability: runway.GeminiReady, Meters: []runway.Meter{
+			meter(five, 56, runway.HealthGreen, 3*time.Hour), meter(week, 33, runway.HealthYellow, 90*time.Hour)}},
 	}))
 }

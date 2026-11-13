@@ -68,7 +68,8 @@ func tickKey(s Snapshot) string {
 }
 
 // NextDueQuotaReset returns the earliest quota reset after `after` that passed
-// at least a second ago, or the zero time. The Grok panel uses its first meter.
+// at least a second ago, or the zero time. The other providers' panels use
+// their first meter, or the 5-hour one when present.
 func (s *Service) NextDueQuotaReset(after, now time.Time) time.Time {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -76,18 +77,15 @@ func (s *Service) NextDueQuotaReset(after, now time.Time) time.Time {
 }
 
 func (s *Service) nextDueResetLocked(after, now time.Time) time.Time {
-	if s.prefs.SelectedProvider == store.ProviderGrok || s.prefs.SelectedProvider == store.ProviderClaude {
+	if p := s.prefs.SelectedProvider; p != store.ProviderCodex {
 		var meters []Meter
-		if s.prefs.SelectedProvider == store.ProviderGrok {
-			if s.opts.Grok == nil {
-				return time.Time{}
-			}
+		switch {
+		case p == store.ProviderGrok && s.opts.Grok != nil:
 			meters = s.opts.Grok.State(now).Meters
-		} else {
-			if s.opts.Claude == nil {
-				return time.Time{}
-			}
+		case p == store.ProviderClaude && s.opts.Claude != nil:
 			meters = s.opts.Claude.State(now).Meters
+		case p == store.ProviderGemini && s.opts.Gemini != nil:
+			meters = s.opts.Gemini.State(now).Meters
 		}
 		if len(meters) == 0 {
 			return time.Time{}

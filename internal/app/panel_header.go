@@ -37,6 +37,10 @@ func panelHeader(c *ui.Context, a *App, l l10n.Localizer, prefs store.Preference
 			claudeIdentityRow(c, a, l, prefs, snap)
 			return
 		}
+		if prefs.SelectedProvider == store.ProviderGemini {
+			geminiIdentityRow(c, a, l, prefs, snap)
+			return
+		}
 		codexIdentityRow(c, a, l, prefs, snap)
 		if exp := snap.Accounts.Display.SubscriptionExpiresAt; exp != nil {
 			ui.Row(c).Padding(6, 0, 0, 0).Children(func() { expiryBadge(c, l, *exp, time.Now()) })
@@ -49,6 +53,9 @@ func panelBusy(snap runway.Snapshot, grokView bool) bool {
 		return true
 	}
 	if snap.Provider == store.ProviderClaude && snap.Claude.Refreshing {
+		return true
+	}
+	if snap.Provider == store.ProviderGemini && snap.Gemini.Refreshing {
 		return true
 	}
 	return snap.Refresh.Refreshing()
@@ -104,6 +111,8 @@ func providerMeters(snap runway.Snapshot, p store.Provider) []runway.Meter {
 		return snap.Grok.Meters
 	case store.ProviderClaude:
 		return snap.Claude.Meters
+	case store.ProviderGemini:
+		return snap.Gemini.Meters
 	default:
 		return snap.Codex.Meters
 	}
@@ -186,6 +195,9 @@ func headerIdentity(l l10n.Localizer, prefs store.Preferences, snap runway.Snaps
 	}
 	if prefs.SelectedProvider == store.ProviderClaude {
 		return claudeIdentity(l, prefs, snap)
+	}
+	if prefs.SelectedProvider == store.ProviderGemini {
+		return geminiIdentity(l, prefs, snap)
 	}
 	name := snap.Accounts.Display.DisplayName
 	if name == "" {

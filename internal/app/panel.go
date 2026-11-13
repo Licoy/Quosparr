@@ -95,6 +95,9 @@ func panelStatusLines(c *ui.Context, l l10n.Localizer, prefs store.Preferences, 
 		message, failure = snap.Grok.Accounts.Message, snap.Grok.LastError
 	case store.ProviderClaude:
 		message, failure = snap.Claude.Accounts.Message, snap.Claude.LastError
+	case store.ProviderGemini:
+		// The quota section shows the Gemini state itself.
+		message, failure = snap.Gemini.Accounts.Message, ""
 	}
 	if message == "" && failure == "" {
 		return

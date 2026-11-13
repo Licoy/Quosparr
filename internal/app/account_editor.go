@@ -22,7 +22,7 @@ func accountEditorTitle(l l10n.Localizer, f *accountForm) string {
 	}
 	key := l10n.KeyAccountsAddPaste
 	switch f.mode {
-	case "switch", "claude-switch":
+	case "switch", "claude-switch", "gemini-switch":
 		key = l10n.KeyAccountsSwitchConfirmTitle
 	case "alias":
 		key = l10n.KeyAlias
@@ -57,7 +57,7 @@ func accountEditor(c *ui.Context, u *settingsUI, f *accountForm) {
 			}
 			empty := f.mode == "paste" && strings.TrimSpace(f.paste) == "" || apiEditorIncomplete(f)
 			confirm := l.Text(l10n.KeyOk)
-			if f.mode == "switch" || f.mode == "claude-switch" {
+			if f.mode == "switch" || f.mode == "claude-switch" || f.mode == "gemini-switch" {
 				confirm = l.Text(l10n.KeyAccountsMakeCurrent)
 			}
 			if PillButton(c, nil, confirm, f.busy || empty || f.mode == "").Clicked() {
@@ -140,6 +140,14 @@ func accountEditorFields(c *ui.Context, u *settingsUI, f *accountForm) {
 				f.desktop = newDesktopDialog(currentRuntime(), id, u.s.Prefs().AccountPrivacyModeEnabled)
 			})
 		}
+	case "gemini-switch":
+		ui.Text(c, f.switchName+"\n\n"+l.Text(l10n.KeyGeminiSwitchNote)).FontSize(12)
+		if geminiRestartSupported {
+			ui.Checkbox(c.Key("gemini-restart-after-switch"), &f.restartAfterSwitch, l.Text(l10n.KeyGeminiRestartApp)).Disabled(f.busy)
+			ui.Text(c, l.Text(l10n.KeyGeminiRestartHint)).FontSize(11).TextColor(c.Theme().TextMuted)
+		} else {
+			ui.Text(c, l.Text(l10n.KeyGeminiRestartUnsupported)).FontSize(11).TextColor(c.Theme().TextMuted)
+		}
 	case "paste":
 		hint := l.Text(l10n.KeyAccountsPasteHint)
 		if f.kind == accountKindGrok {
@@ -147,6 +155,9 @@ func accountEditorFields(c *ui.Context, u *settingsUI, f *accountForm) {
 		}
 		if f.kind == accountKindClaude {
 			hint = l.Text(l10n.KeyClaudePasteHint)
+		}
+		if f.kind == accountKindGemini {
+			hint = l.Text(l10n.KeyGeminiPasteHint)
 		}
 		ui.Text(c, hint).FontSize(12).TextColor(c.Theme().TextMuted)
 		ui.TextArea(c.Key("acct-paste"), &f.paste).Lines(6, 8).Label(hint).Disabled(f.busy)
@@ -168,7 +179,7 @@ func (u *settingsUI) submitAccountEditor(f *accountForm) {
 func (u *settingsUI) submitAccountEdit(f *accountForm, apply apiApply) {
 	l := u.L()
 	mode, id, kind := f.mode, f.editID, f.kind
-	paste, alias, note, restart := f.paste, f.alias, f.note, f.restartAfterSwitch
+	paste, alias, note, restart, name := f.paste, f.alias, f.note, f.restartAfterSwitch, f.switchName
 	draft := f.api
 	desktop := f.desktopSwitch
 	if mode == "switch" && f.switchShare {
@@ -190,6 +201,12 @@ func (u *settingsUI) submitAccountEdit(f *accountForm, apply apiApply) {
 				return tx(l, xDetailUnavailable), false
 			}
 			return rt.switchClaudeDesktopResult(context.Background(), l, id, desktop)
+		case "gemini-switch":
+			rt := currentRuntime()
+			if rt == nil {
+				return tx(l, xDetailUnavailable), false
+			}
+			return rt.switchGeminiConfirmed(l, id, name, restart && geminiRestartSupported)
 		default:
 			msg := saveAccountMeta(l, kind, mode, id, alias, note)
 			return msg, msg == ""

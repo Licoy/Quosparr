@@ -21,8 +21,9 @@ Options:
       (V1_DEVELOPMENT_PACKAGE=1 Scripts/package-v1-app.sh) and run that.
 
   --tier-badges
-      Also open a window with every Codex, Grok and Claude subscription
-      badge in the light and the dark look (QUOSPARR_DEV_TIER_BADGES=1).
+      Also open a window with every Codex, Grok, Claude and Gemini
+      subscription badge in the light and the dark look
+      (QUOSPARR_DEV_TIER_BADGES=1).
 
 Other options go to the app, e.g. --settings or --self-check.
 Env: ARCH=arm64|x86_64 (default: this Mac).

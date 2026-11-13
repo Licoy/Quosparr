@@ -17,6 +17,7 @@ type accountIdentityView struct {
 	current, privacy bool
 	grokQuota        *runway.GrokAccountQuota
 	claudeQuota      *runway.ClaudeAccountQuota
+	geminiQuota      *runway.GeminiAccountQuota
 	// quota carries the reset format and the credits switch of the
 	// preferences; the zero value keeps the defaults.
 	quota accountQuotaOptions
@@ -54,6 +55,8 @@ func accountSettingsIdentityInfo(c *ui.Context, l l10n.Localizer, v accountIdent
 				grokPlanBadgeInfo(c, l, grokPlanInfo{plan: v.grokQuota.Plan, billingSystem: v.grokQuota.PlanBillingSystem, compact: true})
 			} else if v.claudeQuota != nil && v.claudeQuota.Plan != "" {
 				tierBadgePadded(c, claudeTierLook(c.Theme(), claude.TierResolve(v.claudeQuota.Plan)), v.claudeQuota.Plan, 1, 5)
+			} else if v.geminiQuota != nil && (v.geminiQuota.Plan != "" || v.geminiQuota.TierKind != "") {
+				geminiPlanBadgePadded(c, l, v.geminiQuota.TierKind, v.geminiQuota.Plan, 1, 5)
 			}
 		})
 		if acc.Email != "" && acc.Email != name {
@@ -79,6 +82,9 @@ func accountSettingsStatus(c *ui.Context, l l10n.Localizer, v accountIdentityVie
 		if v.provider == store.ProviderClaude {
 			key = l10n.KeyClaudeReauthRequired
 		}
+		if v.provider == store.ProviderGemini {
+			key = l10n.KeyGeminiReauthRequired
+		}
 		ui.Text(c, l.Text(key)).FontSize(11).TextColor(c.Theme().Danger)
 		return
 	} else if acc.LastError != "" {
@@ -94,6 +100,8 @@ func accountSettingsStatus(c *ui.Context, l l10n.Localizer, v accountIdentityVie
 		claudeQuotaBlock(c, l, v.claudeQuota, view)
 	case v.provider == store.ProviderGrok:
 		grokQuotaBlock(c, l, v.grokQuota, view)
+	case v.provider == store.ProviderGemini:
+		geminiQuotaBlock(c, l, v.geminiQuota, view)
 	default:
 		codexQuotaBlock(c, l, acc, view)
 	}
@@ -129,6 +137,9 @@ func accountSettingsUpdatedAt(v accountIdentityView) time.Time {
 	}
 	if v.provider == store.ProviderGrok && v.grokQuota != nil {
 		return v.grokQuota.UpdatedAt
+	}
+	if v.provider == store.ProviderGemini && v.geminiQuota != nil {
+		return v.geminiQuota.UpdatedAt
 	}
 	if v.account.CachedQuota != nil {
 		return v.account.CachedQuota.UpdatedAt

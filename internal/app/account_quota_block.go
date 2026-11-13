@@ -269,3 +269,29 @@ func accountWindowTitle(l l10n.Localizer, minutes int) string {
 	}
 	return l.Text(l10n.KeyQuota)
 }
+
+// geminiQuotaBlock is the quota windows of a Gemini account and its credit
+// balances.
+func geminiQuotaBlock(c *ui.Context, l l10n.Localizer, q *runway.GeminiAccountQuota, view accountQuotaOptions) {
+	ui.Column(c).Gap(10).Children(func() {
+		if q == nil || len(q.Meters) == 0 {
+			dimText(c, l.Text(l10n.KeyGeminiNoQuotaData))
+		}
+		if q == nil {
+			return
+		}
+		accountMeters(c, view, len(q.Meters), func(i int) {
+			accountMeter(c, l, projectedAccountMeter(q.Meters[i], view.current), view)
+		})
+		var stats []accountStat
+		for _, d := range q.Details {
+			stats = append(stats, accountStat{label: d.Title, value: d.Value})
+		}
+		if len(stats) > 0 {
+			accountStats(c, view, stats)
+		}
+		if view.showUpdated && !q.UpdatedAt.IsZero() {
+			accountQuotaUpdated(c, l, q.UpdatedAt)
+		}
+	})
+}

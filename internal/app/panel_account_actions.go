@@ -41,6 +41,14 @@ type AccountActions struct {
 	ClaudeSwitch        func(id string) string
 	ClaudeSwitchDesktop func(id string, desktop bool) string
 	ClaudeDelete        func(id string) string
+
+	// Gemini accounts. With restart, GeminiSwitch quits and reopens a running
+	// Antigravity app; it reports running clients, which the user must confirm
+	// before force is set.
+	GeminiRefreshAll func() string
+	GeminiRefresh    func(id string) string
+	GeminiSwitch     func(id string, restart, force bool) (running bool, message string)
+	GeminiDelete     func(id string) string
 }
 
 // allRefreshing marks "every account" as the refresh in flight.

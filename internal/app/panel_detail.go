@@ -18,6 +18,10 @@ func providerView(l l10n.Localizer, snap runway.Snapshot, displayRange store.Cos
 	if snap.Provider == store.ProviderClaude {
 		return claudeAsCodexView(l, snap.Claude, displayRange)
 	}
+	if snap.Provider == store.ProviderGemini {
+		// Only the quota is read for Gemini; nothing of Codex may show through.
+		return runway.CodexView{Meters: snap.Gemini.Meters, DisplayedRange: displayRange}
+	}
 	if snap.Provider != store.ProviderGrok {
 		return snap.Codex
 	}

@@ -34,13 +34,18 @@ func (s *Service) buildLocked(now time.Time) Snapshot {
 	if s.opts.Claude != nil {
 		snap.Claude = s.opts.Claude.State(now)
 	}
+	if s.opts.Gemini != nil {
+		snap.Gemini = s.opts.Gemini.State(now)
+	} else {
+		snap.Gemini = GeminiState{Availability: GeminiNotInstalled}
+	}
 	if s.opts.ResetToday != nil {
 		snap.ResetToday = s.opts.ResetToday.State(now)
 	}
 	in := StatusInputs{
 		Prefs: s.prefs, Provider: s.prefs.SelectedProvider,
 		CodexText: snap.Codex.StatusText, CodexMeters: snap.Codex.Meters,
-		Grok: snap.Grok, Claude: snap.Claude, Now: now,
+		Grok: snap.Grok, Claude: snap.Claude, Gemini: snap.Gemini, Now: now,
 	}
 	snap.StatusBar = BuildStatusBar(lc, in)
 	if s.prefs.FloatingWindow.Enabled {

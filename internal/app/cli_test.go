@@ -8,6 +8,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/licoy/quosparr/internal/gemini"
 	"github.com/licoy/quosparr/internal/platform"
 )
 
@@ -150,5 +151,27 @@ func TestSelfCheckReportsLockAndCodexFiles(t *testing.T) {
 	}
 	if strings.Contains(got, "SECRET") {
 		t.Error("secret leaked")
+	}
+}
+
+func TestSelfCheckReportsAntigravityLoginFileOnly(t *testing.T) {
+	home := t.TempDir()
+	var out bytes.Buffer
+	SelfCheck(&out, home, "")
+	if !strings.Contains(out.String(), "antigravity login file: missing") {
+		t.Fatalf("output lacks the missing login file:\n%s", out.String())
+	}
+	path := gemini.OfficialFiles(home)[0]
+	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(path, []byte(`{"refresh_token":"SECRET"}`), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	out.Reset()
+	SelfCheck(&out, home, "")
+	got := out.String()
+	if !strings.Contains(got, "antigravity login file: present") || strings.Contains(got, "SECRET") || strings.Contains(got, home) {
+		t.Fatalf("output:\n%s", got)
 	}
 }

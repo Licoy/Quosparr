@@ -9,7 +9,7 @@ import (
 
 func (u *settingsUI) pricingProviderTabs(c *ui.Context, snap PricingSnapshot, a PricingActions) {
 	s, l, t := u.pricingState(), u.L(), c.Theme()
-	providers := store.Providers()
+	providers := toolProviders()
 	selected := slicesIndexProvider(providers, s.provider)
 	ui.Row(c).Gap(8).AlignItems(ui.Center).Children(func() {
 		seg := ui.SegmentedBase(c.Key("pricing-providers"), &selected, len(providers))

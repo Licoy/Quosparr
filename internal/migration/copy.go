@@ -49,7 +49,7 @@ func copyTree(source, target string, merge bool) error {
 			if err := copyTree(from, to, merge); err != nil {
 				return err
 			}
-		} else if name == "index.json" || name == "grok-index.json" || name == "claude-index.json" {
+		} else if name == "index.json" || name == "grok-index.json" || name == "claude-index.json" || name == "gemini-index.json" {
 			if err := copyIndex(from, to, exists); err != nil {
 				return err
 			}

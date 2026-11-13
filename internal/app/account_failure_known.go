@@ -10,6 +10,9 @@ import (
 )
 
 func accountKnownReason(l l10n.Localizer, err error) string {
+	if reason := geminiKnownReason(l, err); reason != "" {
+		return reason
+	}
 	for _, entry := range []struct {
 		err error
 		key l10n.Key

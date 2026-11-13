@@ -6,6 +6,7 @@ import (
 	"github.com/egoist/mygo/ui"
 	"github.com/licoy/quosparr/internal/claude"
 	"github.com/licoy/quosparr/internal/codex"
+	"github.com/licoy/quosparr/internal/gemini"
 	"github.com/licoy/quosparr/internal/grok"
 )
 
@@ -149,6 +150,10 @@ var (
 	steelXPlus    = steelSpec{rgb3{0.62, 0.16, 0.42}, rgb3{0.92, 0.42, 0.68}, rgb3{0.42, 0.08, 0.28}, rgb3{0.38, 0.06, 0.22}, rgb3{1.0, 0.78, 0.90}}
 	// steelCoral is the terracotta of the Claude Pro plan.
 	steelCoral = steelSpec{rgb3{0.80, 0.42, 0.30}, rgb3{0.96, 0.68, 0.54}, rgb3{0.58, 0.26, 0.16}, rgb3{0.42, 0.16, 0.08}, rgb3{1.0, 0.86, 0.78}}
+	// steelSlate is the Gemini free plan; steelGemini the blue to violet of
+	// the Gemini Pro plan.
+	steelSlate  = steelSpec{rgb3{0.40, 0.46, 0.54}, rgb3{0.66, 0.72, 0.80}, rgb3{0.26, 0.31, 0.38}, rgb3{0.18, 0.22, 0.28}, rgb3{0.84, 0.88, 0.94}}
+	steelGemini = steelSpec{rgb3{0.26, 0.40, 0.86}, rgb3{0.62, 0.52, 0.98}, rgb3{0.16, 0.24, 0.62}, rgb3{0.12, 0.18, 0.48}, rgb3{0.84, 0.82, 1.0}}
 )
 
 func (s steelSpec) look(light bool) tierLook {
@@ -222,6 +227,21 @@ func claudeTierLook(t *ui.Theme, tier claude.TierKind) tierLook {
 		return steelTeam.look(light)
 	case claude.TierEnterprise:
 		return steelEnt.look(light)
+	}
+	return plainLook(t)
+}
+
+// geminiTierLook gives Free a slate, Pro the Gemini blue and Ultra the
+// black gold of the top plans; an unknown plan stays plain.
+func geminiTierLook(t *ui.Theme, tier gemini.TierKind) tierLook {
+	light := !t.Dark
+	switch tier {
+	case gemini.TierFree:
+		return steelSlate.look(light)
+	case gemini.TierPro:
+		return steelGemini.look(light)
+	case gemini.TierUltra:
+		return blackGoldLook(light)
 	}
 	return plainLook(t)
 }

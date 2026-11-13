@@ -95,6 +95,8 @@ func activePanelAccount(s runway.Snapshot, p store.Provider) string {
 		return s.Grok.Accounts.ActiveID
 	case store.ProviderClaude:
 		return s.Claude.Accounts.ActiveID
+	case store.ProviderGemini:
+		return s.Gemini.Accounts.ActiveID
 	default:
 		return s.Accounts.ActiveID
 	}

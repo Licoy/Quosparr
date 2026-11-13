@@ -14,6 +14,8 @@ func providerKey(v store.Provider) l10n.Key {
 		return l10n.KeyProviderGrok
 	case store.ProviderClaude:
 		return l10n.KeyProviderClaude
+	case store.ProviderGemini:
+		return l10n.KeyProviderGemini
 	default:
 		return l10n.KeyProviderCodex
 	}

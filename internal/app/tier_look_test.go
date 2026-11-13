@@ -7,6 +7,7 @@ import (
 	"github.com/egoist/mygo/ui"
 	"github.com/licoy/quosparr/internal/claude"
 	"github.com/licoy/quosparr/internal/codex"
+	"github.com/licoy/quosparr/internal/gemini"
 )
 
 func TestClaudeTierLooksAreDistinct(t *testing.T) {
@@ -38,5 +39,25 @@ func TestClaudeTierLooksAreDistinct(t *testing.T) {
 func TestBusinessPremiumLabel(t *testing.T) {
 	if accountTierKey(codex.TierBusinessPremium) == accountTierKey(codex.TierBusiness) {
 		t.Fatal("Business Premium needs its own label")
+	}
+}
+
+func TestGeminiTierLooksAreDistinct(t *testing.T) {
+	for _, dark := range []bool{false, true} {
+		theme := &ui.Theme{Dark: dark}
+		plain := plainLook(theme)
+		looks := map[gemini.TierKind]tierLook{}
+		for _, k := range []gemini.TierKind{gemini.TierFree, gemini.TierPro, gemini.TierUltra} {
+			looks[k] = geminiTierLook(theme, k)
+			if reflect.DeepEqual(looks[k], plain) {
+				t.Errorf("dark=%t %s uses the plain look", dark, k)
+			}
+		}
+		if reflect.DeepEqual(looks[gemini.TierFree], looks[gemini.TierPro]) || reflect.DeepEqual(looks[gemini.TierPro], looks[gemini.TierUltra]) {
+			t.Errorf("dark=%t Gemini tiers share a look", dark)
+		}
+		if !reflect.DeepEqual(geminiTierLook(theme, gemini.TierUnknown), plain) {
+			t.Errorf("dark=%t unknown Gemini tier must stay plain", dark)
+		}
 	}
 }

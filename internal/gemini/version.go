@@ -3,6 +3,7 @@ package gemini
 import (
 	"encoding/json"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"regexp"
 	"runtime"
@@ -158,4 +159,21 @@ func clientArch(goarch string) string {
 		return "arm64"
 	}
 	return "amd64"
+}
+
+// ClientInstalled reports whether an Antigravity client is installed for
+// home: the desktop app, the agy CLI on PATH, or the CLI's own directory.
+func ClientInstalled(home string) bool {
+	files := append(versionFiles(home), filepath.Join(home, officialDirName, officialCLIDirName))
+	return clientInstalled(files, exec.LookPath)
+}
+
+func clientInstalled(files []string, lookPath func(string) (string, error)) bool {
+	for _, path := range files {
+		if _, err := os.Stat(path); err == nil {
+			return true
+		}
+	}
+	_, err := lookPath("agy")
+	return err == nil
 }

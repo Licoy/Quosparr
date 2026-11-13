@@ -22,6 +22,7 @@ import (
 	"github.com/licoy/quosparr/internal/estimate"
 	"github.com/licoy/quosparr/internal/export"
 	"github.com/licoy/quosparr/internal/export/swiftjson"
+	"github.com/licoy/quosparr/internal/gemini"
 	"github.com/licoy/quosparr/internal/grok"
 	"github.com/licoy/quosparr/internal/l10n"
 	"github.com/licoy/quosparr/internal/netx"
@@ -181,6 +182,8 @@ type liveApp struct {
 	claudeDesktop  *claudedesktop.Manager
 	desktopSharer  codexdesktop.Sharer
 	claudeB        *claudeBridge
+	geminiMod      *gemini.Module
+	geminiB        *geminiBridge
 	codexCache     usage.CacheScanCache
 	grokCache      grok.CacheScanCache
 	reset          *resetBridge
@@ -239,6 +242,10 @@ func newRuntime(opts BackgroundOptions) *liveApp {
 		log.Println("claude accounts: load failed")
 	}
 	cbridge.reload(false)
+	// The first refresh follows the official login; startup reads no keychain.
+	gmod := newGeminiModule(home, opts.Version)
+	gbridge := newGeminiBridge(gmod, home, prefs, langs)
+	gbridge.reload(false)
 	reset := newResetBridge(opts.Settings, prefs, langs)
 	repo := openUsage(home, priceSource)
 	widgetRequirements := initialWidgetRequirements(opts.Settings)
@@ -277,6 +284,7 @@ func newRuntime(opts BackgroundOptions) *liveApp {
 		StatusPath:          export.DefaultStatusPath(home),
 		Grok:                bridge,
 		Claude:              cbridge,
+		Gemini:              gbridge,
 		ResetToday:          reset,
 		WidgetRequirements:  widgetRequirements,
 		WidgetSink:          widgets.publish,
@@ -290,7 +298,7 @@ func newRuntime(opts BackgroundOptions) *liveApp {
 		SystemLanguages: langs,
 	})
 	rt := &liveApp{
-		host: opts.Host, pricing: prices, svc: svc, codex: codexStore, grokMod: mod, grok: bridge, claudeMod: cmod, claudeB: cbridge, reset: reset,
+		host: opts.Host, pricing: prices, svc: svc, codex: codexStore, grokMod: mod, grok: bridge, claudeMod: cmod, claudeB: cbridge, geminiMod: gmod, geminiB: gbridge, reset: reset,
 		repo: repo, widgets: widgets, dispatch: dispatch, widgetDispatch: widgetUI, alertDispatch: alertUI, version: opts.Version, langs: langs,
 	}
 	rt.claudeDesktop = newClaudeDesktopManager(home, cmod)
@@ -359,8 +367,11 @@ func (rt *liveApp) panelActions(s *Settings) PanelActions {
 				p, l = s.Prefs(), s.L()
 			}
 			accounts := svc.Snapshot().Accounts
-			if p.SelectedProvider == store.ProviderGrok {
+			switch p.SelectedProvider {
+			case store.ProviderGrok:
 				accounts = svc.Snapshot().Grok.Accounts
+			case store.ProviderGemini:
+				accounts = svc.Snapshot().Gemini.Accounts
 			}
 			name := id
 			for _, account := range accounts.Sidebar {
@@ -381,9 +392,12 @@ func (rt *liveApp) panelActions(s *Settings) PanelActions {
 					}
 				}
 				message := ""
-				if p.SelectedProvider == store.ProviderGrok {
+				switch p.SelectedProvider {
+				case store.ProviderGrok:
 					message = rt.switchGrok(l, id, name)
-				} else {
+				case store.ProviderGemini:
+					message = rt.switchGeminiDialog(l, id, name, codexRestartDefault)
+				default:
 					message = rt.switchCodex(l, id, name)
 				}
 				if message != "" {
@@ -406,7 +420,7 @@ func (rt *liveApp) panelActions(s *Settings) PanelActions {
 }
 
 func refreshSection(s *runway.Service, sec runway.Section) {
-	if p := s.Preferences().SelectedProvider; p == store.ProviderGrok || p == store.ProviderClaude {
+	if p := s.Preferences().SelectedProvider; p == store.ProviderGrok || p == store.ProviderClaude || p == store.ProviderGemini {
 		switch sec {
 		case runway.SectionQuotaEstimate, runway.SectionSessionRepair:
 			// A queued Codex-only section can outlive a provider switch.

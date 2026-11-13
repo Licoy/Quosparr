@@ -15,7 +15,7 @@ import (
 
 func TestAccountResetExpiryAdvancesToNextAvailableCard(t *testing.T) {
 	l := l10n.New(l10n.English)
-	for _, provider := range store.Providers() {
+	for _, provider := range resetCardProviders() {
 		for _, settings := range []bool{false, true} {
 			t.Run(fmt.Sprintf("%s/settings=%t", provider, settings), func(t *testing.T) {
 				var acc codex.ManagedAccount

@@ -42,7 +42,7 @@ struct RunwayOverviewWidgetView: View {
         VStack(alignment: .leading, spacing: 6) {
             RunwayProviderLabel(provider: provider.provider, plan: provider.plan, l10n: l10n)
             if provider.availability != .available {
-                Text(runwayAvailabilityText(provider.availability, l10n: l10n))
+                Text(runwayAvailabilityText(provider.availability, provider: provider.provider, l10n: l10n))
                     .font(.caption).foregroundStyle(.secondary)
             } else if provider.quota.isEmpty {
                 Text(l10n.text(.widgetNoData))
@@ -113,7 +113,7 @@ struct RunwayTokenTrendWidgetView: View {
                     }
                     let points = Array(provider.dailyTokens.suffix(limit))
                     if provider.availability != .available {
-                        Text(runwayAvailabilityText(provider.availability, l10n: l10n))
+                        Text(runwayAvailabilityText(provider.availability, provider: provider.provider, l10n: l10n))
                             .font(.caption).foregroundStyle(.secondary)
                             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
                     } else if points.isEmpty {
@@ -171,7 +171,7 @@ struct RunwayMetricWidgetView: View {
                             .lineLimit(1)
                             .minimumScaleFactor(0.7)
                         if provider.availability != .available {
-                            Text(runwayAvailabilityText(provider.availability, l10n: l10n))
+                            Text(runwayAvailabilityText(provider.availability, provider: provider.provider, l10n: l10n))
                                 .font(.caption2)
                                 .foregroundStyle(.secondary)
                                 .lineLimit(1)

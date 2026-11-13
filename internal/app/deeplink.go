@@ -56,6 +56,8 @@ func widgetProvider(scope export.ProviderScope, current store.Provider) store.Pr
 		return store.ProviderGrok
 	case export.ScopeClaude:
 		return store.ProviderClaude
+	case export.ScopeGemini:
+		return store.ProviderGemini
 	}
 	for _, p := range scope.Providers() {
 		if store.Provider(p) == current {

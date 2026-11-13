@@ -38,6 +38,9 @@ func (rt *liveApp) queryDetailCost(ctx context.Context, provider store.Provider,
 		return rt.queryGrokDetailCost(ctx, q, now)
 	case store.ProviderClaude:
 		return rt.queryClaudeDetailCost(ctx, q, now)
+	case store.ProviderGemini:
+		// The Gemini sessions are not scanned yet.
+		return usage.Summary{}, errDetailUnavailable
 	}
 	if rt.svc == nil {
 		return usage.Summary{}, errDetailUnavailable

@@ -33,10 +33,11 @@ const (
 	ProviderCodex  Provider = "codex"
 	ProviderGrok   Provider = "grok"
 	ProviderClaude Provider = "claude"
+	ProviderGemini Provider = "gemini"
 )
 
 func (p Provider) valid() bool {
-	return p == ProviderCodex || p == ProviderGrok || p == ProviderClaude
+	return p == ProviderCodex || p == ProviderGrok || p == ProviderClaude || p == ProviderGemini
 }
 
 // Transfer errors. None of them carries credential text.

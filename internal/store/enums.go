@@ -12,11 +12,14 @@ type Provider string
 const (
 	ProviderCodex  Provider = "codex"
 	ProviderClaude Provider = "claude"
+	ProviderGemini Provider = "gemini"
 	ProviderGrok   Provider = "grok"
 )
 
 // Providers returns every valid Provider, in display order.
-func Providers() []Provider { return []Provider{ProviderCodex, ProviderClaude, ProviderGrok} }
+func Providers() []Provider {
+	return []Provider{ProviderCodex, ProviderClaude, ProviderGemini, ProviderGrok}
+}
 
 // Valid reports whether v is a known value.
 func (v Provider) Valid() bool { return slices.Contains(Providers(), v) }

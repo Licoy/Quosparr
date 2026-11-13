@@ -21,6 +21,8 @@ func (a *App) accountsPage(c *ui.Context, l l10n.Localizer, prefs store.Preferen
 		a.grokAccountsPage(c, l, prefs, snap, acts)
 	case store.ProviderClaude:
 		a.claudeAccountsPage(c, l, prefs, snap, acts)
+	case store.ProviderGemini:
+		a.geminiAccountsPage(c, l, prefs, snap, acts)
 	default:
 		a.codexAccountsPage(c, l, prefs, snap, acts)
 	}

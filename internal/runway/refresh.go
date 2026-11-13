@@ -346,6 +346,28 @@ func (s *Service) refreshClaude(force bool) {
 	})
 }
 
+func (s *Service) refreshGemini(force bool) {
+	if s.opts.Gemini == nil {
+		return
+	}
+	g := s.opts.Gemini
+	s.spawn(func() {
+		_ = g.Refresh(s.root, force)
+		s.publish()
+	})
+}
+
+func (s *Service) refreshGeminiLocal() {
+	if s.opts.Gemini == nil {
+		return
+	}
+	g := s.opts.Gemini
+	s.spawn(func() {
+		_ = g.RefreshLocal(s.root)
+		s.publish()
+	})
+}
+
 func (s *Service) refreshGrokLocal() {
 	if s.opts.Grok == nil {
 		return
@@ -408,6 +430,8 @@ func (s *Service) refreshPanelLocal() {
 		s.refreshGrokLocal()
 	case store.ProviderClaude:
 		s.refreshClaudeLocal()
+	case store.ProviderGemini:
+		s.refreshGeminiLocal()
 	default:
 		if p.ShowsSessionRepairSummary {
 			s.RefreshSessionReport(false)
@@ -430,14 +454,16 @@ func (s *Service) refreshPanelLocal() {
 	}
 }
 
-// RefreshProviderLocal is the manual refresh of a Grok or Claude section
-// built from the local sessions; it leaves the quota to its schedule.
+// RefreshProviderLocal is the manual refresh of a Grok, Claude or Gemini
+// section built from the local sessions; it leaves the quota to its schedule.
 func (s *Service) RefreshProviderLocal(p store.Provider) {
 	switch p {
 	case store.ProviderGrok:
 		s.refreshGrokLocal()
 	case store.ProviderClaude:
 		s.refreshClaudeLocal()
+	case store.ProviderGemini:
+		s.refreshGeminiLocal()
 	}
 }
 
@@ -497,6 +523,8 @@ func (s *Service) startFull(policy usage.RefreshPolicy, widgets bool) <-chan str
 		showsClaude := s.showsProviderLocked(store.ProviderClaude)
 		wantsGrok := s.quotaWantedLocked(store.ProviderGrok)
 		wantsClaude := s.quotaWantedLocked(store.ProviderClaude)
+		showsGemini := s.showsProviderLocked(store.ProviderGemini)
+		wantsGemini := s.quotaWantedLocked(store.ProviderGemini)
 		// Local data is the open panel's provider only, or every provider
 		// when this refresh carries a widget write that needs it.
 		widgetLocal := widgets && s.widgetLocalLocked()
@@ -507,6 +535,7 @@ func (s *Service) startFull(policy usage.RefreshPolicy, widgets bool) <-chan str
 		}
 		grokLocal := widgetLocal || s.panelLocalLocked(store.ProviderGrok)
 		claudeLocal := widgetLocal || s.panelLocalLocked(store.ProviderClaude)
+		geminiLocal := widgetLocal || s.panelLocalLocked(store.ProviderGemini)
 		s.mu.Unlock()
 		report := func(err error, shown bool) {
 			if err != nil && ctx.Err() == nil && shown {
@@ -530,6 +559,14 @@ func (s *Service) startFull(policy usage.RefreshPolicy, widgets bool) <-chan str
 			}
 			if claudeLocal {
 				report(c.RefreshLocal(ctx), showsClaude)
+			}
+		}
+		if g := s.opts.Gemini; g != nil {
+			if wantsGemini {
+				report(g.Refresh(ctx, policy == usage.RefreshForce), showsGemini)
+			}
+			if geminiLocal {
+				report(g.RefreshLocal(ctx), showsGemini)
 			}
 		}
 		s.refreshNow(ctx, policy, local)
@@ -992,6 +1029,7 @@ func (s *Service) RefreshQuota() <-chan struct{} {
 	}
 	wantsGrok := s.quotaWantedLocked(store.ProviderGrok)
 	wantsClaude := s.quotaWantedLocked(store.ProviderClaude)
+	wantsGemini := s.quotaWantedLocked(store.ProviderGemini)
 	s.mu.Unlock()
 	if busy {
 		return closedChan()
@@ -1001,6 +1039,9 @@ func (s *Service) RefreshQuota() <-chan struct{} {
 	}
 	if wantsClaude {
 		s.refreshClaude(true)
+	}
+	if wantsGemini {
+		s.refreshGemini(true)
 	}
 	return s.runAccountScoped(s.refreshQuotaNow)
 }

@@ -204,6 +204,80 @@ type ClaudeProvider interface {
 	SetOnChange(fn func())
 }
 
+// GeminiAvailability is the state of the Gemini panel.
+type GeminiAvailability int
+
+// GeminiAvailability values.
+const (
+	GeminiLoading GeminiAvailability = iota
+	GeminiReady
+	GeminiNotInstalled
+	GeminiNotLoggedIn
+	GeminiReauthRequired
+	// GeminiValidationRequired: the account must finish a check on a web
+	// page; ValidationURL names it.
+	GeminiValidationRequired
+	GeminiSubscriptionRequired
+	GeminiRateLimited
+	GeminiQuotaParseFailed
+	GeminiFailed
+)
+
+// GeminiState is the Gemini view used by the status bar, widget and panel.
+// The local-session fields stay empty until the Gemini sessions are scanned.
+type GeminiState struct {
+	Availability  GeminiAvailability
+	Accounts      AccountsView
+	AccountQuotas map[string]GeminiAccountQuota
+	// Plan is the subscription tier name, "" when unknown.
+	Plan string
+	// TierKind is the gemini tier kind (free, pro, ultra or unknown).
+	TierKind  string
+	UpdatedAt time.Time
+	// Meters are the quota bars, the Gemini 5-hour window first.
+	Meters []Meter
+	// Details are the model and credit rows of the info popover.
+	Details []DetailLine
+	// ValidationURL is the page that clears GeminiValidationRequired or
+	// GeminiSubscriptionRequired, "" when the service named none.
+	ValidationURL  string
+	LastError      string
+	Refreshing     bool
+	Widget         *export.ProviderSnapshot
+	Detail         any
+	Cost           *usage.Summary
+	Heatmap        HeatmapData
+	RecentSessions []sessions.Item
+	Speed          *speed.Report
+	SpeedError     string
+}
+
+// GeminiAccountQuota is the cached quota line of one managed account.
+type GeminiAccountQuota struct {
+	Meters []Meter
+	// Details are the credit balances, shown as figures under the meters.
+	Details     []DetailLine
+	Plan        string
+	TierKind    string
+	Title       string
+	UsedPercent int
+	ResetsAt    time.Time
+	UpdatedAt   time.Time
+}
+
+// GeminiProvider is the Gemini seam. Locking matches GrokProvider: State must
+// be quick and must not call back into the Service, and the onChange callback
+// must run without holding any lock State takes.
+type GeminiProvider interface {
+	State(now time.Time) GeminiState
+	// Refresh refetches the Gemini quota and accounts. force is a manual
+	// refresh, which may skip the automatic spacing.
+	Refresh(ctx context.Context, force bool) error
+	// RefreshLocal rescans the local sessions, like GrokProvider.RefreshLocal.
+	RefreshLocal(ctx context.Context) error
+	SetOnChange(fn func())
+}
+
 // ResetTodayState is the display state of the "rate limit reset today" card.
 type ResetTodayState struct {
 	// Text is the one-line summary, Lines the detail rows.

@@ -107,28 +107,24 @@ func setAPIBalance(p *export.ProviderSnapshot, q *apiquota.Quota) {
 // grokWidgetProvider is the Grok block: the provider's own block, or an
 // "unavailable" placeholder without a Grok provider.
 func grokWidgetProvider(g GrokState, p store.Preferences) export.ProviderSnapshot {
-	if g.Widget != nil {
-		w := *g.Widget
-		if !p.ShowsModelSpecificQuotaUsage {
-			var std []export.WidgetQuota
-			for _, q := range w.Quota {
-				if q.Source == export.QuotaStandard {
-					std = append(std, q)
-				}
-			}
-			w.Quota = std
-		}
-		return export.NewProviderSnapshot(w)
-	}
-	return export.NewProviderSnapshot(export.ProviderSnapshot{
-		Provider: export.ProviderGrok, Availability: export.Unavailable, TokenSource: export.TokensThisMac,
-	})
+	return optionalWidgetProvider(g.Widget, export.ProviderGrok, p)
 }
 
 // claudeWidgetProvider is the Claude block from the live Claude state.
 func claudeWidgetProvider(g ClaudeState, p store.Preferences) export.ProviderSnapshot {
-	if g.Widget != nil {
-		w := *g.Widget
+	return optionalWidgetProvider(g.Widget, export.ProviderClaude, p)
+}
+
+// geminiWidgetProvider is the Gemini block from the live Gemini state.
+func geminiWidgetProvider(g GeminiState, p store.Preferences) export.ProviderSnapshot {
+	return optionalWidgetProvider(g.Widget, export.ProviderGemini, p)
+}
+
+// optionalWidgetProvider is an optional provider's own block without the
+// model-specific quota the preferences hide, or an "unavailable" placeholder.
+func optionalWidgetProvider(block *export.ProviderSnapshot, provider export.Provider, p store.Preferences) export.ProviderSnapshot {
+	if block != nil {
+		w := *block
 		if !p.ShowsModelSpecificQuotaUsage {
 			var std []export.WidgetQuota
 			for _, q := range w.Quota {
@@ -141,7 +137,7 @@ func claudeWidgetProvider(g ClaudeState, p store.Preferences) export.ProviderSna
 		return export.NewProviderSnapshot(w)
 	}
 	return export.NewProviderSnapshot(export.ProviderSnapshot{
-		Provider: export.ProviderClaude, Availability: export.Unavailable, TokenSource: export.TokensThisMac,
+		Provider: provider, Availability: export.Unavailable, TokenSource: export.TokensThisMac,
 	})
 }
 
@@ -149,6 +145,7 @@ func claudeWidgetProvider(g ClaudeState, p store.Preferences) export.ProviderSna
 func makeWidgetSnapshot(snap Snapshot, p store.Preferences, now time.Time) export.Snapshot {
 	providers := []export.ProviderSnapshot{
 		codexWidgetProvider(snap.Codex), grokWidgetProvider(snap.Grok, p), claudeWidgetProvider(snap.Claude, p),
+		geminiWidgetProvider(snap.Gemini, p),
 	}
 	return export.NewSnapshot(now, snap.Language, providers, snap.ResetToday.Widget)
 }

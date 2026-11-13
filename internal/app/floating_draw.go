@@ -79,6 +79,8 @@ func floatingProviderIcon(p *ui.Painter, prov store.Provider, r ui.Rect, k float
 		p.Image(codexProviderIcon, r, ui.Contain)
 	case store.ProviderClaude:
 		p.Image(claudeProviderIcon, r, ui.Contain)
+	case store.ProviderGemini:
+		p.Image(geminiProviderIcon, r, ui.Contain)
 	case store.ProviderGrok:
 		// The Grok mark is monochrome: it takes the text color.
 		p.Icon(grokProviderIcon, r, k.text)

@@ -2,8 +2,8 @@
 
 Provider SVGs are unmodified files from [LobeHub Icons](https://icons.lobehub.com), npm `@lobehub/icons-static-svg` version **1.95.1**, MIT license
 
-- `codex-color.svg`, `claude-color.svg`: original color artwork
-- `codex.svg`, `grok.svg`, `claude.svg`: original `currentColor` monochrome artwork
+- `codex-color.svg`, `claude-color.svg`, `gemini-color.svg`: original color artwork
+- `codex.svg`, `grok.svg`, `claude.svg`, `gemini.svg`: original `currentColor` monochrome artwork
 - `LOBEHUB-LICENSE`: upstream MIT notice at git commit `49a2130df7bfa5eb1b088261bff20a37e2967789`
 
 The official [npm archive](https://registry.npmjs.org/@lobehub/icons-static-svg/-/icons-static-svg-1.95.1.tgz) is pinned by SHA-512 integrity `Hw7EPPgVnC4NZLXBfTNJG6hyQgqECfUPC11VVXodPSr1aebKcFxDZlSpxhWwYNdCc6bhxps/x5TtXoPmfKH2ag==`

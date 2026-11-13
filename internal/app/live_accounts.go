@@ -31,6 +31,7 @@ func installAccountActions(rt *liveApp, s *Settings, a *PanelActions) {
 	}
 	installGrokAccountActions(rt, loc, &a.Accounts)
 	installClaudeAccountActions(rt, loc, &a.Accounts)
+	installGeminiAccountActions(rt, loc, &a.Accounts)
 }
 
 func installClaudeAccountActions(rt *liveApp, loc func() l10n.Localizer, a *AccountActions) {

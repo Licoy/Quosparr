@@ -6,6 +6,7 @@ import (
 	"github.com/egoist/mygo"
 	"github.com/egoist/mygo/ui"
 	"github.com/licoy/quosparr/internal/codex"
+	"github.com/licoy/quosparr/internal/gemini"
 	"github.com/licoy/quosparr/internal/grok"
 	"github.com/licoy/quosparr/internal/l10n"
 )
@@ -20,6 +21,7 @@ type accountSelection struct {
 	rows   []accountChoice
 	codex  []codex.ImportCandidate
 	grok   []grok.ImportCandidate
+	gemini []gemini.ImportCandidate
 	failed int
 	causes []error
 }
@@ -62,9 +64,14 @@ func (u *settingsUI) previewAccountFiles(f *accountForm, rt *liveApp) {
 		paths, err := mygo.Dialog.Open(mygo.OpenDialogOptions{Title: l.Text(l10n.KeyAccountsAddFile), Multiple: true})
 		var selection *accountSelection
 		if err == nil && len(paths) > 0 {
-			if kind == accountKindCodex {
+			switch {
+			case kind == accountKindCodex:
 				selection = codexImportSelection(rt.codex, paths)
-			} else {
+			case kind == accountKindGemini:
+				preview, previewErr := rt.geminiMod.PreviewImportFiles(context.Background(), paths)
+				err = previewErr
+				selection = geminiImportSelection(preview)
+			default:
 				preview, previewErr := rt.grokMod.PreviewImportFiles(context.Background(), paths)
 				err = previewErr
 				selection = grokImportSelection(preview)
@@ -76,6 +83,15 @@ func (u *settingsUI) previewAccountFiles(f *accountForm, rt *liveApp) {
 
 func grokImportSelection(preview grok.ImportPreview) *accountSelection {
 	s := &accountSelection{grok: preview.Items, failed: len(preview.Failures), causes: preview.FailureErrors}
+	for _, candidate := range preview.Items {
+		row := candidate.Preview
+		s.rows = append(s.rows, accountChoice{id: candidate.ID(), name: row.DisplayName, detail: row.Detail, selected: true, update: row.Conflict.WillUpdate})
+	}
+	return s
+}
+
+func geminiImportSelection(preview gemini.ImportPreview) *accountSelection {
+	s := &accountSelection{gemini: preview.Items, failed: len(preview.Failures), causes: preview.FailureErrors}
 	for _, candidate := range preview.Items {
 		row := candidate.Preview
 		s.rows = append(s.rows, accountChoice{id: candidate.ID(), name: row.DisplayName, detail: row.Detail, selected: true, update: row.Conflict.WillUpdate})
@@ -178,6 +194,9 @@ func (rt *liveApp) commitAccountSelection(l l10n.Localizer, s *accountSelection,
 		if kind == accountKindGrok {
 			return rt.exportGrok(l, ids)
 		}
+		if kind == accountKindGemini {
+			return rt.exportGemini(l, ids)
+		}
 		return rt.exportCodex(l, ids)
 	}
 	count, failed := 0, s.failed
@@ -186,6 +205,18 @@ func (rt *liveApp) commitAccountSelection(l l10n.Localizer, s *accountSelection,
 		batch := (&codex.Importer{Store: rt.codex}).ImportPreviewSelection(context.Background(), s.codex, ids, false)
 		batch.FailureErrors = append(causes, batch.FailureErrors...)
 		return rt.codexImportMessage(l, batch, s.failed)
+	} else if kind == accountKindGemini {
+		if !rt.geminiReady() {
+			return tx(l, xDetailUnavailable), false
+		}
+		batch, _, err := rt.geminiMod.ImportPreviewSelection(context.Background(), s.gemini, ids)
+		count, failed = batch.SuccessCount(), failed+batch.FailureCount()
+		causes = append(causes, batch.FailureErrors...)
+		if err != nil {
+			failed++
+			causes = append(causes, err)
+		}
+		rt.geminiReload()
 	} else {
 		batch, _, err := rt.grokMod.ImportPreviewSelection(context.Background(), s.grok, ids)
 		count, failed = batch.SuccessCount(), failed+batch.FailureCount()

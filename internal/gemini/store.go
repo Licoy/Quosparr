@@ -33,7 +33,7 @@ type Store struct {
 	mu       sync.Mutex
 }
 
-// NewStore keeps accounts in <runwayHome>/gemini and reads the official
+// NewStore keeps accounts in <runwayHome>/accounts and reads the official
 // login from the system keychain and the mirror files under home.
 func NewStore(runwayHome, home string) *Store {
 	return &Store{root: filepath.Join(runwayHome, storeDirName), Official: DefaultOfficialCredentials(home)}
@@ -44,7 +44,7 @@ func NewStoreAt(root string, official *OfficialCredentials) *Store {
 	return &Store{root: root, Official: official}
 }
 
-// DefaultStore uses ~/.quosparr/gemini and the current user's login.
+// DefaultStore uses ~/.quosparr/accounts and the current user's login.
 func DefaultStore() (*Store, error) {
 	home, err := platform.Home()
 	if err != nil {

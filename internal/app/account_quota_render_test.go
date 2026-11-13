@@ -66,7 +66,7 @@ func quotaAccountRowTester(t *testing.T, lang store.Language, provider store.Pro
 
 func TestSettingsAccountUpdateControlsStayCentered(t *testing.T) {
 	for _, lang := range []store.Language{store.LanguageEnglish, store.LanguageSimplifiedChinese, store.LanguageTraditionalChinese, store.LanguageFrench, store.LanguageRussian, store.LanguageJapanese, store.LanguageKorean} {
-		for _, provider := range store.Providers() {
+		for _, provider := range resetCardProviders() {
 			for _, width := range []int{settingsMinWidth - settingsSidebarWidth, settingsWidth - settingsSidebarWidth} {
 				t.Run(fmt.Sprintf("%s/%s/%d", lang, provider, width), func(t *testing.T) {
 					tt, l := quotaAccountRowTester(t, lang, provider, width, false)
@@ -139,7 +139,7 @@ func TestExportAccountQuotaReview(t *testing.T) {
 	}
 	for _, lang := range []store.Language{store.LanguageEnglish, store.LanguageSimplifiedChinese} {
 		for _, dark := range []bool{false, true} {
-			for _, provider := range store.Providers() {
+			for _, provider := range resetCardProviders() {
 				for _, panel := range []bool{false, true} {
 					width := settingsMinWidth - settingsSidebarWidth
 					if panel {

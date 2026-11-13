@@ -131,7 +131,7 @@ func TestMCPAddPreflightAllTargetsBlocksOnAnyFailure(t *testing.T) {
 	mcpAddFixture(u)
 	w := u.mcp.add
 	w.step = mcpStepReview
-	for _, p := range store.Providers() {
+	for _, p := range toolProviders() {
 		w.targets[p] = true
 	}
 	u.prepareMCPDrafts(actions, false)

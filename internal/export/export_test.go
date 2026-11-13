@@ -591,7 +591,12 @@ func TestLayoutPolicy(t *testing.T) {
 	if !reflect.DeepEqual(ProviderScope("both").Providers(), []Provider{ProviderCodex, ProviderGrok}) ||
 		!reflect.DeepEqual(ScopeClaude.Providers(), []Provider{ProviderClaude}) ||
 		!reflect.DeepEqual(ScopeCodexClaude.Providers(), []Provider{ProviderCodex, ProviderClaude}) ||
-		!reflect.DeepEqual(ScopeGrokClaude.Providers(), []Provider{ProviderGrok, ProviderClaude}) {
+		!reflect.DeepEqual(ScopeGrokClaude.Providers(), []Provider{ProviderGrok, ProviderClaude}) ||
+		!reflect.DeepEqual(ScopeGemini.Providers(), []Provider{ProviderGemini}) ||
+		!reflect.DeepEqual(ScopeCodexGemini.Providers(), []Provider{ProviderCodex, ProviderGemini}) ||
+		!reflect.DeepEqual(ScopeClaudeGemini.Providers(), []Provider{ProviderClaude, ProviderGemini}) ||
+		!reflect.DeepEqual(ScopeGeminiGrok.Providers(), []Provider{ProviderGemini, ProviderGrok}) ||
+		ProviderScope("gemini-claude").Valid() || len(ProviderScopes()) != 10 {
 		t.Fatal("providers")
 	}
 	if string(KindOverview) != "com.quosparr.app.widget.overview" || len(Kinds()) != 4 {

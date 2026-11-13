@@ -10,6 +10,7 @@ import (
 
 	"github.com/licoy/quosparr/internal/claude"
 	"github.com/licoy/quosparr/internal/codex"
+	"github.com/licoy/quosparr/internal/gemini"
 	"github.com/licoy/quosparr/internal/grok"
 	"github.com/licoy/quosparr/internal/platform"
 )
@@ -49,6 +50,10 @@ func validateIndex(data []byte, name string) error {
 	} else if name == "claude-index.json" {
 		var idx claude.AccountIndex
 		idx, err = claude.ParseAccountIndex(data)
+		version = idx.Version
+	} else if name == "gemini-index.json" {
+		var idx gemini.AccountIndex
+		idx, err = gemini.ParseAccountIndex(data)
 		version = idx.Version
 	} else {
 		var idx codex.AccountIndex

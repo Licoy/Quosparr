@@ -13,9 +13,13 @@ struct RunwayProviderOptions: DynamicOptionsProvider, Sendable {
                 IntentItem("codex", title: LocalizedStringResource(stringLiteral: l10n.text(.widgetProviderCodex))),
                 IntentItem("grok", title: LocalizedStringResource(stringLiteral: l10n.text(.widgetProviderGrok))),
                 IntentItem("claude", title: LocalizedStringResource(stringLiteral: l10n.text(.widgetProviderClaude))),
+                IntentItem("gemini", title: LocalizedStringResource(stringLiteral: l10n.text(.widgetProviderGemini))),
                 IntentItem("both", title: LocalizedStringResource(stringLiteral: l10n.text(.widgetProviderBoth))),
                 IntentItem("codex-claude", title: LocalizedStringResource(stringLiteral: l10n.text(.widgetProviderCodexClaude))),
                 IntentItem("grok-claude", title: LocalizedStringResource(stringLiteral: l10n.text(.widgetProviderGrokClaude))),
+                IntentItem("codex-gemini", title: LocalizedStringResource(stringLiteral: l10n.text(.widgetProviderCodexGemini))),
+                IntentItem("claude-gemini", title: LocalizedStringResource(stringLiteral: l10n.text(.widgetProviderClaudeGemini))),
+                IntentItem("gemini-grok", title: LocalizedStringResource(stringLiteral: l10n.text(.widgetProviderGeminiGrok))),
             ]),
         ])
     }

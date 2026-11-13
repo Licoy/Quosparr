@@ -6,7 +6,6 @@ import (
 	"github.com/egoist/mygo/ui"
 	"github.com/licoy/quosparr/internal/l10n"
 	"github.com/licoy/quosparr/internal/sessions"
-	"github.com/licoy/quosparr/internal/store"
 )
 
 func (u *settingsUI) sessionsPage(c *ui.Context) {
@@ -58,7 +57,7 @@ func (u *settingsUI) sessionListHeader(c *ui.Context, actions SessionActions) {
 
 func (u *settingsUI) sessionProviderTabs(c *ui.Context, actions SessionActions) {
 	s, l, t := u.sessionsState(), u.L(), c.Theme()
-	providers := store.Providers()
+	providers := toolProviders()
 	selected := 0
 	for i, provider := range providers {
 		if provider == s.provider {

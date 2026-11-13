@@ -23,13 +23,21 @@ var grokProviderSVG []byte
 //go:embed assets/providers/claude-color.svg
 var claudeProviderSVG []byte
 
+//go:embed assets/providers/gemini-color.svg
+var geminiProviderSVG []byte
+
+//go:embed assets/providers/gemini.svg
+var geminiMonoProviderSVG []byte
+
 var (
 	codexProviderIcon  = ui.MustParseSVG(codexProviderSVG)
 	grokProviderIcon   = ui.MustParseSVG(grokProviderSVG)
 	claudeProviderIcon = ui.MustParseSVG(claudeProviderSVG)
+	geminiProviderIcon = ui.MustParseSVG(geminiProviderSVG)
 
 	codexMonoProviderIcon  = ui.MustParseSVG(codexMonoProviderSVG)
 	claudeMonoProviderIcon = ui.MustParseSVG(claudeMonoProviderSVG)
+	geminiMonoProviderIcon = ui.MustParseSVG(geminiMonoProviderSVG)
 )
 
 // ProviderIcon preserves the official logo's colors; monochrome SVGs inherit
@@ -42,6 +50,8 @@ func ProviderIcon(c *ui.Context, provider store.Provider, size float32) ui.Eleme
 		return ui.Image(c, grokProviderIcon).Size(size, size)
 	case store.ProviderClaude:
 		return ui.Image(c, claudeProviderIcon).Size(size, size)
+	case store.ProviderGemini:
+		return ui.Image(c, geminiProviderIcon).Size(size, size)
 	default:
 		return ui.Icon(c, icPlug).Size(size, size).TextColor(c.Theme().TextMuted)
 	}
@@ -54,6 +64,8 @@ func ProviderMonoIcon(c *ui.Context, provider store.Provider, size float32) ui.E
 		return ui.Image(c, codexMonoProviderIcon).Size(size, size)
 	case store.ProviderClaude:
 		return ui.Image(c, claudeMonoProviderIcon).Size(size, size)
+	case store.ProviderGemini:
+		return ui.Image(c, geminiMonoProviderIcon).Size(size, size)
 	default:
 		return ProviderIcon(c, provider, size)
 	}

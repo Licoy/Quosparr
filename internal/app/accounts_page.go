@@ -22,6 +22,7 @@ import (
 const (
 	accountKindCodex = iota
 	accountKindClaude
+	accountKindGemini
 	accountKindGrok
 )
 
@@ -40,6 +41,8 @@ func renderAccountsPage(c *ui.Context, u *settingsUI) {
 		renderCodexAccounts(c, u, f, rt)
 	case accountKindGrok:
 		renderGrokAccounts(c, u, f, rt)
+	case accountKindGemini:
+		renderGeminiAccounts(c, u, f, rt)
 	default:
 		renderClaudeAccounts(c, u, f, rt)
 	}
@@ -178,6 +181,7 @@ type accountForm struct {
 	busy               bool
 	cancel             context.CancelFunc
 	claudeLogin        *claudeLoginAttempt
+	geminiLogin        *geminiLoginAttempt
 	desktop            *desktopDialog
 	desktopSwitch      bool
 	selection          *accountSelection
@@ -790,6 +794,9 @@ func pasteAccount(l l10n.Localizer, kind int, text string) (string, bool) {
 	if kind == accountKindClaude {
 		return rt.claudePasteText(context.Background(), l, text)
 	}
+	if kind == accountKindGemini {
+		return rt.geminiPasteText(l, text)
+	}
 	return rt.pasteCodex(l, text)
 }
 
@@ -800,6 +807,9 @@ func saveAccountMeta(l l10n.Localizer, kind int, mode, id, alias, note string) s
 	}
 	if kind == accountKindGrok {
 		return rt.setGrokAlias(l, id, alias)
+	}
+	if kind == accountKindGemini {
+		return rt.setGeminiAlias(l, id, alias)
 	}
 	if mode == "note" {
 		return rt.setCodexMeta(l, id, nil, &note)

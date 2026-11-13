@@ -153,10 +153,10 @@ struct RunwayWidgetFreshness: View {
     }
 }
 
-func runwayAvailabilityText(_ state: RunwayWidgetAvailability, l10n: L10n) -> String {
+func runwayAvailabilityText(_ state: RunwayWidgetAvailability, provider: RunwayProvider, l10n: L10n) -> String {
     switch state {
     case .notLoggedIn: l10n.text(.notLoggedIn)
-    case .cliUnavailable: l10n.text(.grokCLIUnavailable)
+    case .cliUnavailable: l10n.text(provider == .gemini ? .geminiNotInstalled : .grokCLIUnavailable)
     case .available: l10n.text(.available)
     case .unavailable: l10n.text(.statusUnknown)
     }
@@ -217,6 +217,7 @@ func providerName(_ provider: RunwayProvider, l10n: L10n) -> String {
     case .codex: l10n.text(.widgetProviderCodex)
     case .grok: l10n.text(.widgetProviderGrok)
     case .claude: l10n.text(.widgetProviderClaude)
+    case .gemini: l10n.text(.widgetProviderGemini)
     }
 }
 
@@ -229,6 +230,10 @@ extension RunwayWidgetProviderScope {
         case .both: l10n.text(.widgetProviderBoth)
         case .codexClaude: l10n.text(.widgetProviderCodexClaude)
         case .grokClaude: l10n.text(.widgetProviderGrokClaude)
+        case .gemini: l10n.text(.widgetProviderGemini)
+        case .codexGemini: l10n.text(.widgetProviderCodexGemini)
+        case .claudeGemini: l10n.text(.widgetProviderClaudeGemini)
+        case .geminiGrok: l10n.text(.widgetProviderGeminiGrok)
         }
     }
 }

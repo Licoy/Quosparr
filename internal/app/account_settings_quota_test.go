@@ -40,9 +40,15 @@ func quotaAccountFixture(t *testing.T, l l10n.Localizer, now time.Time) (codex.M
 	return acc, cq, gq
 }
 
+// resetCardProviders are the providers whose shared quota fixture carries
+// reset cards; Gemini has none and is covered by account_quota_gemini_test.go.
+func resetCardProviders() []store.Provider {
+	return []store.Provider{store.ProviderCodex, store.ProviderClaude, store.ProviderGrok}
+}
+
 func TestSettingsAndPanelAccountsShowCompleteQuota(t *testing.T) {
 	for _, language := range []store.Language{store.LanguageEnglish, store.LanguageSimplifiedChinese, store.LanguageFrench, store.LanguageRussian, store.LanguageJapanese, store.LanguageKorean, store.LanguageTraditionalChinese} {
-		for _, provider := range store.Providers() {
+		for _, provider := range resetCardProviders() {
 			for _, panel := range []bool{false, true} {
 				t.Run(fmt.Sprintf("%s/%s/panel=%t", language, provider, panel), func(t *testing.T) {
 					l := l10n.ForPreference(string(language), nil)

@@ -7,6 +7,7 @@ import (
 	"github.com/egoist/mygo/ui"
 	"github.com/licoy/quosparr/internal/claude"
 	"github.com/licoy/quosparr/internal/codex"
+	"github.com/licoy/quosparr/internal/gemini"
 	"github.com/licoy/quosparr/internal/grok"
 	"github.com/licoy/quosparr/internal/l10n"
 )
@@ -35,6 +36,7 @@ var (
 		claude.TierPro, claude.TierMax, claude.TierMax5x, claude.TierMax20x,
 		claude.TierTeam, claude.TierEnterprise,
 	}
+	previewGeminiTiers = []gemini.TierKind{gemini.TierFree, gemini.TierPro, gemini.TierUltra, gemini.TierUnknown}
 )
 
 // OpenTierPreview shows the badge preview window, or focuses it.
@@ -98,6 +100,11 @@ func tierPreviewPane(c *ui.Context, l l10n.Localizer, t *ui.Theme) {
 				tierBadge(c, claudeTierLook(t, tier), tier.DisplayName())
 			}
 			tierBadge(c, plainLook(t), l.Text(l10n.KeyProviderClaude))
+		})
+		tierPreviewGroup(c, l.Text(l10n.KeyProviderGemini), ink, func() {
+			for _, tier := range previewGeminiTiers {
+				tierBadge(c, geminiTierLook(t, tier), geminiTierLabel(l, string(tier)))
+			}
 		})
 	})
 }

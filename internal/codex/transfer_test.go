@@ -285,3 +285,17 @@ func TestDecodeIfPack(t *testing.T) {
 		}
 	}
 }
+
+func TestDecodeAcceptsGeminiPacks(t *testing.T) {
+	data := `{"format":"quosparr-accounts","version":1,"provider":"gemini","accounts":[{"id":"a","credential":{"k":1}}]}`
+	pack := must(DecodeTransferPack([]byte(data)))
+	if pack.Provider != ProviderGemini || len(pack.Accounts) != 1 {
+		t.Fatalf("pack: %+v", pack)
+	}
+	path := filepath.Join(t.TempDir(), "gemini.json")
+	noErr(t, os.WriteFile(path, []byte(data), 0o600))
+	preview := (&Importer{Store: newEnv(t).store}).PreviewFiles([]string{path})
+	if preview.RoutedProvider != ProviderGemini || !preview.SourceIsPack || len(preview.Items) != 0 {
+		t.Fatalf("preview: routed=%s pack=%t items=%d", preview.RoutedProvider, preview.SourceIsPack, len(preview.Items))
+	}
+}

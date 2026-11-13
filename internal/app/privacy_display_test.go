@@ -89,6 +89,8 @@ func TestDisplayPrivacySwitchUpdatesBothProviderPanels(t *testing.T) {
 		snap.Claude.Accounts = snap.Accounts
 		snap.Claude.Accounts.Display.DisplayName = "Ada Lovelace"
 		snap.Claude.Accounts.Display.Email = "ada@example.com"
+		snap.Gemini.Accounts = snap.Accounts
+		snap.Gemini.Accounts.Display.DisplayName = "Ada Lovelace"
 		a, panel := newPanel(t, func(p *store.Preferences) { p.SelectedProvider = provider }, snap, PanelActions{})
 		label := a.L().Text(l10n.KeyAccounts)
 		if provider == store.ProviderGrok {
