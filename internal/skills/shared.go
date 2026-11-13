@@ -30,7 +30,10 @@ func normalizeEnv(env Env) (Env, error) {
 	if env.GrokHome == "" {
 		env.GrokHome = filepath.Join(env.Home, ".grok")
 	}
-	for _, path := range []*string{&env.CodexHome, &env.ClaudeDir, &env.GrokHome} {
+	if env.GeminiHome == "" {
+		env.GeminiHome = filepath.Join(env.Home, ".gemini")
+	}
+	for _, path := range []*string{&env.CodexHome, &env.ClaudeDir, &env.GrokHome, &env.GeminiHome} {
 		abs, err := filepath.Abs(*path)
 		if err != nil {
 			return Env{}, err

@@ -1,6 +1,7 @@
 // Package skills discovers the global Agent Skills each CLI loads (Codex,
-// Claude Code, Grok), reports whether the CLI would use them, and removes a
-// user-owned skill into Quosparr's restorable trash (~/.quosparr/skills-trash).
+// Claude Code, Grok, Gemini), reports whether the CLI would use them, and
+// removes a user-owned skill into Quosparr's restorable trash
+// (~/.quosparr/skills-trash).
 // Permanent removal goes through the system trash. It only reads official
 // configuration; enabling or disabling a skill is written by the provider
 // packages (codex, claude, grok).
@@ -16,6 +17,7 @@ const (
 	ProviderCodex  Provider = "codex"
 	ProviderClaude Provider = "claude"
 	ProviderGrok   Provider = "grok"
+	ProviderGemini Provider = "gemini"
 )
 
 // Scope says who owns a skill's location.
@@ -25,7 +27,7 @@ type Scope string
 const (
 	ScopeUser    Scope = "user"    // a user skills directory; deletable
 	ScopeSystem  Scope = "system"  // Codex $CODEX_HOME/skills/.system
-	ScopeBundled Scope = "bundled" // Grok $GROK_HOME/bundled/skills
+	ScopeBundled Scope = "bundled" // Grok $GROK_HOME/bundled/skills, Gemini builtin skills
 	ScopeAdmin   Scope = "admin"   // /etc/codex/skills, Claude managed settings
 	ScopePlugin  Scope = "plugin"  // an installed plugin, managed by the CLI
 	ScopeSynced  Scope = "synced"  // Claude <config>/skills/synced (claude.ai)
@@ -65,6 +67,7 @@ const (
 	ReasonHiddenDir        Reason = "hiddenDir"        // inside a dot directory the CLI skips
 	ReasonReadOnlyScope    Reason = "readOnlyScope"    // system / bundled / admin / plugin / synced
 	ReasonPluginCollection Reason = "pluginCollection" // part of a plugin; toggled through the plugin
+	ReasonNoToggle         Reason = "noToggle"         // the CLI has no per-skill switch (Gemini)
 )
 
 // Field is one display-only frontmatter or interface value, e.g.
@@ -244,7 +247,9 @@ type Env struct {
 	CodexHome string // resolved CODEX_HOME
 	ClaudeDir string // resolved CLAUDE_CONFIG_DIR
 	GrokHome  string // resolved GROK_HOME
-	GOOS      string // runtime.GOOS unless a test overrides it
+	// GeminiHome is the Antigravity data folder, ~/.gemini by default.
+	GeminiHome string
+	GOOS       string // runtime.GOOS unless a test overrides it
 	// Getenv reads environment variables (Grok GROK_CLAUDE_SKILLS_ENABLED,
 	// GROK_CURSOR_SKILLS_ENABLED). Nil reads none.
 	Getenv func(string) string

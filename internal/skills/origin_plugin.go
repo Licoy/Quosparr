@@ -11,6 +11,7 @@ var pluginManifestDirs = map[Provider][]string{
 	ProviderCodex:  {".codex-plugin", ".claude-plugin", ".grok-plugin", ".cursor-plugin"},
 	ProviderClaude: {".claude-plugin", ".codex-plugin", ".grok-plugin", ".cursor-plugin"},
 	ProviderGrok:   {".grok-plugin", ".claude-plugin", ".codex-plugin", ".cursor-plugin"},
+	ProviderGemini: {"", ".claude-plugin", ".codex-plugin", ".grok-plugin", ".cursor-plugin"},
 }
 
 type originPluginCache struct {

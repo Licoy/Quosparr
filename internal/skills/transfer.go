@@ -183,6 +183,8 @@ func transferTargetRoot(env Env, provider Provider) (string, error) {
 		return filepath.Join(env.ClaudeDir, "skills"), nil
 	case ProviderGrok:
 		return filepath.Join(env.GrokHome, "skills"), nil
+	case ProviderGemini:
+		return filepath.Join(env.GeminiHome, "config", "skills"), nil
 	default:
 		return "", ErrTransferProvider
 	}
