@@ -101,7 +101,9 @@ func overlappingManagedFiles(selected []ManagedSession) map[int]error {
 }
 
 func validateManagedSession(session ManagedSession, trustedRoots []string) error {
-	if session.Provider != ProviderCodex && session.Provider != ProviderClaude && session.Provider != ProviderGrok {
+	switch session.Provider {
+	case ProviderCodex, ProviderClaude, ProviderGrok, ProviderGemini:
+	default:
 		return errors.New("unknown session provider")
 	}
 	if len(session.Files) == 0 {

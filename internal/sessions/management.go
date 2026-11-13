@@ -18,6 +18,7 @@ const (
 	ProviderCodex  = "codex"
 	ProviderClaude = "claude"
 	ProviderGrok   = "grok"
+	ProviderGemini = "gemini"
 )
 
 // ManagedFile is a file that belonged to a session when it was scanned.
