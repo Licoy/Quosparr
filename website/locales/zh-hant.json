@@ -67,13 +67,15 @@
   },
   "shots": {
     "title": "截圖",
-    "note": "截圖展示的是 v1 在 macOS 與 Windows 上的介面。",
+    "note": "截圖展示的是 v1 在 macOS 上的介面。",
     "main": "主面板",
-    "cost": "API 等價成本",
-    "estimate": "訂閱額度推算",
     "accounts": "服務商帳號",
-    "display": "顯示設定",
-    "windows": "Windows 設定與 Grok 面板"
+    "menuBar": "狀態欄元件",
+    "floating": "桌面浮動視窗",
+    "pricing": "模型價格",
+    "sessions": "工作階段管理",
+    "skills": "Skill 管理",
+    "mcp": "MCP 管理"
   },
   "privacy": {
     "title": "隱私",

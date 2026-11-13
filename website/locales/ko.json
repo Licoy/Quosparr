@@ -67,13 +67,15 @@
   },
   "shots": {
     "title": "스크린샷",
-    "note": "스크린샷은 macOS와 Windows에서 실행한 v1 화면입니다.",
+    "note": "스크린샷은 macOS에서 실행한 v1 화면입니다.",
     "main": "메인 패널",
-    "cost": "API 환산 비용",
-    "estimate": "구독 할당량 추정",
     "accounts": "공급자 계정",
-    "display": "표시 설정",
-    "windows": "Windows 설정과 Grok 패널"
+    "menuBar": "메뉴 막대 항목",
+    "floating": "플로팅 창",
+    "pricing": "모델 가격",
+    "sessions": "세션 관리",
+    "skills": "Skill 관리",
+    "mcp": "MCP 관리"
   },
   "privacy": {
     "title": "개인정보",

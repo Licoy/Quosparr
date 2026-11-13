@@ -67,13 +67,15 @@
   },
   "shots": {
     "title": "Screenshots",
-    "note": "The screenshots show v1 on macOS and Windows.",
+    "note": "The screenshots show v1 on macOS.",
     "main": "Main panel",
-    "cost": "API-equivalent cost",
-    "estimate": "Subscription quota estimate",
     "accounts": "Provider accounts",
-    "display": "Display settings",
-    "windows": "Windows settings and Grok panel"
+    "menuBar": "Menu Bar Item",
+    "floating": "Floating window",
+    "pricing": "Model prices",
+    "sessions": "Sessions",
+    "skills": "Skills",
+    "mcp": "MCP"
   },
   "privacy": {
     "title": "Privacy",

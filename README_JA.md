@@ -70,31 +70,39 @@ Quosparr は macOS、Windows、Linux 向けのネイティブなメニューバ�
 <table>
   <tr>
     <th colspan="2">メインパネル</th>
-    <th colspan="2">API 換算コスト</th>
-    <th colspan="2">サブスク枠の推定</th>
+    <th colspan="4">プロバイダーアカウント</th>
   </tr>
   <tr>
-    <td colspan="2" align="center" valign="top"><img src="docs/images/1-en.webp?v3" alt="Quosparr メインパネル" width="240"></td>
-    <td colspan="2" align="center" valign="top"><img src="docs/images/3.webp?v1" alt="Quosparr API 換算コスト" width="240"></td>
-    <td colspan="2" align="center" valign="top"><img src="docs/images/6.webp?v1" alt="Quosparr サブスク枠の推定" width="240"></td>
+    <td colspan="2" rowspan="3" align="center" valign="top"><img src="docs/images/panel-en.webp?v1" alt="Quosparr メインパネル" width="270"></td>
+    <td colspan="4" align="center" valign="top"><img src="docs/images/accounts.webp?v1" alt="Quosparr プロバイダーアカウント" width="500"></td>
   </tr>
   <tr>
-    <th colspan="3">プロバイダーアカウント</th>
-    <th colspan="3">表示設定</th>
+    <th colspan="4">メニューバー項目</th>
   </tr>
   <tr>
-    <td colspan="3" align="center" valign="top"><img src="docs/images/4.webp?v1" alt="Quosparr プロバイダーアカウント" width="370"></td>
-    <td colspan="3" align="center" valign="top"><img src="docs/images/5.webp?v1" alt="Quosparr 表示設定" width="370"></td>
+    <td colspan="4" align="center" valign="top"><img src="docs/images/menubar.webp?v1" alt="Quosparr メニューバー項目" width="500"></td>
   </tr>
   <tr>
-    <th colspan="6">Windows の設定と Grok パネル</th>
+    <th colspan="3">フローティングウインドウ</th>
+    <th colspan="3">モデル価格</th>
   </tr>
   <tr>
-    <td colspan="6" align="center" valign="top"><img src="docs/images/2.webp?v1" alt="Quosparr Windows の設定と Grok パネル" width="780"></td>
+    <td colspan="3" align="center" valign="top"><img src="docs/images/floating.webp?v1" alt="Quosparr フローティングウインドウ" width="385"></td>
+    <td colspan="3" align="center" valign="top"><img src="docs/images/pricing.webp?v1" alt="Quosparr モデル価格" width="385"></td>
+  </tr>
+  <tr>
+    <th colspan="2">セッション管理</th>
+    <th colspan="2">Skill管理</th>
+    <th colspan="2">MCP 管理</th>
+  </tr>
+  <tr>
+    <td colspan="2" align="center" valign="top"><img src="docs/images/sessions.webp?v1" alt="Quosparr セッション管理" width="250"></td>
+    <td colspan="2" align="center" valign="top"><img src="docs/images/skills.webp?v1" alt="Quosparr Skill管理" width="250"></td>
+    <td colspan="2" align="center" valign="top"><img src="docs/images/mcp.webp?v1" alt="Quosparr MCP 管理" width="250"></td>
   </tr>
 </table>
 
-スクリーンショットは macOS と Windows 上の v1 の画面です。
+スクリーンショットは macOS 上の v1 の画面です。
 
 ## インストール
 

@@ -70,31 +70,39 @@ Quosparr — нативное приложение для строки меню 
 <table>
   <tr>
     <th colspan="2">Главная панель</th>
-    <th colspan="2">Эквивалентная стоимость API</th>
-    <th colspan="2">Оценка лимита подписки</th>
+    <th colspan="4">Аккаунты провайдеров</th>
   </tr>
   <tr>
-    <td colspan="2" align="center" valign="top"><img src="docs/images/1-en.webp?v3" alt="Quosparr Главная панель" width="240"></td>
-    <td colspan="2" align="center" valign="top"><img src="docs/images/3.webp?v1" alt="Quosparr Эквивалентная стоимость API" width="240"></td>
-    <td colspan="2" align="center" valign="top"><img src="docs/images/6.webp?v1" alt="Quosparr Оценка лимита подписки" width="240"></td>
+    <td colspan="2" rowspan="3" align="center" valign="top"><img src="docs/images/panel-en.webp?v1" alt="Quosparr Главная панель" width="270"></td>
+    <td colspan="4" align="center" valign="top"><img src="docs/images/accounts.webp?v1" alt="Quosparr Аккаунты провайдеров" width="500"></td>
   </tr>
   <tr>
-    <th colspan="3">Аккаунты провайдеров</th>
-    <th colspan="3">Настройки отображения</th>
+    <th colspan="4">Значок в строке меню</th>
   </tr>
   <tr>
-    <td colspan="3" align="center" valign="top"><img src="docs/images/4.webp?v1" alt="Quosparr Аккаунты провайдеров" width="370"></td>
-    <td colspan="3" align="center" valign="top"><img src="docs/images/5.webp?v1" alt="Quosparr Настройки отображения" width="370"></td>
+    <td colspan="4" align="center" valign="top"><img src="docs/images/menubar.webp?v1" alt="Quosparr Значок в строке меню" width="500"></td>
   </tr>
   <tr>
-    <th colspan="6">Windows: настройки и панель Grok</th>
+    <th colspan="3">Плавающее окно</th>
+    <th colspan="3">Цены моделей</th>
   </tr>
   <tr>
-    <td colspan="6" align="center" valign="top"><img src="docs/images/2.webp?v1" alt="Quosparr Windows: настройки и панель Grok" width="780"></td>
+    <td colspan="3" align="center" valign="top"><img src="docs/images/floating.webp?v1" alt="Quosparr Плавающее окно" width="385"></td>
+    <td colspan="3" align="center" valign="top"><img src="docs/images/pricing.webp?v1" alt="Quosparr Цены моделей" width="385"></td>
+  </tr>
+  <tr>
+    <th colspan="2">Сеансы</th>
+    <th colspan="2">Навыки</th>
+    <th colspan="2">MCP</th>
+  </tr>
+  <tr>
+    <td colspan="2" align="center" valign="top"><img src="docs/images/sessions.webp?v1" alt="Quosparr Сеансы" width="250"></td>
+    <td colspan="2" align="center" valign="top"><img src="docs/images/skills.webp?v1" alt="Quosparr Навыки" width="250"></td>
+    <td colspan="2" align="center" valign="top"><img src="docs/images/mcp.webp?v1" alt="Quosparr MCP" width="250"></td>
   </tr>
 </table>
 
-На снимках показан интерфейс v1 в macOS и Windows.
+На снимках показан интерфейс v1 в macOS.
 
 ## Установка
 

@@ -87,11 +87,13 @@ type Strings struct {
 		Title    string
 		Note     string
 		Main     string
-		Cost     string
-		Estimate string
 		Accounts string
-		Display  string
-		Windows  string
+		MenuBar  string
+		Floating string
+		Pricing  string
+		Sessions string
+		Skills   string
+		MCP      string
 	}
 	Privacy struct {
 		Title string

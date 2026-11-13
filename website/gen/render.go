@@ -92,8 +92,12 @@ func render(root, out string, locales []Locale, rel Release) error {
 			UpgradeURL: repoURL + "/blob/main/" + l.Upgrade,
 		}
 		page.Panel = buildPanel(l, now)
-		page.Wide = shots["2"].with(l.T.Shots.Windows)
-		page.Gallery = []Image{shots["3"].with(l.T.Shots.Cost), shots["6"].with(l.T.Shots.Estimate), shots["4"].with(l.T.Shots.Accounts), shots["5"].with(l.T.Shots.Display)}
+		sh := l.T.Shots
+		page.Wide = shots["accounts"].with(sh.Accounts)
+		page.Gallery = []Image{
+			shots["menubar"].with(sh.MenuBar), shots["floating"].with(sh.Floating), shots["pricing"].with(sh.Pricing),
+			shots["sessions"].with(sh.Sessions), shots["skills"].with(sh.Skills), shots["mcp"].with(sh.MCP),
+		}
 		page.JSONLD, err = jsonLD(page)
 		if err != nil {
 			return err
@@ -128,7 +132,7 @@ func (img Image) with(alt string) Image {
 
 func copyShots(src, dst string) (map[string]Image, error) {
 	shots := map[string]Image{}
-	for _, n := range []string{"2", "3", "4", "5", "6"} {
+	for _, n := range []string{"accounts", "menubar", "floating", "pricing", "sessions", "skills", "mcp"} {
 		data, err := os.ReadFile(filepath.Join(src, n+".webp"))
 		if err != nil {
 			return nil, err

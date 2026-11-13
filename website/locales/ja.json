@@ -67,13 +67,15 @@
   },
   "shots": {
     "title": "スクリーンショット",
-    "note": "スクリーンショットは macOS と Windows で動作する v1 の画面です。",
+    "note": "スクリーンショットは macOS で動作する v1 の画面です。",
     "main": "メインパネル",
-    "cost": "API 換算コスト",
-    "estimate": "サブスクリプションクォータの推定",
     "accounts": "プロバイダーアカウント",
-    "display": "表示設定",
-    "windows": "Windows の設定と Grok パネル"
+    "menuBar": "メニューバー項目",
+    "floating": "フローティングウインドウ",
+    "pricing": "モデル価格",
+    "sessions": "セッション管理",
+    "skills": "Skill管理",
+    "mcp": "MCP 管理"
   },
   "privacy": {
     "title": "プライバシー",

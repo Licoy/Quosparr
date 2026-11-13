@@ -70,31 +70,39 @@ Quosparr는 macOS, Windows, Linux용 네이티브 메뉴 막대 / 시스템 트�
 <table>
   <tr>
     <th colspan="2">메인 패널</th>
-    <th colspan="2">API 환산 비용</th>
-    <th colspan="2">구독 한도 추정</th>
+    <th colspan="4">공급자 계정</th>
   </tr>
   <tr>
-    <td colspan="2" align="center" valign="top"><img src="docs/images/1-en.webp?v3" alt="Quosparr 메인 패널" width="240"></td>
-    <td colspan="2" align="center" valign="top"><img src="docs/images/3.webp?v1" alt="Quosparr API 환산 비용" width="240"></td>
-    <td colspan="2" align="center" valign="top"><img src="docs/images/6.webp?v1" alt="Quosparr 구독 한도 추정" width="240"></td>
+    <td colspan="2" rowspan="3" align="center" valign="top"><img src="docs/images/panel-en.webp?v1" alt="Quosparr 메인 패널" width="270"></td>
+    <td colspan="4" align="center" valign="top"><img src="docs/images/accounts.webp?v1" alt="Quosparr 공급자 계정" width="500"></td>
   </tr>
   <tr>
-    <th colspan="3">공급자 계정</th>
-    <th colspan="3">표시 설정</th>
+    <th colspan="4">메뉴 막대 항목</th>
   </tr>
   <tr>
-    <td colspan="3" align="center" valign="top"><img src="docs/images/4.webp?v1" alt="Quosparr 공급자 계정" width="370"></td>
-    <td colspan="3" align="center" valign="top"><img src="docs/images/5.webp?v1" alt="Quosparr 표시 설정" width="370"></td>
+    <td colspan="4" align="center" valign="top"><img src="docs/images/menubar.webp?v1" alt="Quosparr 메뉴 막대 항목" width="500"></td>
   </tr>
   <tr>
-    <th colspan="6">Windows 설정 및 Grok 패널</th>
+    <th colspan="3">플로팅 창</th>
+    <th colspan="3">모델 가격</th>
   </tr>
   <tr>
-    <td colspan="6" align="center" valign="top"><img src="docs/images/2.webp?v1" alt="Quosparr Windows 설정 및 Grok 패널" width="780"></td>
+    <td colspan="3" align="center" valign="top"><img src="docs/images/floating.webp?v1" alt="Quosparr 플로팅 창" width="385"></td>
+    <td colspan="3" align="center" valign="top"><img src="docs/images/pricing.webp?v1" alt="Quosparr 모델 가격" width="385"></td>
+  </tr>
+  <tr>
+    <th colspan="2">세션 관리</th>
+    <th colspan="2">Skill 관리</th>
+    <th colspan="2">MCP 관리</th>
+  </tr>
+  <tr>
+    <td colspan="2" align="center" valign="top"><img src="docs/images/sessions.webp?v1" alt="Quosparr 세션 관리" width="250"></td>
+    <td colspan="2" align="center" valign="top"><img src="docs/images/skills.webp?v1" alt="Quosparr Skill 관리" width="250"></td>
+    <td colspan="2" align="center" valign="top"><img src="docs/images/mcp.webp?v1" alt="Quosparr MCP 관리" width="250"></td>
   </tr>
 </table>
 
-스크린샷은 macOS와 Windows에서의 v1 인터페이스입니다.
+스크린샷은 macOS에서의 v1 인터페이스입니다.
 
 ## 설치
 

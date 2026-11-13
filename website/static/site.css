@@ -568,14 +568,10 @@ b.low { color: var(--a-low-ink); }
 /* Screenshots */
 
 .shot { margin: 0; }
-.shot img {
-  width: 100%;
-  border-radius: 10px;
-  border: 1px solid var(--border);
-  background: #1e1f22;
-}
+/* The shots carry their own window edge and transparent rounded corners. */
+.shot img { width: 100%; }
 .shot figcaption { margin-top: 10px; color: var(--muted); font-size: 14px; text-align: center; }
-.shot.wide { margin-top: 36px; }
+.shot.wide { max-width: 880px; margin: 36px auto 0; }
 .gallery {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
@@ -583,7 +579,7 @@ b.low { color: var(--a-low-ink); }
   margin-top: 32px;
   align-items: start;
 }
-@media (min-width: 860px) { .gallery { grid-template-columns: repeat(4, 1fr); gap: 24px; } }
+@media (min-width: 860px) { .gallery { grid-template-columns: repeat(3, 1fr); gap: 32px 24px; } }
 
 /* Download */
 

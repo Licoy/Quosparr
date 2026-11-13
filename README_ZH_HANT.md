@@ -70,31 +70,39 @@ Quosparr 是適用於 macOS、Windows、Linux 的原生選單列 / 系統匣應�
 <table>
   <tr>
     <th colspan="2">主面板</th>
-    <th colspan="2">API 等價成本</th>
-    <th colspan="2">訂閱額度推算</th>
+    <th colspan="4">服務商帳號</th>
   </tr>
   <tr>
-    <td colspan="2" align="center" valign="top"><img src="docs/images/1.webp?v3" alt="Quosparr 主面板" width="240"></td>
-    <td colspan="2" align="center" valign="top"><img src="docs/images/3.webp?v1" alt="Quosparr API 等價成本" width="240"></td>
-    <td colspan="2" align="center" valign="top"><img src="docs/images/6.webp?v1" alt="Quosparr 訂閱額度推算" width="240"></td>
+    <td colspan="2" rowspan="3" align="center" valign="top"><img src="docs/images/panel.webp?v1" alt="Quosparr 主面板" width="270"></td>
+    <td colspan="4" align="center" valign="top"><img src="docs/images/accounts.webp?v1" alt="Quosparr 服務商帳號" width="500"></td>
   </tr>
   <tr>
-    <th colspan="3">服務商帳號</th>
-    <th colspan="3">顯示設定</th>
+    <th colspan="4">狀態欄元件</th>
   </tr>
   <tr>
-    <td colspan="3" align="center" valign="top"><img src="docs/images/4.webp?v1" alt="Quosparr 服務商帳號" width="370"></td>
-    <td colspan="3" align="center" valign="top"><img src="docs/images/5.webp?v1" alt="Quosparr 顯示設定" width="370"></td>
+    <td colspan="4" align="center" valign="top"><img src="docs/images/menubar.webp?v1" alt="Quosparr 狀態欄元件" width="500"></td>
   </tr>
   <tr>
-    <th colspan="6">Windows 設定與 Grok 面板</th>
+    <th colspan="3">桌面浮動視窗</th>
+    <th colspan="3">模型價格</th>
   </tr>
   <tr>
-    <td colspan="6" align="center" valign="top"><img src="docs/images/2.webp?v1" alt="Quosparr Windows 設定與 Grok 面板" width="780"></td>
+    <td colspan="3" align="center" valign="top"><img src="docs/images/floating.webp?v1" alt="Quosparr 桌面浮動視窗" width="385"></td>
+    <td colspan="3" align="center" valign="top"><img src="docs/images/pricing.webp?v1" alt="Quosparr 模型價格" width="385"></td>
+  </tr>
+  <tr>
+    <th colspan="2">工作階段管理</th>
+    <th colspan="2">Skill 管理</th>
+    <th colspan="2">MCP 管理</th>
+  </tr>
+  <tr>
+    <td colspan="2" align="center" valign="top"><img src="docs/images/sessions.webp?v1" alt="Quosparr 工作階段管理" width="250"></td>
+    <td colspan="2" align="center" valign="top"><img src="docs/images/skills.webp?v1" alt="Quosparr Skill 管理" width="250"></td>
+    <td colspan="2" align="center" valign="top"><img src="docs/images/mcp.webp?v1" alt="Quosparr MCP 管理" width="250"></td>
   </tr>
 </table>
 
-截圖顯示的是 v1 在 macOS 與 Windows 上的介面。
+截圖顯示的是 v1 在 macOS 上的介面。
 
 ## 安裝
 

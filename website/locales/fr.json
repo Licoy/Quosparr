@@ -67,13 +67,15 @@
   },
   "shots": {
     "title": "Captures d’écran",
-    "note": "Les captures montrent la v1 sur macOS et Windows.",
+    "note": "Les captures montrent la v1 sur macOS.",
     "main": "Panneau principal",
-    "cost": "Coût équivalent API",
-    "estimate": "Estimation du quota d’abonnement",
     "accounts": "Comptes fournisseurs",
-    "display": "Réglages d’affichage",
-    "windows": "Réglages sous Windows et panneau Grok"
+    "menuBar": "Élément de la barre de menus",
+    "floating": "Fenêtre flottante",
+    "pricing": "Prix des modèles",
+    "sessions": "Sessions",
+    "skills": "Skills",
+    "mcp": "MCP"
   },
   "privacy": {
     "title": "Confidentialité",

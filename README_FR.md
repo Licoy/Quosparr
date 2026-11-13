@@ -70,31 +70,39 @@ Quosparr est une application native de barre de menus / zone de notification pou
 <table>
   <tr>
     <th colspan="2">Panneau principal</th>
-    <th colspan="2">Coût équivalent API</th>
-    <th colspan="2">Estimation du quota d’abonnement</th>
+    <th colspan="4">Comptes fournisseurs</th>
   </tr>
   <tr>
-    <td colspan="2" align="center" valign="top"><img src="docs/images/1-en.webp?v3" alt="Quosparr Panneau principal" width="240"></td>
-    <td colspan="2" align="center" valign="top"><img src="docs/images/3.webp?v1" alt="Quosparr Coût équivalent API" width="240"></td>
-    <td colspan="2" align="center" valign="top"><img src="docs/images/6.webp?v1" alt="Quosparr Estimation du quota d’abonnement" width="240"></td>
+    <td colspan="2" rowspan="3" align="center" valign="top"><img src="docs/images/panel-en.webp?v1" alt="Quosparr Panneau principal" width="270"></td>
+    <td colspan="4" align="center" valign="top"><img src="docs/images/accounts.webp?v1" alt="Quosparr Comptes fournisseurs" width="500"></td>
   </tr>
   <tr>
-    <th colspan="3">Comptes fournisseurs</th>
-    <th colspan="3">Réglages d’affichage</th>
+    <th colspan="4">Élément de la barre de menus</th>
   </tr>
   <tr>
-    <td colspan="3" align="center" valign="top"><img src="docs/images/4.webp?v1" alt="Quosparr Comptes fournisseurs" width="370"></td>
-    <td colspan="3" align="center" valign="top"><img src="docs/images/5.webp?v1" alt="Quosparr Réglages d’affichage" width="370"></td>
+    <td colspan="4" align="center" valign="top"><img src="docs/images/menubar.webp?v1" alt="Quosparr Élément de la barre de menus" width="500"></td>
   </tr>
   <tr>
-    <th colspan="6">Windows : réglages et panneau Grok</th>
+    <th colspan="3">Fenêtre flottante</th>
+    <th colspan="3">Prix des modèles</th>
   </tr>
   <tr>
-    <td colspan="6" align="center" valign="top"><img src="docs/images/2.webp?v1" alt="Quosparr Windows : réglages et panneau Grok" width="780"></td>
+    <td colspan="3" align="center" valign="top"><img src="docs/images/floating.webp?v1" alt="Quosparr Fenêtre flottante" width="385"></td>
+    <td colspan="3" align="center" valign="top"><img src="docs/images/pricing.webp?v1" alt="Quosparr Prix des modèles" width="385"></td>
+  </tr>
+  <tr>
+    <th colspan="2">Sessions</th>
+    <th colspan="2">Skills</th>
+    <th colspan="2">MCP</th>
+  </tr>
+  <tr>
+    <td colspan="2" align="center" valign="top"><img src="docs/images/sessions.webp?v1" alt="Quosparr Sessions" width="250"></td>
+    <td colspan="2" align="center" valign="top"><img src="docs/images/skills.webp?v1" alt="Quosparr Skills" width="250"></td>
+    <td colspan="2" align="center" valign="top"><img src="docs/images/mcp.webp?v1" alt="Quosparr MCP" width="250"></td>
   </tr>
 </table>
 
-Les captures montrent l’interface v1 sur macOS et Windows.
+Les captures montrent l’interface v1 sur macOS.
 
 ## Installation
 
