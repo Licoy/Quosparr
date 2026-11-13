@@ -112,8 +112,8 @@ func (s *Service) switchCodexRuntime(ctx context.Context, id string, restart boo
 			if err == nil && apply == nil {
 				err = ErrDesktopProjects
 			}
-			if errors.Is(err, codexdesktop.ErrDesktopRunning) && !restart {
-				share = "projects_running"
+			if skipped := skippedProjectShare(err, restart); skipped != "" {
+				share = skipped
 				apply = nil
 			} else if err != nil {
 				_, recoveryErr := stopped.restore(s, ctx)

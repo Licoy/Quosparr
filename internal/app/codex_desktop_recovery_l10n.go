@@ -39,6 +39,7 @@ const (
 	xProjectSkipExists         textKey = "codexProjectSkipExists"
 	xProjectSkipProjectless    textKey = "codexProjectSkipProjectless"
 	xProjectDone               textKey = "codexProjectDone"
+	xProjectNotPartitioned     textKey = "codexProjectNotPartitioned"
 )
 
 func init() {
@@ -56,6 +57,7 @@ func init() {
 		xProjectStatSkipped:        {"Skipped", "跳过", "略過", "건너뜀", "スキップ", "Пропущено", "Ignorés"},
 		xProjectSkipExists:         {"The current account already has some of these folders as projects; they are kept as they are", "当前账号已添加过部分同一文件夹的项目，保持原样", "目前帳號已新增過部分相同資料夾的專案，保持原樣", "현재 계정에 같은 폴더의 프로젝트가 이미 있어 그대로 둡니다", "現在のアカウントには同じフォルダのプロジェクトが既にあるため、そのままにします", "В текущем аккаунте уже есть проекты для некоторых из этих папок; они не изменяются", "Le compte actuel a déjà des projets pour certains de ces dossiers ; ils restent inchangés"},
 		xProjectSkipProjectless:    {"Some chats are kept outside projects in the current account and stay there", "部分聊天在当前账号中不属于任何项目，保持原样", "部分對話在目前帳號中不屬於任何專案，保持原樣", "일부 대화는 현재 계정에서 프로젝트 밖에 있어 그대로 둡니다", "一部の会話は現在のアカウントでプロジェクト外にあるため、そのままにします", "Некоторые чаты в текущем аккаунте не входят в проекты и остаются как есть", "Certaines discussions sont hors projet dans le compte actuel et y restent"},
+		xProjectNotPartitioned:     {"This ChatGPT desktop version already keeps local projects for every account; there is nothing to restore or undo here", "此版本的 ChatGPT 桌面端已在各账号间共用本机项目，无需在此恢复或撤销", "此版本的 ChatGPT 桌面版已在各帳號間共用本機專案，無需在此還原或撤銷", "이 버전의 ChatGPT 데스크톱 앱은 모든 계정에서 로컬 프로젝트를 함께 사용하므로 여기서 복원하거나 취소할 항목이 없습니다", "このバージョンの ChatGPT デスクトップアプリはすべてのアカウントでローカルプロジェクトを共用しているため、ここで復元や取り消しを行う必要はありません", "Эта версия приложения ChatGPT уже хранит локальные проекты общими для всех аккаунтов; восстанавливать или отменять здесь нечего", "Cette version de l’app ChatGPT conserve déjà les projets locaux pour tous les comptes ; rien à restaurer ni à annuler ici"},
 		xProjectDone:               {"Done", "完成", "完成", "완료", "完了", "Готово", "Terminé"},
 		xProjectSnapshot:           {"Local snapshot %@", "本机快照 %@", "本機快照 %@", "로컬 스냅샷 %@", "ローカルスナップショット %@", "Локальный снимок %@", "Instantané local %@"},
 		xProjectSummary:            {"Projects: %@ · Recoverable chats: %@ · Skipped entries: %@", "项目：%@ · 可恢复聊天：%@ · 跳过条目：%@", "專案：%@ · 可還原對話：%@ · 略過項目：%@", "프로젝트: %@ · 복원 가능한 대화: %@ · 건너뜀: %@", "プロジェクト: %@ · 復元可能な会話: %@ · スキップ: %@", "Проекты: %@ · Восстанавливаемые чаты: %@ · Пропущено: %@", "Projets : %@ · Discussions récupérables : %@ · Éléments ignorés : %@"},

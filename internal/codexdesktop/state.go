@@ -29,6 +29,9 @@ func (s Sharer) readState() (*state, error) {
 	if !ok || root == nil {
 		return nil, ErrUnknownFormat
 	}
+	if root[rendererKey] == nil && root[contentOwnerKey] != nil {
+		return nil, ErrNotPartitioned
+	}
 	renderer, ok := decodeObject(root[rendererKey])
 	if !ok || renderer == nil {
 		return nil, ErrUnknownFormat

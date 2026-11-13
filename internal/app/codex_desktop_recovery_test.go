@@ -314,3 +314,32 @@ func TestCodexRecoveryEmptyPreviewCannotConfirm(t *testing.T) {
 		}
 	}
 }
+
+func TestCodexRecoveryExplainsUnpartitionedState(t *testing.T) {
+	l := l10n.New(l10n.English)
+	queue := make(chan func(), 4)
+	d := &codexRecoveryDialog{selected: -1}
+	d.load = func() (codexdesktop.Owner, []codexdesktop.Source, error) {
+		return codexdesktop.Owner{UserID: "current", AccountID: "workspace"}, nil, codexdesktop.ErrNotPartitioned
+	}
+	tt := ui.NewTester(func(c *ui.Context) {
+		ui.Column(c).Fill().Children(func() { renderCodexRecovery(c, l, &d, nil, false, func(fn func()) { queue <- fn }) })
+	}, 620, 760)
+	recoveryDelivery(t, queue)
+	tt.Frame()
+	if !tt.HasText(tx(l, xProjectNotPartitioned)) || tt.HasText(tx(l, xProjectFormat)) {
+		t.Fatalf("unpartitioned state not explained: %v", tt.Texts())
+	}
+	home, err := filepath.EvalSymlinks(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(home, codexdesktop.StateFileName), []byte(`{"electron-renderer-content-owner":"owner","local-projects":{}}`), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	// No runway service: the undo must stop before it could quit the desktop app.
+	rt := &liveApp{desktopSharer: codexdesktop.Sharer{CodexHome: home, Dir: filepath.Join(home, "quosparr")}}
+	if got := rt.restoreDesktopProjects(l); got != tx(l, xProjectNotPartitioned) {
+		t.Fatalf("undo message %q", got)
+	}
+}

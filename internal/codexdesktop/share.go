@@ -1,5 +1,9 @@
 // Package codexdesktop copies validated local project metadata between explicit
 // desktop account partitions, without editing SQLite, credentials or sessions.
+//
+// A state that names its content owner without the account partition keeps
+// local projects at the top level for every account; each operation reports
+// ErrNotPartitioned and never writes, and earlier undo records stay unused.
 package codexdesktop
 
 import (
@@ -14,15 +18,17 @@ import (
 )
 
 const (
-	StateFileName = ".codex-global-state.json"
-	rendererKey   = "electron-account-renderer-state-v1"
-	atomsKey      = "electron-persisted-atom-state"
-	writtenFile   = "shared-state.json"
+	StateFileName   = ".codex-global-state.json"
+	rendererKey     = "electron-account-renderer-state-v1"
+	contentOwnerKey = "electron-renderer-content-owner"
+	atomsKey        = "electron-persisted-atom-state"
+	writtenFile     = "shared-state.json"
 )
 
 var (
 	ErrDesktopRunning = errors.New("codexdesktop: the desktop app is running")
 	ErrUnknownFormat  = errors.New("codexdesktop: unrecognized desktop state")
+	ErrNotPartitioned = errors.New("codexdesktop: local projects are not partitioned by account")
 	ErrNoBackup       = errors.New("codexdesktop: no backup to restore")
 	ErrUnavailable    = errors.New("codexdesktop: the desktop app cannot be detected")
 	ErrNoSource       = errors.New("codexdesktop: select a source account")
@@ -95,6 +101,13 @@ func (s Sharer) now() time.Time {
 }
 func (s Sharer) statePath() string   { return filepath.Join(s.CodexHome, StateFileName) }
 func (s Sharer) writtenPath() string { return filepath.Join(s.Dir, writtenFile) }
+
+// CheckState reads the state without writing, so an undo can be refused
+// before the desktop app is asked to quit.
+func (s Sharer) CheckState() error {
+	_, err := s.readState()
+	return err
+}
 
 func (s Sharer) Sources() ([]Source, error) {
 	doc, err := s.readState()

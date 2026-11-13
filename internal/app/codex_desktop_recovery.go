@@ -167,7 +167,11 @@ func renderCodexRecovery(c *ui.Context, l l10n.Localizer, slot **codexRecoveryDi
 				renderCodexRecoveryPreview(c, l, d.plan.Summary, d.emptyPreview(), d.done)
 			}
 			if d.failure != nil {
-				recoveryNotice(c, icWarnCircle, c.Theme().Danger, desktopRecoveryError(l, d.failure))
+				icon, tint := icWarnCircle, c.Theme().Danger
+				if errors.Is(d.failure, codexdesktop.ErrNotPartitioned) {
+					icon, tint = icInfo, sys(c.Theme(), sysGray)
+				}
+				recoveryNotice(c, icon, tint, desktopRecoveryError(l, d.failure))
 			}
 			recoveryFooter(c, l, d, &open, post)
 		})
@@ -326,6 +330,8 @@ func desktopRecoveryPrimaryError(l l10n.Localizer, err error) string {
 		return tx(l, xCodexDesktopQuitFirst)
 	case errors.Is(err, codexdesktop.ErrNoBackup):
 		return tx(l, xCodexDesktopNoBackup)
+	case errors.Is(err, codexdesktop.ErrNotPartitioned):
+		return tx(l, xProjectNotPartitioned)
 	case errors.Is(err, codexdesktop.ErrUnknownFormat):
 		return tx(l, xProjectFormat)
 	case errors.Is(err, runway.ErrSwitchBusy):

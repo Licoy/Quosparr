@@ -236,6 +236,21 @@ func projectShareState(outcome codexdesktop.Outcome, err error) string {
 	return "projects_" + string(outcome)
 }
 
+// skippedProjectShare names a preflight result that skips sharing while the
+// switch goes on: an open app without restart, or desktop data the sharing
+// cannot handle at all. Empty means the preflight failed.
+func skippedProjectShare(err error, restart bool) string {
+	switch {
+	case errors.Is(err, codexdesktop.ErrDesktopRunning) && !restart:
+		return "projects_running"
+	case errors.Is(err, codexdesktop.ErrNotPartitioned):
+		return "projects_not_partitioned"
+	case errors.Is(err, codexdesktop.ErrUnknownFormat), errors.Is(err, codexdesktop.ErrDatabase):
+		return "projects_unsupported"
+	}
+	return ""
+}
+
 func (s *Service) desktopIdentity() (codexdesktop.Owner, error) {
 	if s.src.RuntimeIdentity == nil {
 		return codexdesktop.Owner{}, ErrDesktopProjects

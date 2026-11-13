@@ -305,3 +305,80 @@ func TestCodexQuitFailureRestoresAlreadyStoppedDesktop(t *testing.T) {
 		})
 	}
 }
+
+func TestCodexSwitchSkipsUnsupportedDesktopProjects(t *testing.T) {
+	for _, tc := range []struct {
+		name  string
+		err   error
+		share string
+	}{
+		{"not_partitioned", codexdesktop.ErrNotPartitioned, "projects_not_partitioned"},
+		{"unknown_format", codexdesktop.ErrUnknownFormat, "projects_unsupported"},
+		{"database", codexdesktop.ErrDatabase, "projects_unsupported"},
+	} {
+		for _, restart := range []bool{false, true} {
+			t.Run(tc.name+"/"+map[bool]string{false: "write_only", true: "restart"}[restart], func(t *testing.T) {
+				f := newFake(t)
+				af := newAccountFixture(t, f)
+				af.b.UserID = "target-user"
+				auth, _ := af.st.LoadCredential(af.b.ID)
+				calls := []string{}
+				official := codexruntime.Identity{UserID: "source-user", AccountID: af.a.AccountID}
+				current := codexruntime.Snapshot{Status: codexruntime.Running, Identity: runtimeTarget(af.a)}
+				commit := func() (codex.SwitchResult, error) {
+					calls = append(calls, "write")
+					official, current.Identity = runtimeTarget(af.b), runtimeTarget(af.b)
+					if err := af.st.SetActiveAccount(af.b.ID, t0); err != nil {
+						return codex.SwitchResult{}, err
+					}
+					f.setAuth(auth, nil)
+					return codex.SwitchResult{Auth: auth, Account: af.b}, nil
+				}
+				s, _ := newService(t, f, func(o *Options) {
+					af.apply(f)(o)
+					o.Preferences.ShareCodexDesktopProjects = true
+					o.Sources.SwitchAccount = func(context.Context, string) (codex.SwitchResult, error) { return commit() }
+					o.Sources.PrepareSwitch = func(context.Context, string) (func() (codex.SwitchResult, error), error) { return commit, nil }
+					o.Sources.RuntimeInspect = func(context.Context) (codexruntime.Snapshot, error) { return current, nil }
+					o.Sources.RuntimeStop = func(context.Context, codexruntime.Snapshot) (codexruntime.Snapshot, error) {
+						calls = append(calls, "stop")
+						current.Status = codexruntime.NotRunning
+						return current, nil
+					}
+					o.Sources.RuntimeStart = func(context.Context, codexruntime.Snapshot) (codexruntime.Snapshot, error) {
+						calls = append(calls, "start")
+						current.Status = codexruntime.Running
+						return current, nil
+					}
+					o.Sources.RuntimeIdentity = func() (codexruntime.Identity, error) { return official, nil }
+					load := o.Sources.LoadIndex
+					o.Sources.LoadIndex = func() (codex.AccountIndex, error) {
+						idx, err := load()
+						for i := range idx.Accounts {
+							idx.Accounts[i].UserID = "target-user"
+						}
+						return idx, err
+					}
+					o.Sources.PrepareDesktopProjects = func(codexdesktop.Owner, codexdesktop.Owner) (func() (codexdesktop.Outcome, error), error) {
+						calls = append(calls, "prepare-share")
+						return nil, tc.err
+					}
+				})
+				if err := s.SwitchAccountWithRestart(context.Background(), af.b.ID, restart); err != nil {
+					t.Fatal(err)
+				}
+				want := []string{"prepare-share", "write"}
+				if restart {
+					want = []string{"stop", "prepare-share", "write", "start"}
+				}
+				if !reflect.DeepEqual(calls, want) {
+					t.Fatalf("calls %v want %v", calls, want)
+				}
+				settle(t, s)
+				if status := s.Snapshot().Accounts.Runtime; !status.FilesUpdated || status.ProjectShare != tc.share {
+					t.Fatalf("status=%+v", status)
+				}
+			})
+		}
+	}
+}
