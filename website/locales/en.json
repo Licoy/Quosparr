@@ -1,7 +1,7 @@
 {
   "meta": {
-    "title": "Quosparr: Codex, Claude Code, Gemini and Grok quota in your menu bar",
-    "description": "Quosparr is a free, native menu bar and system tray app for macOS, Windows and Linux. Track Codex, Claude Code, Gemini and Grok subscription quota, reset credits, API-equivalent cost and local sessions."
+    "title": "Quosparr: Codex, Claude, Gemini and Grok quota in your menu bar",
+    "description": "Quosparr is a free, native menu bar and system tray app for macOS, Windows and Linux. Track Codex, Claude, Gemini and Grok subscription quota, reset credits, API-equivalent cost and local sessions."
   },
   "nav": {
     "features": "Features",
@@ -27,7 +27,7 @@
   },
   "features": {
     "title": "Features",
-    "lead": "Codex, Claude Code, Gemini and Grok each get their own tab. Quota, cost and accounts stay separate per provider.",
+    "lead": "Codex, Claude, Gemini and Grok each get their own tab. Quota, cost and accounts stay separate per provider.",
     "codex": [
       "Remaining quota for the 5-hour, weekly and additional windows, with account, plan and expiry",
       "Reset credit count, status and expiry time",
@@ -35,7 +35,7 @@
       "Account switching, recent sessions and repair of the local session index"
     ],
     "claude": [
-      "Claude Code subscription usage for the 5-hour, 7-day and per-model weekly windows, plus extra usage",
+      "Claude subscription usage for the 5-hour, 7-day and per-model weekly windows, plus extra usage",
       "Token usage, API-equivalent cost, recent sessions and output speed from local session logs",
       "Import and switch subscription accounts; MCP tokens are kept when you switch"
     ],

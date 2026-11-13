@@ -1,7 +1,7 @@
 {
   "meta": {
-    "title": "Quosparr：Codex、Claude Code、Gemini、Grok のクォータをメニューバーで確認",
-    "description": "Quosparr は macOS、Windows、Linux 向けの無料のネイティブなメニューバー / システムトレイアプリです。Codex、Claude Code、Gemini、Grok のサブスクリプションクォータ、reset credits、API 換算コスト、ローカルセッションを表示します。"
+    "title": "Quosparr：Codex、Claude、Gemini、Grok のクォータをメニューバーで確認",
+    "description": "Quosparr は macOS、Windows、Linux 向けの無料のネイティブなメニューバー / システムトレイアプリです。Codex、Claude、Gemini、Grok のサブスクリプションクォータ、reset credits、API 換算コスト、ローカルセッションを表示します。"
   },
   "nav": {
     "features": "機能",
@@ -27,7 +27,7 @@
   },
   "features": {
     "title": "機能",
-    "lead": "Codex、Claude Code、Gemini、Grok はそれぞれ専用のタブを持ち、クォータ、コスト、アカウントはプロバイダーごとに分かれています。",
+    "lead": "Codex、Claude、Gemini、Grok はそれぞれ専用のタブを持ち、クォータ、コスト、アカウントはプロバイダーごとに分かれています。",
     "codex": [
       "5 時間、週次、追加ウィンドウの残りクォータと、アカウント、プラン、有効期限",
       "reset credits の数、状態、有効期限",
@@ -35,7 +35,7 @@
       "アカウントの切り替え、最近のセッション、ローカルセッションインデックスの修復"
     ],
     "claude": [
-      "Claude Code サブスクリプション使用量：5 時間、7 日、モデル別の週次ウィンドウと追加使用量",
+      "Claude サブスクリプション使用量：5 時間、7 日、モデル別の週次ウィンドウと追加使用量",
       "ローカルセッションログから集計したトークン使用量、API 換算コスト、最近のセッション、出力速度",
       "サブスクリプションアカウントの読み込みと切り替え。切り替え時も MCP トークンは保持"
     ],

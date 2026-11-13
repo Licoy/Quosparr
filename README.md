@@ -10,7 +10,7 @@ English · [简体中文](./README_ZH.md) · [繁體中文](./README_ZH_HANT.md)
 
 A small sparrow perched in your menu bar, keeping watch over your Codex, Claude, Gemini, and Grok quota.
 
-Quosparr is a native menu bar / system tray app for macOS, Windows, and Linux. It shows Codex, Claude Code, Gemini (Google Antigravity), and Grok subscription quota, reset credits, API-equivalent cost, and local sessions, with separate account management for each provider. Global skills, MCP servers and local sessions for all four can be managed in one place.
+Quosparr is a native menu bar / system tray app for macOS, Windows, and Linux. It shows Codex, Claude, Gemini (Google Antigravity), and Grok subscription quota, reset credits, API-equivalent cost, and local sessions, with separate account management for each provider. Global skills, MCP servers and local sessions for all four can be managed in one place.
 
 </div>
 
@@ -28,7 +28,7 @@ Quosparr is a native menu bar / system tray app for macOS, Windows, and Linux. I
 
 **Claude**
 
-- Claude Code subscription usage for the 5-hour window, the 7-day window, per-model weekly windows, and extra usage. This reading is not a documented public billing API.
+- Claude subscription usage for the 5-hour window, the 7-day window, per-model weekly windows, and extra usage. This reading is not a documented public billing API.
 - Local token usage, API-equivalent cost (`anthropic-builtin-2026-10-14`), recent sessions, and output speed from Claude Code session logs. Each reply is counted once. Unknown models are not given an exact cost. The logs have no time-to-first-token, so that column is an em dash and speed uses end-to-end time.
 - Subscription accounts: sign in through the browser without running the CLI first, import the current login, paste credentials, or import a file; browser sign-in supports cancellation and pasting the callback, adds only to the account library, and requires an explicit switch to use the account in Claude Code. Quosparr does not refresh the current account; run `claude` once if the login expires. Other managed accounts refresh into their library copies only.
 - On macOS the official credential stays in the Keychain and is read and written through `/usr/bin/security`. On Windows and Linux it is `<config>/.credentials.json`. A switch replaces only `claudeAiOauth`, keeps MCP tokens, and updates only `oauthAccount` in `.claude.json`. A running Claude Code process is not terminated and may write the previous login back, so the app warns before switching.
@@ -163,7 +163,7 @@ Changes apply only after **Save Proxy Settings**. **Test Connection** fetches th
 - **Codex quota / reset credits / official usage**: official ChatGPT / Codex backend APIs, using your local credentials. Official usage belongs to the current account and may lag or be revised.
 - **Weekly quota estimate**: unofficial, extrapolated from the weekly percent and daily Credits (1000 Credits ≈ $40, version `credits-usd-2026-08-26`). Only derived Credits and percents are saved in `quota-estimate-history.json`.
 - **Codex API-equivalent cost**: local session logs priced with the built-in table `openai-builtin-2026-09-27`; supported current rates come from models.dev with verified built-in rules preserved. Unknown models are not reported as exact costs.
-- **Claude Code subscription usage**: an undocumented OAuth usage endpoint for the signed-in Claude Code subscription. It is not described as an official billing API. No browser cookies or Console API bill; Desktop profiles are managed only by the separate, explicitly confirmed feature above.
+- **Claude subscription usage**: an undocumented OAuth usage endpoint for the signed-in Claude subscription. It is not described as an official billing API. No browser cookies or Console API bill; Desktop profiles are managed only by the separate, explicitly confirmed feature above.
 - **Claude API-equivalent cost**: local Claude Code session logs priced with `anthropic-builtin-2026-10-14`. Replies are counted once by message id. Cache writes are split into 5-minute and 1-hour rates, and Fast mode has its own rates. Unknown models are not reported as exact costs. Days use the local time zone.
 - **Gemini quota**: the undocumented Cloud Code endpoints the Antigravity clients use (`cloudcode-pa.googleapis.com` / `daily-cloudcode-pa.googleapis.com`), with tokens renewed through Google OAuth (`oauth2.googleapis.com`) and the identity taken from the ID token or Google userinfo. It is not described as an official billing API. The tier comes from the paid tier, else the current tier. When Google asks for verification or a subscription, the previous reading is kept.
 - **Gemini API-equivalent cost**: token usage from the local conversation databases of the App (`~/.gemini/antigravity`) and `agy` (`~/.gemini/antigravity-cli`), always read from a private temporary copy, priced only with the synced models.dev catalog (Google rates for Gemini models, Anthropic rates for Claude models). Anthropic cache writes and unknown models are not given an exact cost. Encrypted conversations are counted as unreadable.

@@ -1,7 +1,7 @@
 {
   "meta": {
-    "title": "Quosparr : quotas Codex, Claude Code, Gemini et Grok dans la barre de menus",
-    "description": "Quosparr est une application native et gratuite de barre de menus et de zone de notification pour macOS, Windows et Linux. Elle affiche les quotas d’abonnement Codex, Claude Code, Gemini et Grok, les reset credits, le coût équivalent API et les sessions locales."
+    "title": "Quosparr : quotas Codex, Claude, Gemini et Grok dans la barre de menus",
+    "description": "Quosparr est une application native et gratuite de barre de menus et de zone de notification pour macOS, Windows et Linux. Elle affiche les quotas d’abonnement Codex, Claude, Gemini et Grok, les reset credits, le coût équivalent API et les sessions locales."
   },
   "nav": {
     "features": "Fonctionnalités",
@@ -27,7 +27,7 @@
   },
   "features": {
     "title": "Fonctionnalités",
-    "lead": "Codex, Claude Code, Gemini et Grok ont chacun leur onglet. Quotas, coûts et comptes restent séparés par fournisseur.",
+    "lead": "Codex, Claude, Gemini et Grok ont chacun leur onglet. Quotas, coûts et comptes restent séparés par fournisseur.",
     "codex": [
       "Quota restant des fenêtres de 5 heures, hebdomadaire et supplémentaires, avec compte, offre et date d’expiration",
       "Nombre de reset credits, état et date d’expiration",
@@ -35,7 +35,7 @@
       "Changement de compte, sessions récentes et réparation de l’index local des sessions"
     ],
     "claude": [
-      "Utilisation de l’abonnement Claude Code : fenêtres de 5 heures et de 7 jours, fenêtres hebdomadaires par modèle et usage supplémentaire",
+      "Utilisation de l’abonnement Claude : fenêtres de 5 heures et de 7 jours, fenêtres hebdomadaires par modèle et usage supplémentaire",
       "Tokens consommés, coût équivalent API, sessions récentes et vitesse de sortie d’après les journaux locaux",
       "Import et changement de comptes d’abonnement ; les jetons MCP sont conservés lors du changement"
     ],

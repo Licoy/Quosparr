@@ -10,7 +10,7 @@
 
 一隻停在選單列裡的小麻雀，替你守著 Codex、Claude、Gemini 與 Grok 的額度。
 
-Quosparr 是適用於 macOS、Windows、Linux 的原生選單列 / 系統匣應用程式，顯示 Codex、Claude Code、Gemini（Google Antigravity）與 Grok 訂閱額度、reset credits、API 等價成本與本機工作階段，四個供應商各自獨立管理帳號，並可集中管理四家的全域 Skill、MCP 服務與本機工作階段。
+Quosparr 是適用於 macOS、Windows、Linux 的原生選單列 / 系統匣應用程式，顯示 Codex、Claude、Gemini（Google Antigravity）與 Grok 訂閱額度、reset credits、API 等價成本與本機工作階段，四個供應商各自獨立管理帳號，並可集中管理四家的全域 Skill、MCP 服務與本機工作階段。
 
 </div>
 
@@ -28,7 +28,7 @@ Quosparr 是適用於 macOS、Windows、Linux 的原生選單列 / 系統匣應�
 
 **Claude**
 
-- 查看 Claude Code 訂閱用量的 5 小時視窗、7 天視窗、按模型的週額度與額外用量。這個讀數不是公開的計費介面。
+- 查看 Claude 訂閱用量的 5 小時視窗、7 天視窗、按模型的週額度與額外用量。這個讀數不是公開的計費介面。
 - 從 Claude Code 本機工作階段日誌統計 token 用量、API 等價成本（`anthropic-builtin-2026-10-14`）、最近工作階段與輸出速率。同一則回覆只計一次。未知模型不給精確費用。日誌沒有首 token 時間，該欄顯示「—」，速率按端到端耗時計算。
 - 訂閱帳號可直接透過瀏覽器登入，無須先執行 CLI，也可匯入目前登入、貼上憑證或從檔案匯入；瀏覽器登入支援取消和貼上回呼，僅加入帳號庫，需明確切換才在 Claude Code 中使用；Quosparr 不重新整理目前帳號，登入過期時執行一次 `claude`；其他託管帳號只把重新整理結果寫入帳號庫複本
 - macOS 上官方憑證留在鑰匙圈，經 `/usr/bin/security` 讀寫。Windows 與 Linux 使用 `<config>/.credentials.json`。切換只替換 `claudeAiOauth`，保留 MCP 權杖，並只更新 `.claude.json` 裡的 `oauthAccount`。正在執行的 Claude Code 不會被結束，可能寫回舊登入，切換前會提示。
@@ -163,7 +163,7 @@ Linux 需要 GTK3、AppIndicator、支援系統匣的桌面環境，以及可用
 - **Codex 額度 / reset credits / 官方用量**：使用本機憑證請求 ChatGPT / Codex 官方後端介面。官方用量屬於目前帳號，可能延遲或被修訂。
 - **週額度推算**：非官方，依週用量百分比與每日 Credits 外推（1000 Credits ≈ $40，版本 `credits-usd-2026-08-26`）。`quota-estimate-history.json` 只儲存衍生的 Credits 與占用率。
 - **Codex API 等價成本**：依本機工作階段日誌，使用內建價格表 `openai-builtin-2026-09-27` 計算；支援的目前費率來自 models.dev，並保留已核實的內建規則。未知模型不會回報精確費用。
-- **Claude Code 訂閱用量**：來自未公開的 OAuth usage 端點，只表示目前的 Claude Code 訂閱，不寫成官方計費介面。不讀取瀏覽器 Cookie 或 Console API 帳單，Desktop 設定檔僅由上述獨立且明確確認的功能管理。
+- **Claude 訂閱用量**：來自未公開的 OAuth usage 端點，只表示目前的 Claude 訂閱，不寫成官方計費介面。不讀取瀏覽器 Cookie 或 Console API 帳單，Desktop 設定檔僅由上述獨立且明確確認的功能管理。
 - **Claude API 等價成本**：依 Claude Code 本機工作階段日誌與價格表 `anthropic-builtin-2026-10-14` 計算。同一則回覆按訊息 ID 只計一次。快取寫入分為 5 分鐘與 1 小時，Fast 檔單獨計價。未知模型不報告精確費用。按日統計使用本地時區。
 - **Gemini 額度**：Antigravity 用戶端使用的未公開 Cloud Code 介面（`cloudcode-pa.googleapis.com` / `daily-cloudcode-pa.googleapis.com`），token 經 Google OAuth（`oauth2.googleapis.com`）續期，身分取自 ID token 或 Google userinfo，不寫成官方計費介面。訂閱方案取付費方案，沒有時取目前方案。Google 要求驗證或訂閱時保留上一次讀數。
 - **Gemini API 等價成本**：從 App（`~/.gemini/antigravity`）與 `agy`（`~/.gemini/antigravity-cli`）的本機工作階段資料庫讀取 token 用量，一律讀取私有暫存副本；只依已同步的 models.dev 目錄計價（Gemini 模型用 Google 價格，Claude 模型用 Anthropic 價格），Anthropic 快取寫入與未知模型不報告精確費用。加密的工作階段計為無法讀取。

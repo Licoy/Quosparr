@@ -10,7 +10,7 @@
 
 一只停在菜单栏里的小麻雀，替你守着 Codex、Claude、Gemini 与 Grok 的额度。
 
-Quosparr 是面向 macOS、Windows、Linux 的原生菜单栏 / 系统托盘应用，展示 Codex、Claude Code、Gemini（Google Antigravity）与 Grok 订阅额度、reset credits、API 等价成本与本机会话，四个供应商各自独立管理账号，并可集中管理四家的全局 Skill、MCP 服务与本机会话。
+Quosparr 是面向 macOS、Windows、Linux 的原生菜单栏 / 系统托盘应用，展示 Codex、Claude、Gemini（Google Antigravity）与 Grok 订阅额度、reset credits、API 等价成本与本机会话，四个供应商各自独立管理账号，并可集中管理四家的全局 Skill、MCP 服务与本机会话。
 
 </div>
 
@@ -28,7 +28,7 @@ Quosparr 是面向 macOS、Windows、Linux 的原生菜单栏 / 系统托盘应�
 
 **Claude**
 
-- 查看 Claude Code 订阅用量的 5 小时窗口、7 天窗口、按模型的周额度和额外用量。这个读数不是公开的计费接口
+- 查看 Claude 订阅用量的 5 小时窗口、7 天窗口、按模型的周额度和额外用量。这个读数不是公开的计费接口
 - 从 Claude Code 本机会话日志统计 Token 用量、API 等价成本（`anthropic-builtin-2026-10-14`）、最近会话和输出速率。同一条回复只计一次。未知模型不给精确费用。日志没有首 token 时间，该列显示“—”，速率按端到端耗时计算
 - 订阅账号可直接通过浏览器登录，无需先运行 CLI，也可导入当前登录、粘贴凭据或从文件导入；浏览器登录支持取消和粘贴回调，仅加入账号库，需显式切换才在 Claude Code 中使用；Quosparr 不刷新当前账号，登录过期时运行一次 `claude`；其他托管账号只把刷新结果写入账号库副本
 - macOS 上官方凭据留在钥匙串，经 `/usr/bin/security` 读写。Windows 与 Linux 使用 `<config>/.credentials.json`。切号只替换 `claudeAiOauth`，保留 MCP 令牌，并只更新 `.claude.json` 里的 `oauthAccount`。正在运行的 Claude Code 不会被结束，可能写回旧登录，切换前会提示
@@ -163,7 +163,7 @@ Linux 需要 GTK3、AppIndicator、支持托盘的桌面，以及可用的 Secre
 - **Codex 额度 / reset credits / 官方用量**：使用本机凭据请求 ChatGPT / Codex 官方后端接口；官方用量属于当前账号，可能延迟或修订
 - **周额度推算**：非官方，根据周用量百分比与每日 Credits 推算（1000 Credits ≈ 40 美元，版本 `credits-usd-2026-08-26`），`quota-estimate-history.json` 只保存派生的 Credits 与占用率
 - **Codex API 等价成本**：基于本机会话日志，使用内置价格表 `openai-builtin-2026-09-27`，支持的当前费率来自 models.dev，并保留已核实的内置规则；未知模型不报告精确费用
-- **Claude Code 订阅用量**：来自未公开的 OAuth usage 端点，只表示当前 Claude Code 订阅，不写成官方计费接口。不读取浏览器 Cookie 或 Console API 账单，Desktop 配置档仅由上述独立且明确确认的功能管理
+- **Claude 订阅用量**：来自未公开的 OAuth usage 端点，只表示当前 Claude 订阅，不写成官方计费接口。不读取浏览器 Cookie 或 Console API 账单，Desktop 配置档仅由上述独立且明确确认的功能管理
 - **Claude API 等价成本**：基于 Claude Code 本机会话日志和价格表 `anthropic-builtin-2026-10-14`。同一条回复按消息 ID 只计一次。缓存写入分为 5 分钟和 1 小时，Fast 档单独计价。未知模型不报告精确费用。按日统计使用本地时区
 - **Gemini 额度**：Antigravity 客户端使用的未公开 Cloud Code 接口（`cloudcode-pa.googleapis.com` / `daily-cloudcode-pa.googleapis.com`），token 经 Google OAuth（`oauth2.googleapis.com`）续期，身份取自 ID token 或 Google userinfo，不写成官方计费接口。订阅档位取付费档位，没有时取当前档位。Google 要求验证或订阅时保留上一次读数
 - **Gemini API 等价成本**：从 App（`~/.gemini/antigravity`）与 `agy`（`~/.gemini/antigravity-cli`）的本机会话数据库读取 Token 用量，始终读取私有临时副本；只按已同步的 models.dev 目录计价（Gemini 模型用 Google 价格，Claude 模型用 Anthropic 价格），Anthropic 缓存写入与未知模型不报告精确费用。加密会话计为无法读取

@@ -10,7 +10,7 @@
 
 メニューバーにとまる小さなスズメが、Codex、Claude、Gemini、Grok のクォータを見守ります。
 
-Quosparr は macOS、Windows、Linux 向けのネイティブなメニューバー / システムトレイアプリです。Codex、Claude Code、Gemini（Google Antigravity）、Grok のサブスクリプションクォータ、reset credits、API 換算コスト、ローカルセッションを表示し、プロバイダーごとに独立したアカウント管理を備えています。4 社のグローバル Skill、MCP サーバー、ローカルセッションもまとめて管理できます。
+Quosparr は macOS、Windows、Linux 向けのネイティブなメニューバー / システムトレイアプリです。Codex、Claude、Gemini（Google Antigravity）、Grok のサブスクリプションクォータ、reset credits、API 換算コスト、ローカルセッションを表示し、プロバイダーごとに独立したアカウント管理を備えています。4 社のグローバル Skill、MCP サーバー、ローカルセッションもまとめて管理できます。
 
 </div>
 
@@ -28,7 +28,7 @@ Quosparr は macOS、Windows、Linux 向けのネイティブなメニューバ�
 
 **Claude**
 
-- Claude Code のサブスクリプション使用量として、5 時間枠、7 日枠、モデル別の週次枠、追加使用量を表示します。この値は公開された課金 API ではありません。
+- Claude のサブスクリプション使用量として、5 時間枠、7 日枠、モデル別の週次枠、追加使用量を表示します。この値は公開された課金 API ではありません。
 - Claude Code のローカルセッションログから token 使用量、API 換算コスト（`anthropic-builtin-2026-10-14`）、最近のセッション、出力速度を集計します。同じ応答は一度だけ数えます。未知のモデルに正確な費用は出しません。ログに先頭 token の時刻がないため、その列は「—」で、速度は端から端までの時間で計算します。
 - サブスクリプションアカウントは CLI を先に実行せずブラウザでログインでき、現在のログイン、資格情報の貼り付け、ファイルからの取り込みも使えます。ブラウザログインはキャンセルとコールバックの貼り付けに対応し、アカウントライブラリにだけ追加します。Claude Code で使うには明示的に切り替えてください。Quosparr は現在のアカウントを更新しません。期限切れなら `claude` を一度実行します。他の管理アカウントはライブラリのコピーだけを更新します。
 - macOS では公式資格情報はキーチェーンにあり、`/usr/bin/security` で読み書きします。Windows と Linux では `<config>/.credentials.json` です。切り替えは `claudeAiOauth` だけを置き換え、MCP トークンは残し、`.claude.json` の `oauthAccount` だけを更新します。実行中の Claude Code は終了せず、以前のログインを書き戻すことがあるため、切り替え前に警告します。
@@ -163,7 +163,7 @@ Linux には GTK3、AppIndicator、トレイに対応したデスクトップ、
 - **Codex のクォータ / reset credits / 公式使用量**: ローカルの資格情報を使って、公式の ChatGPT / Codex バックエンド API から取得します。公式の使用量は現在のアカウントに属し、遅延や改訂が生じることがあります。
 - **週次クォータの推定**: 非公式で、週次使用率と日次 Credits から外挿します（1000 Credits ≈ $40、バージョン `credits-usd-2026-08-26`）。`quota-estimate-history.json` には、派生した Credits と使用率のみが保存されます。
 - **Codex の API 換算コスト**: ローカルのセッションログを、組み込みの価格表 `openai-builtin-2026-09-27` で計算します。対応する現在の料金は models.dev から取得し、検証済みの内蔵ルールを保持します。未知のモデルは正確なコストとして報告されません。
-- **Claude Code のサブスクリプション使用量**: 文書化されていない OAuth usage エンドポイントで、現在の Claude Code サブスクリプションだけを表します。公式の課金 API とは書きません。ブラウザの Cookie や Console の API 請求は読みません、Desktop プロファイルは上記の独立した明示確認付き機能でのみ管理します。
+- **Claude のサブスクリプション使用量**: 文書化されていない OAuth usage エンドポイントで、現在の Claude サブスクリプションだけを表します。公式の課金 API とは書きません。ブラウザの Cookie や Console の API 請求は読みません、Desktop プロファイルは上記の独立した明示確認付き機能でのみ管理します。
 - **Claude の API 換算コスト**: Claude Code のローカルセッションログと価格表 `anthropic-builtin-2026-10-14` で計算します。同じ応答はメッセージ ID で一度だけ数えます。キャッシュ書き込みは 5 分と 1 時間に分け、Fast 料金は別です。未知のモデルに正確な費用は出しません。日界はローカルタイムゾーンです。
 - **Gemini のクォータ**: Antigravity クライアントが使う文書化されていない Cloud Code エンドポイント（`cloudcode-pa.googleapis.com` / `daily-cloudcode-pa.googleapis.com`）です。トークンは Google OAuth（`oauth2.googleapis.com`）で更新し、アカウントの識別は ID トークンまたは Google userinfo から得ます。公式の課金 API とは書きません。ティアは有料ティア、なければ現在のティアです。Google が確認やサブスクリプションを求めた場合は前回の値を保持します。
 - **Gemini の API 換算コスト**: App（`~/.gemini/antigravity`）と `agy`（`~/.gemini/antigravity-cli`）のローカル会話データベースから token 使用量を読み、常に非公開の一時コピーを使います。同期済みの models.dev カタログだけで計算し（Gemini モデルは Google、Claude モデルは Anthropic の価格）、Anthropic のキャッシュ書き込みと未知のモデルに正確な費用は出しません。暗号化された会話は読み取り不可として数えます。

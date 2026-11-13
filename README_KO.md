@@ -10,7 +10,7 @@
 
 메뉴 막대에 앉은 작은 참새가 Codex, Claude, Gemini, Grok 할당량을 지켜봅니다.
 
-Quosparr는 macOS, Windows, Linux용 네이티브 메뉴 막대 / 시스템 트레이 앱입니다. Codex, Claude Code, Gemini(Google Antigravity), Grok 구독 할당량, reset credits, API 환산 비용, 로컬 세션을 보여 주며 공급자별로 계정을 따로 관리합니다. 네 공급자의 전역 Skill, MCP 서버, 로컬 세션도 한곳에서 관리할 수 있습니다.
+Quosparr는 macOS, Windows, Linux용 네이티브 메뉴 막대 / 시스템 트레이 앱입니다. Codex, Claude, Gemini(Google Antigravity), Grok 구독 할당량, reset credits, API 환산 비용, 로컬 세션을 보여 주며 공급자별로 계정을 따로 관리합니다. 네 공급자의 전역 Skill, MCP 서버, 로컬 세션도 한곳에서 관리할 수 있습니다.
 
 </div>
 
@@ -28,7 +28,7 @@ Quosparr는 macOS, Windows, Linux용 네이티브 메뉴 막대 / 시스템 트�
 
 **Claude**
 
-- Claude Code 구독 사용량의 5시간 창, 7일 창, 모델별 주간 한도, 추가 사용량을 봅니다. 이 값은 공개된 결제 API가 아닙니다.
+- Claude 구독 사용량의 5시간 창, 7일 창, 모델별 주간 한도, 추가 사용량을 봅니다. 이 값은 공개된 결제 API가 아닙니다.
 - Claude Code 로컬 세션 로그로 토큰 사용량, API 환산 비용(`anthropic-builtin-2026-10-14`), 최근 세션, 출력 속도를 계산합니다. 같은 답변은 한 번만 셉니다. 알 수 없는 모델은 정확한 비용을 주지 않습니다. 로그에 첫 토큰 시간이 없어 그 칸은 “—”이고, 속도는 처음부터 끝까지의 시간으로 계산합니다.
 - 구독 계정은 CLI를 먼저 실행하지 않고 브라우저로 로그인하거나 현재 로그인 가져오기, 자격 증명 붙여넣기, 파일 가져오기를 사용할 수 있습니다. 브라우저 로그인은 취소와 콜백 붙여넣기를 지원하며 계정 라이브러리에만 추가합니다. Claude Code에서 사용하려면 명시적으로 전환해야 합니다. Quosparr는 현재 계정을 새로고침하지 않습니다. 로그인이 만료되면 `claude`를 한 번 실행하세요. 다른 관리 계정은 계정 라이브러리 사본만 새로고칩니다.
 - macOS에서 공식 자격 증명은 키체인에 있고 `/usr/bin/security`로 읽고 씁니다. Windows와 Linux는 `<config>/.credentials.json`입니다. 전환은 `claudeAiOauth`만 바꾸고 MCP 토큰은 유지하며, `.claude.json`의 `oauthAccount`만 갱신합니다. 실행 중인 Claude Code는 종료하지 않으며 이전 로그인을 다시 쓸 수 있어 전환 전에 경고합니다.
@@ -163,7 +163,7 @@ Linux에는 GTK3, AppIndicator, 트레이를 지원하는 데스크톱, 프록�
 - **Codex 할당량 / reset credits / 공식 사용량**: 로컬 자격 증명을 사용하는 공식 ChatGPT / Codex 백엔드 API. 공식 사용량은 현재 계정에 속하며 지연되거나 수정될 수 있습니다.
 - **주간 할당량 추정**: 비공식이며 주간 사용률과 일별 Credits로 외삽합니다(1000 Credits ≈ $40, 버전 `credits-usd-2026-08-26`). 파생 Credits와 사용률만 `quota-estimate-history.json`에 저장합니다.
 - **Codex API 환산 비용**: 내장 가격표 `openai-builtin-2026-09-27`로 계산한 로컬 세션 로그 기반 비용이며, 지원되는 현재 요금은 models.dev에서 가져오고 검증된 내장 규칙을 유지합니다. 알 수 없는 모델은 정확한 비용으로 보고하지 않습니다.
-- **Claude Code 구독 사용량**: 문서화되지 않은 OAuth usage 엔드포인트이며, 현재 Claude Code 구독만 나타냅니다. 공식 결제 API로 쓰지 않습니다. 브라우저 쿠키나 Console API 청구서는 읽지 않습니다. Desktop 프로필은 위의 별도로 명시적 확인을 받은 기능에서만 관리합니다.
+- **Claude 구독 사용량**: 문서화되지 않은 OAuth usage 엔드포인트이며, 현재 Claude 구독만 나타냅니다. 공식 결제 API로 쓰지 않습니다. 브라우저 쿠키나 Console API 청구서는 읽지 않습니다. Desktop 프로필은 위의 별도로 명시적 확인을 받은 기능에서만 관리합니다.
 - **Claude API 환산 비용**: Claude Code 로컬 세션 로그와 가격표 `anthropic-builtin-2026-10-14`로 계산합니다. 같은 답변은 메시지 ID로 한 번만 셉니다. 캐시 쓰기는 5분과 1시간으로 나누고 Fast 요금은 따로 둡니다. 알 수 없는 모델은 정확한 비용을 보고하지 않습니다. 일 경계는 로컬 시간대입니다.
 - **Gemini 할당량**: Antigravity 클라이언트가 쓰는 문서화되지 않은 Cloud Code 엔드포인트(`cloudcode-pa.googleapis.com` / `daily-cloudcode-pa.googleapis.com`)입니다. 토큰은 Google OAuth(`oauth2.googleapis.com`)로 갱신하고, 계정 정보는 ID 토큰이나 Google userinfo에서 얻습니다. 공식 결제 API로 쓰지 않습니다. 구독 등급은 유료 등급, 없으면 현재 등급을 씁니다. Google이 인증이나 구독을 요구하면 이전 값을 유지합니다.
 - **Gemini API 환산 비용**: App(`~/.gemini/antigravity`)과 `agy`(`~/.gemini/antigravity-cli`)의 로컬 대화 데이터베이스에서 토큰 사용량을 읽으며 항상 비공개 임시 사본을 씁니다. 동기화된 models.dev 카탈로그로만 계산하고(Gemini 모델은 Google 가격, Claude 모델은 Anthropic 가격), Anthropic 캐시 쓰기와 알 수 없는 모델은 정확한 비용을 보고하지 않습니다. 암호화된 대화는 읽을 수 없는 것으로 셉니다.

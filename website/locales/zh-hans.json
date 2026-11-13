@@ -1,7 +1,7 @@
 {
   "meta": {
-    "title": "Quosparr：在菜单栏查看 Codex、Claude Code、Gemini 与 Grok 额度",
-    "description": "Quosparr 是免费的原生菜单栏 / 系统托盘应用，支持 macOS、Windows 与 Linux，展示 Codex、Claude Code、Gemini 与 Grok 订阅额度、reset credits、API 等价成本和本机会话。"
+    "title": "Quosparr：在菜单栏查看 Codex、Claude、Gemini 与 Grok 额度",
+    "description": "Quosparr 是免费的原生菜单栏 / 系统托盘应用，支持 macOS、Windows 与 Linux，展示 Codex、Claude、Gemini 与 Grok 订阅额度、reset credits、API 等价成本和本机会话。"
   },
   "nav": {
     "features": "功能",
@@ -27,7 +27,7 @@
   },
   "features": {
     "title": "功能",
-    "lead": "Codex、Claude Code、Gemini 与 Grok 各有独立标签页，额度、成本和账号按供应商分开管理。",
+    "lead": "Codex、Claude、Gemini 与 Grok 各有独立标签页，额度、成本和账号按供应商分开管理。",
     "codex": [
       "5 小时、每周与附加窗口的剩余额度，以及账号、订阅等级和到期时间",
       "reset credits 数量、状态与过期时间",
@@ -35,7 +35,7 @@
       "切换账号、查看最近会话，并修复本机会话索引"
     ],
     "claude": [
-      "Claude Code 订阅用量：5 小时窗口、7 天窗口、按模型的周额度和额外用量",
+      "Claude 订阅用量：5 小时窗口、7 天窗口、按模型的周额度和额外用量",
       "从本机会话日志统计 Token 用量、API 等价成本、最近会话和输出速率",
       "导入并切换订阅账号，切号时保留 MCP 令牌"
     ],

@@ -1,7 +1,7 @@
 {
   "meta": {
-    "title": "Quosparr：在選單列查看 Codex、Claude Code、Gemini 與 Grok 額度",
-    "description": "Quosparr 是免費的原生選單列 / 系統匣應用程式，支援 macOS、Windows 與 Linux，顯示 Codex、Claude Code、Gemini 與 Grok 訂閱額度、reset credits、API 等價成本和本機工作階段。"
+    "title": "Quosparr：在選單列查看 Codex、Claude、Gemini 與 Grok 額度",
+    "description": "Quosparr 是免費的原生選單列 / 系統匣應用程式，支援 macOS、Windows 與 Linux，顯示 Codex、Claude、Gemini 與 Grok 訂閱額度、reset credits、API 等價成本和本機工作階段。"
   },
   "nav": {
     "features": "功能",
@@ -27,7 +27,7 @@
   },
   "features": {
     "title": "功能",
-    "lead": "Codex、Claude Code、Gemini 與 Grok 各有獨立分頁，額度、成本和帳號依供應商分開管理。",
+    "lead": "Codex、Claude、Gemini 與 Grok 各有獨立分頁，額度、成本和帳號依供應商分開管理。",
     "codex": [
       "5 小時、每週與附加視窗的剩餘額度，以及帳號、訂閱方案和到期時間",
       "reset credits 數量、狀態與到期時間",
@@ -35,7 +35,7 @@
       "切換帳號、查看最近工作階段，並修復本機工作階段索引"
     ],
     "claude": [
-      "Claude Code 訂閱用量：5 小時視窗、7 天視窗、按模型的每週額度和額外用量",
+      "Claude 訂閱用量：5 小時視窗、7 天視窗、按模型的每週額度和額外用量",
       "從本機工作階段記錄統計 Token 用量、API 等價成本、最近工作階段和輸出速率",
       "匯入並切換訂閱帳號，切換時保留 MCP 權杖"
     ],

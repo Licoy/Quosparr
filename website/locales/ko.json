@@ -1,7 +1,7 @@
 {
   "meta": {
-    "title": "Quosparr: 메뉴 막대에서 보는 Codex, Claude Code, Gemini, Grok 할당량",
-    "description": "Quosparr는 macOS, Windows, Linux용 무료 네이티브 메뉴 막대 / 시스템 트레이 앱입니다. Codex, Claude Code, Gemini, Grok 구독 할당량, reset credits, API 환산 비용, 로컬 세션을 보여 줍니다."
+    "title": "Quosparr: 메뉴 막대에서 보는 Codex, Claude, Gemini, Grok 할당량",
+    "description": "Quosparr는 macOS, Windows, Linux용 무료 네이티브 메뉴 막대 / 시스템 트레이 앱입니다. Codex, Claude, Gemini, Grok 구독 할당량, reset credits, API 환산 비용, 로컬 세션을 보여 줍니다."
   },
   "nav": {
     "features": "기능",
@@ -27,7 +27,7 @@
   },
   "features": {
     "title": "기능",
-    "lead": "Codex, Claude Code, Gemini, Grok은 각자의 탭을 가지며, 할당량과 비용, 계정은 공급자별로 분리됩니다.",
+    "lead": "Codex, Claude, Gemini, Grok은 각자의 탭을 가지며, 할당량과 비용, 계정은 공급자별로 분리됩니다.",
     "codex": [
       "5시간, 주간, 추가 창의 남은 할당량과 계정, 요금제, 만료일",
       "reset credits 개수, 상태, 만료 시간",
@@ -35,7 +35,7 @@
       "계정 전환, 최근 세션, 로컬 세션 인덱스 복구"
     ],
     "claude": [
-      "Claude Code 구독 사용량: 5시간 창, 7일 창, 모델별 주간 창, 추가 사용량",
+      "Claude 구독 사용량: 5시간 창, 7일 창, 모델별 주간 창, 추가 사용량",
       "로컬 세션 로그 기반의 토큰 사용량, API 환산 비용, 최근 세션, 출력 속도",
       "구독 계정을 가져와 전환하며, 전환할 때 MCP 토큰은 유지"
     ],
