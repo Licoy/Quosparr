@@ -66,4 +66,16 @@
 // account (Retry-After, else 5 minutes doubling to an hour). The tier is
 // paidTier.id, else currentTier.id: "ultra" in it is Ultra, "pro" is Pro,
 // anything else Free, nothing Unknown.
+//
+// # Local sessions
+//
+// SessionScanner reads the conversations of the desktop App
+// (~/.gemini/antigravity) and of agy (~/.gemini/antigravity-cli): titles
+// and times from conversation_summaries.db, token usage from each
+// conversations/<id>.db, always from a private temporary copy so the live
+// databases and their WAL are never opened. Encrypted .pb conversations are
+// counted as unreadable. DeleteManaged is the only writer: it runs only
+// while every touched client is stopped, backs up each summaries database
+// it edits first, moves the conversation files to the system Trash, and
+// removes the rows of the conversations whose files all moved.
 package gemini
