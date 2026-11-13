@@ -292,6 +292,9 @@ func setEnabled(ctx context.Context, source Source, server Server, enabled bool,
 		return errors.New("MCP configuration changed since it was scanned")
 	}
 	edit := func(data []byte) ([]byte, error) { return setEnabledTOML(data, source.Provider, server.Name, enabled) }
+	if source.Provider == ProviderGemini {
+		edit = func(data []byte) ([]byte, error) { return setEnabledJSON(data, server.Name, enabled) }
+	}
 	out, err := edit(original)
 	if err != nil {
 		return err

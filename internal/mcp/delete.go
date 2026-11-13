@@ -42,8 +42,8 @@ func deleteServers(ctx context.Context, source Source, selected []Server, now ti
 		switch source.Provider {
 		case ProviderCodex, ProviderGrok:
 			return deleteTOML(old, source.Provider, names)
-		case ProviderClaude:
-			return deleteJSON(old, names)
+		case ProviderClaude, ProviderGemini:
+			return deleteJSON(old, source.Provider, names)
 		default:
 			return nil, errors.New("unsupported MCP provider")
 		}

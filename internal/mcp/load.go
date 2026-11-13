@@ -36,6 +36,10 @@ func load(ctx context.Context, source Source) (Snapshot, error) {
 		servers, err = loadTOML(source, data, fingerprint)
 	case ProviderClaude:
 		servers, err = loadJSON(source, data, fingerprint)
+	case ProviderGemini:
+		if !blankJSON(data) {
+			servers, err = loadJSON(source, data, fingerprint)
+		}
 	}
 	if err != nil {
 		return Snapshot{}, fmt.Errorf("parse %s MCP configuration: %w", source.Provider, err)
@@ -49,7 +53,7 @@ func load(ctx context.Context, source Source) (Snapshot, error) {
 
 func validateSource(source Source, deleting bool) error {
 	switch source.Provider {
-	case ProviderCodex, ProviderClaude, ProviderGrok:
+	case ProviderCodex, ProviderClaude, ProviderGrok, ProviderGemini:
 	default:
 		return fmt.Errorf("unsupported MCP provider %q", source.Provider)
 	}

@@ -6,6 +6,8 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"reflect"
+	"strconv"
 )
 
 type jsonDocument map[string]json.RawMessage
@@ -24,6 +26,12 @@ func loadJSON(source Source, data []byte, fingerprint string) ([]Server, error) 
 		server, err := baseServer(source, name, fingerprint, config)
 		if err != nil {
 			return nil, err
+		}
+		if source.Provider == ProviderGemini {
+			disabled, exists := config["disabled"]
+			flag, isBool := disabled.(bool)
+			server.Enabled = !flag
+			server.Toggleable = !exists || isBool
 		}
 		out = append(out, server)
 	}
@@ -110,6 +118,109 @@ func validateJSONValue(decoder *json.Decoder) error {
 	}
 }
 
+// blankJSON reports a file Gemini treats as having no servers yet.
+func blankJSON(data []byte) bool {
+	return len(bytes.TrimSpace(data)) == 0
+}
+
+// setEnabledJSON flips one Gemini server's disabled flag, keeping every other
+// top-level key and server field verbatim.
+func setEnabledJSON(data []byte, name string, enabled bool) ([]byte, error) {
+	document, servers, err := decodeJSON(data)
+	if err != nil {
+		return nil, err
+	}
+	raw, ok := servers[name]
+	if !ok {
+		return nil, fmt.Errorf("MCP server %q was not found", name)
+	}
+	var fields map[string]json.RawMessage
+	if err := json.Unmarshal(raw, &fields); err != nil || fields == nil {
+		return nil, errToggleUnsupported
+	}
+	if current, exists := fields["disabled"]; exists {
+		var flag bool
+		if err := json.Unmarshal(current, &flag); err != nil {
+			return nil, errToggleUnsupported
+		}
+		if flag == !enabled {
+			return data, nil
+		}
+	}
+	fields["disabled"] = json.RawMessage(strconv.FormatBool(!enabled))
+	if servers[name], err = json.Marshal(fields); err != nil {
+		return nil, errors.New("cannot encode MCP server")
+	}
+	out, err := encodeJSONDocument(ProviderGemini, document, servers)
+	if err != nil {
+		return nil, err
+	}
+	if !jsonToggleExpected(data, out, name, enabled) {
+		return nil, errors.New("JSON edit changed configuration outside the selection")
+	}
+	return out, nil
+}
+
+// encodeJSONDocument writes the document the way the official clients do:
+// two-space indentation, sorted keys and a final newline, with nested values
+// kept as they were read.
+// Gemini also rewrites each server object with sorted fields; Claude keeps
+// server objects exactly as read.
+func encodeJSONDocument(provider Provider, document jsonDocument, servers map[string]json.RawMessage) ([]byte, error) {
+	if provider == ProviderGemini {
+		for name, raw := range servers {
+			var fields map[string]json.RawMessage
+			if json.Unmarshal(raw, &fields) != nil || fields == nil {
+				continue
+			}
+			sorted, err := json.Marshal(fields)
+			if err != nil {
+				return nil, errors.New("cannot encode MCP server")
+			}
+			servers[name] = sorted
+		}
+	}
+	replacement, err := json.Marshal(servers)
+	if err != nil {
+		return nil, errors.New("cannot encode mcpServers")
+	}
+	if document == nil {
+		document = jsonDocument{}
+	}
+	document["mcpServers"] = replacement
+	out, err := json.MarshalIndent(document, "", "  ")
+	if err != nil {
+		return nil, errors.New("cannot encode configuration")
+	}
+	return append(out, '\n'), nil
+}
+
+func jsonToggleExpected(before, after []byte, name string, enabled bool) bool {
+	old, err := decodeJSONObject(before)
+	if err != nil {
+		return false
+	}
+	updated, err := decodeJSONObject(after)
+	if err != nil {
+		return false
+	}
+	config := jsonServer(updated, name)
+	if config == nil || config["disabled"] != !enabled {
+		return false
+	}
+	delete(config, "disabled")
+	if previous := jsonServer(old, name); previous != nil {
+		delete(previous, "disabled")
+	}
+	return reflect.DeepEqual(old, updated)
+}
+
+func jsonServer(root map[string]any, name string) map[string]any {
+	servers, _ := root["mcpServers"].(map[string]any)
+	config, _ := servers[name].(map[string]any)
+	return config
+}
+
 func decodeJSONObject(data []byte) (map[string]any, error) {
 	decoder := json.NewDecoder(bytes.NewReader(data))
 	decoder.UseNumber()
@@ -120,7 +231,7 @@ func decodeJSONObject(data []byte) (map[string]any, error) {
 	return value, nil
 }
 
-func deleteJSON(data []byte, names map[string]struct{}) ([]byte, error) {
+func deleteJSON(data []byte, provider Provider, names map[string]struct{}) ([]byte, error) {
 	document, servers, err := decodeJSON(data)
 	if err != nil {
 		return nil, err
@@ -131,16 +242,10 @@ func deleteJSON(data []byte, names map[string]struct{}) ([]byte, error) {
 		}
 		delete(servers, name)
 	}
-	replacement, err := json.Marshal(servers)
+	out, err := encodeJSONDocument(provider, document, servers)
 	if err != nil {
-		return nil, errors.New("cannot encode mcpServers")
+		return nil, err
 	}
-	document["mcpServers"] = replacement
-	out, err := json.MarshalIndent(document, "", "  ")
-	if err != nil {
-		return nil, errors.New("cannot encode configuration")
-	}
-	out = append(out, '\n')
 	_, remaining, err := decodeJSON(out)
 	if err != nil {
 		return nil, errors.New("edited JSON is invalid")

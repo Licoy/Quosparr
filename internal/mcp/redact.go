@@ -17,6 +17,9 @@ const hidden = "<hidden>"
 func summarizeConnection(provider Provider, config map[string]any) (transport, command, rawURL, problem string) {
 	command, _ = config["command"].(string)
 	rawURL, _ = config["url"].(string)
+	if rawURL == "" && provider == ProviderGemini {
+		rawURL, _ = config["serverUrl"].(string)
+	}
 	declared, _ := config["type"].(string)
 	transport = declared
 	if declared != "" && !knownTransport(declared) {
@@ -105,7 +108,7 @@ func redactField(key string, value any) any {
 		if text, ok := value.(string); ok {
 			return safeCommand(text)
 		}
-	case "url":
+	case "url", "serverurl":
 		if text, ok := value.(string); ok {
 			return safeURL(text)
 		}
@@ -121,7 +124,7 @@ func redactField(key string, value any) any {
 			}
 			return out
 		}
-	case "enabled", "required", "startup_timeout_sec", "tool_timeout_sec", "startup_timeout_ms", "tool_timeout_ms":
+	case "enabled", "disabled", "required", "startup_timeout_sec", "tool_timeout_sec", "startup_timeout_ms", "tool_timeout_ms":
 		return safePrimitive(value)
 	case "enabled_tools", "disabled_tools", "env_vars":
 		return safeStringList(value)

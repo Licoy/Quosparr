@@ -11,8 +11,11 @@ import (
 
 func addDocument(provider Provider, data []byte) (map[string]any, map[string]any, error) {
 	root := map[string]any{}
+	if provider == ProviderGemini && blankJSON(data) {
+		data = nil
+	}
 	if len(data) > 0 {
-		if provider == ProviderClaude {
+		if jsonProvider(provider) {
 			if err := validateUniqueJSON(data); err != nil {
 				return nil, nil, draftError("syntax", "config")
 			}
@@ -29,10 +32,7 @@ func addDocument(provider Provider, data []byte) (map[string]any, map[string]any
 			}
 		}
 	}
-	key := "mcp_servers"
-	if provider == ProviderClaude {
-		key = "mcpServers"
-	}
+	key := serversKey(provider)
 	servers := map[string]any{}
 	if raw, present := root[key]; present {
 		var ok bool
@@ -50,16 +50,18 @@ func encodeAdd(provider Provider, data []byte, root, servers, additions map[stri
 	if len(additions) == 0 {
 		return bytes.Clone(data), nil
 	}
-	key := "mcp_servers"
-	if provider == ProviderClaude {
-		key = "mcpServers"
-	}
+	key := serversKey(provider)
 	for name, config := range additions {
 		servers[name] = config
 	}
 	root[key] = servers
 	var out []byte
-	if provider == ProviderClaude {
+	if provider == ProviderGemini {
+		var err error
+		if out, err = encodeGeminiAdd(data, additions); err != nil {
+			return nil, err
+		}
+	} else if provider == ProviderClaude {
 		var err error
 		out, err = json.MarshalIndent(root, "", "  ")
 		if err != nil {
@@ -113,6 +115,46 @@ func encodeAdd(provider Provider, data []byte, root, servers, additions map[stri
 	return out, nil
 }
 
+func jsonProvider(provider Provider) bool {
+	return provider == ProviderClaude || provider == ProviderGemini
+}
+
+func serversKey(provider Provider) string {
+	if jsonProvider(provider) {
+		return "mcpServers"
+	}
+	return "mcp_servers"
+}
+
+// encodeGeminiAdd appends servers to the raw document so other keys and the
+// existing entries keep their exact values; a blank file becomes a full one.
+func encodeGeminiAdd(data []byte, additions map[string]any) ([]byte, error) {
+	var document jsonDocument
+	servers := map[string]json.RawMessage{}
+	if !blankJSON(data) {
+		var err error
+		var existing map[string]json.RawMessage
+		if document, existing, err = decodeJSON(data); err != nil {
+			return nil, draftError("syntax", "config")
+		}
+		if existing != nil {
+			servers = existing
+		}
+	}
+	for name, config := range additions {
+		raw, err := json.Marshal(config)
+		if err != nil {
+			return nil, draftError("encode", "config")
+		}
+		servers[name] = raw
+	}
+	out, err := encodeJSONDocument(ProviderGemini, document, servers)
+	if err != nil {
+		return nil, draftError("encode", "config")
+	}
+	return out, nil
+}
+
 // equivalentServer only removes documented defaults; all unknown fields remain
 // part of the comparison so existing policies or credentials are never ignored.
 func equivalentServer(a, b any) bool {
@@ -138,6 +180,15 @@ func equivalentServer(a, b any) bool {
 		}
 		if enabled, ok := result["enabled"].(bool); ok && enabled {
 			delete(result, "enabled")
+		}
+		if disabled, ok := result["disabled"].(bool); ok && !disabled {
+			delete(result, "disabled")
+		}
+		if url, ok := result["serverUrl"]; ok {
+			if _, exists := result["url"]; !exists {
+				result["url"] = url
+				delete(result, "serverUrl")
+			}
 		}
 		inferred := "stdio"
 		if url, ok := result["url"].(string); ok && url != "" {

@@ -128,6 +128,7 @@ func draftJSONValue(dec *json.Decoder, depth int) error {
 
 func parseDraft(obj map[string]json.RawMessage) (Draft, error) {
 	var d Draft
+	var disabled bool
 	seen := map[string]bool{}
 	for key, raw := range obj {
 		canonical := key
@@ -140,6 +141,8 @@ func parseDraft(obj map[string]json.RawMessage) (Draft, error) {
 			canonical = "env_headers"
 		case "bearer_token_env_var":
 			canonical = "bearer_token_env"
+		case "serverUrl":
+			canonical = "url"
 		}
 		if seen[canonical] {
 			return d, draftError("conflict", canonical)
@@ -167,12 +170,17 @@ func parseDraft(obj map[string]json.RawMessage) (Draft, error) {
 			target = &d.EnvHeaders
 		case "bearer_token_env":
 			target = &d.BearerTokenEnv
+		case "disabled":
+			target = &disabled
 		default:
 			return d, draftError("unsupported", "field")
 		}
 		if !strictDraftValue(raw, target) {
 			return d, draftError("type", canonical)
 		}
+	}
+	if disabled {
+		return d, draftError("unsupported", "disabled")
 	}
 	if d.Transport == "" {
 		if d.URL != "" {
@@ -225,6 +233,10 @@ func strictDraftValue(raw json.RawMessage, target any) bool {
 			if _, ok := item.(string); !ok {
 				return false
 			}
+		}
+	case *bool:
+		if _, ok := value.(bool); !ok {
+			return false
 		}
 	case *map[string]string:
 		values, ok := value.(map[string]any)

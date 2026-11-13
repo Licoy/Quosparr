@@ -86,8 +86,11 @@ func draftConfig(provider Provider, d Draft) (map[string]any, error) {
 	if provider == ProviderGrok && (!regexp.MustCompile(`^[A-Za-z_][A-Za-z0-9_-]*$`).MatchString(d.Name) || strings.HasSuffix(d.Name, "_") || strings.Contains(d.Name, "__")) {
 		return nil, draftError("invalid", "name")
 	}
-	if provider == ProviderClaude && d.Cwd != "" {
+	if (provider == ProviderClaude || provider == ProviderGemini) && d.Cwd != "" {
 		return nil, draftError("unsupported", "cwd")
+	}
+	if provider == ProviderGemini {
+		return geminiDraftConfig(d)
 	}
 	if provider == ProviderGrok && d.Transport == "http" && strings.HasSuffix(d.URL, "/sse") {
 		return nil, draftError("conflict", "transport")
@@ -169,6 +172,39 @@ func draftConfig(provider Provider, d Draft) (map[string]any, error) {
 	}
 	return config, nil
 }
+
+// geminiDraftConfig writes the entry shape the official CLI writes: stdio
+// command / args / env or HTTP serverUrl / headers, with disabled false and no
+// type field. The CLI rejects names starting with "-" and the SSE transport,
+// and has no environment-sourced header form.
+func geminiDraftConfig(d Draft) (map[string]any, error) {
+	if strings.HasPrefix(d.Name, "-") {
+		return nil, draftError("invalid", "name")
+	}
+	if d.Transport == "sse" {
+		return nil, draftError("unsupported", "transport")
+	}
+	if len(d.EnvHeaders) > 0 || d.BearerTokenEnv != "" {
+		return nil, draftError("unsupported", "headers")
+	}
+	config := map[string]any{"disabled": false}
+	if d.Transport == "stdio" {
+		config["command"] = d.Command
+		if len(d.Args) > 0 {
+			config["args"] = append([]string(nil), d.Args...)
+		}
+		if len(d.Env) > 0 {
+			config["env"] = copyStrings(d.Env)
+		}
+		return config, nil
+	}
+	config["serverUrl"] = d.URL
+	if len(d.Headers) > 0 {
+		config["headers"] = copyStrings(d.Headers)
+	}
+	return config, nil
+}
+
 func simpleVariable(value string) (string, bool) {
 	if !strings.HasPrefix(value, "${") || !strings.HasSuffix(value, "}") {
 		return "", false
