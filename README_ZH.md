@@ -74,7 +74,7 @@ Quosparr 是面向 macOS、Windows、Linux 的原生菜单栏 / 系统托盘应�
     <th colspan="2">订阅额度推算</th>
   </tr>
   <tr>
-    <td colspan="2" align="center" valign="top"><img src="docs/images/1.webp?v2" alt="Quosparr 主面板" width="240"></td>
+    <td colspan="2" align="center" valign="top"><img src="docs/images/1.webp?v3" alt="Quosparr 主面板" width="240"></td>
     <td colspan="2" align="center" valign="top"><img src="docs/images/3.webp?v1" alt="Quosparr API 等价成本" width="240"></td>
     <td colspan="2" align="center" valign="top"><img src="docs/images/6.webp?v1" alt="Quosparr 订阅额度推算" width="240"></td>
   </tr>

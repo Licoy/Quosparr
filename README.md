@@ -74,7 +74,7 @@ Quosparr is a native menu bar / system tray app for macOS, Windows, and Linux. I
     <th colspan="2">Subscription quota estimate</th>
   </tr>
   <tr>
-    <td colspan="2" align="center" valign="top"><img src="docs/images/1-en.webp?v2" alt="Quosparr Main panel" width="240"></td>
+    <td colspan="2" align="center" valign="top"><img src="docs/images/1-en.webp?v3" alt="Quosparr Main panel" width="240"></td>
     <td colspan="2" align="center" valign="top"><img src="docs/images/3.webp?v1" alt="Quosparr API-equivalent cost" width="240"></td>
     <td colspan="2" align="center" valign="top"><img src="docs/images/6.webp?v1" alt="Quosparr Subscription quota estimate" width="240"></td>
   </tr>

@@ -74,7 +74,7 @@ Quosparr est une application native de barre de menus / zone de notification pou
     <th colspan="2">Estimation du quota d’abonnement</th>
   </tr>
   <tr>
-    <td colspan="2" align="center" valign="top"><img src="docs/images/1-en.webp?v2" alt="Quosparr Panneau principal" width="240"></td>
+    <td colspan="2" align="center" valign="top"><img src="docs/images/1-en.webp?v3" alt="Quosparr Panneau principal" width="240"></td>
     <td colspan="2" align="center" valign="top"><img src="docs/images/3.webp?v1" alt="Quosparr Coût équivalent API" width="240"></td>
     <td colspan="2" align="center" valign="top"><img src="docs/images/6.webp?v1" alt="Quosparr Estimation du quota d’abonnement" width="240"></td>
   </tr>

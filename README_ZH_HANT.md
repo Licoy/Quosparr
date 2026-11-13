@@ -74,7 +74,7 @@ Quosparr 是適用於 macOS、Windows、Linux 的原生選單列 / 系統匣應�
     <th colspan="2">訂閱額度推算</th>
   </tr>
   <tr>
-    <td colspan="2" align="center" valign="top"><img src="docs/images/1.webp?v2" alt="Quosparr 主面板" width="240"></td>
+    <td colspan="2" align="center" valign="top"><img src="docs/images/1.webp?v3" alt="Quosparr 主面板" width="240"></td>
     <td colspan="2" align="center" valign="top"><img src="docs/images/3.webp?v1" alt="Quosparr API 等價成本" width="240"></td>
     <td colspan="2" align="center" valign="top"><img src="docs/images/6.webp?v1" alt="Quosparr 訂閱額度推算" width="240"></td>
   </tr>

@@ -74,7 +74,7 @@ Quosparr は macOS、Windows、Linux 向けのネイティブなメニューバ�
     <th colspan="2">サブスク枠の推定</th>
   </tr>
   <tr>
-    <td colspan="2" align="center" valign="top"><img src="docs/images/1-en.webp?v2" alt="Quosparr メインパネル" width="240"></td>
+    <td colspan="2" align="center" valign="top"><img src="docs/images/1-en.webp?v3" alt="Quosparr メインパネル" width="240"></td>
     <td colspan="2" align="center" valign="top"><img src="docs/images/3.webp?v1" alt="Quosparr API 換算コスト" width="240"></td>
     <td colspan="2" align="center" valign="top"><img src="docs/images/6.webp?v1" alt="Quosparr サブスク枠の推定" width="240"></td>
   </tr>

@@ -74,7 +74,7 @@ func TestReleaseFromGitHub(t *testing.T) {
 }
 
 func TestWebpSize(t *testing.T) {
-	for name, want := range map[string][2]int{"2.webp": {1600, 886}, "1.webp": {778, 1793}, "1-en.webp": {762, 1786}} {
+	for name, want := range map[string][2]int{"2.webp": {1600, 886}, "1.webp": {778, 2138}, "1-en.webp": {780, 2126}} {
 		data, err := os.ReadFile(filepath.Join(repoRoot, "docs", "images", name))
 		if err != nil {
 			t.Fatal(err)

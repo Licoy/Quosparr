@@ -74,7 +74,7 @@ Quosparr — нативное приложение для строки меню 
     <th colspan="2">Оценка лимита подписки</th>
   </tr>
   <tr>
-    <td colspan="2" align="center" valign="top"><img src="docs/images/1-en.webp?v2" alt="Quosparr Главная панель" width="240"></td>
+    <td colspan="2" align="center" valign="top"><img src="docs/images/1-en.webp?v3" alt="Quosparr Главная панель" width="240"></td>
     <td colspan="2" align="center" valign="top"><img src="docs/images/3.webp?v1" alt="Quosparr Эквивалентная стоимость API" width="240"></td>
     <td colspan="2" align="center" valign="top"><img src="docs/images/6.webp?v1" alt="Quosparr Оценка лимита подписки" width="240"></td>
   </tr>
