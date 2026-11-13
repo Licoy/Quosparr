@@ -11,7 +11,8 @@ func (u *settingsUI) pricingProviderTabs(c *ui.Context, snap PricingSnapshot, a 
 	s, l, t := u.pricingState(), u.L(), c.Theme()
 	providers := store.Providers()
 	selected := slicesIndexProvider(providers, s.provider)
-	ui.Row(c).Gap(8).AlignItems(ui.Center).Children(func() {
+	// The actions wrap below the providers when a long translation leaves no room.
+	ui.Row(c).Gap(8).Wrap().AlignItems(ui.Center).Children(func() {
 		seg := ui.SegmentedBase(c.Key("pricing-providers"), &selected, len(providers))
 		seg.Track.Padding(3).Gap(2).Radius(7).Background(t.Text.Alpha(0.06)).Children(func() {
 			for i, provider := range providers {
@@ -34,10 +35,12 @@ func (u *settingsUI) pricingProviderTabs(c *ui.Context, snap PricingSnapshot, a 
 			s.switchProvider(providers[selected])
 		}
 		ui.Spacer(c).Grow(1)
-		if SmallPillButton(c, icSliders, l.Pricing("syncSettings"), false).Clicked() {
-			s.syncSettings = true
-		}
-		u.pricingSyncButton(c, snap, a, true)
+		ui.Row(c).Gap(8).AlignItems(ui.Center).Shrink(0).Children(func() {
+			if SmallPillButton(c, icSliders, l.Pricing("syncSettings"), false).Clicked() {
+				s.syncSettings = true
+			}
+			u.pricingSyncButton(c, snap, a, true)
+		})
 	})
 }
 func (u *settingsUI) pricingNotice(c *ui.Context, snap PricingSnapshot) {
