@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/licoy/quosparr/internal/skills"
+	"github.com/licoy/quosparr/internal/store"
 )
 
 // The steps of the add page; results follow the confirmed write.
@@ -255,7 +256,7 @@ func (u *settingsUI) prepareSkillInstall(acts SkillActions, retry bool) {
 		return
 	}
 	var sums []skills.Summary
-	for _, p := range toolProviders() {
+	for _, p := range store.Providers() {
 		if sum, ok := u.skills.result[p]; ok {
 			sums = append(sums, sum)
 		}

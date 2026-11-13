@@ -1,6 +1,7 @@
 package app
 
 import (
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -60,7 +61,7 @@ func pricingRows(catalog pricing.Snapshot, l l10n.Localizer) []PricingRow {
 		}
 	}
 	for _, m := range catalog.Models() {
-		if m.ProviderID != "openai" && m.ProviderID != "anthropic" && m.ProviderID != "xai" {
+		if !slices.Contains(pricingWatched, m.ProviderID) {
 			continue
 		}
 		k := m.ProviderID + "/" + m.ID
@@ -82,6 +83,8 @@ func pricingRows(catalog pricing.Snapshot, l l10n.Localizer) []PricingRow {
 			providerName = "Anthropic"
 		case "xai":
 			providerName = "xAI"
+		case "google":
+			providerName = "Google"
 		}
 		sourceURL := "https://models.dev"
 		source := "models.dev"
@@ -91,7 +94,7 @@ func pricingRows(catalog pricing.Snapshot, l l10n.Localizer) []PricingRow {
 			sourceURL = builtinSourceURL(m.ProviderID)
 			version = builtinVersion(m.ProviderID)
 		}
-		supported := m.ProviderID == "openai" || m.ProviderID == "anthropic" || m.ProviderID == "xai"
+		supported := slices.Contains(pricingWatched, m.ProviderID)
 		available := supported && m.Rate.Input != nil && m.Rate.Output != nil
 		if m.LegacyLong != nil && len(m.Tiers) == 0 && !builtin[key] {
 			available = false

@@ -249,6 +249,9 @@ func panelRecent(c *ui.Context, l l10n.Localizer, snap runway.Snapshot, grok boo
 	if grok && snap.Provider == store.ProviderClaude {
 		items = snap.Claude.RecentSessions
 		refresh = sectionRefresh(acts, runway.SectionAPICost)
+	} else if grok && snap.Provider == store.ProviderGemini {
+		items = snap.Gemini.RecentSessions
+		refresh = sectionRefresh(acts, runway.SectionAPICost)
 	} else if grok {
 		items = snap.Grok.RecentSessions
 		refresh = sectionRefresh(acts, runway.SectionAPICost)

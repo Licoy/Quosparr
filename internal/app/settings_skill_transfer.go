@@ -50,7 +50,7 @@ func (u *settingsUI) skillTransferMenu(c *ui.Context, sum skills.Summary, sk ski
 }
 
 func (u *settingsUI) skillTransferTargets(m *ui.Menu, l l10n.Localizer, sk skills.Skill, disabled bool, choose func(skills.Provider)) {
-	for _, p := range toolProviders() {
+	for _, p := range store.Providers() {
 		target := skills.Provider(p)
 		if target == sk.Provider {
 			continue

@@ -30,12 +30,10 @@ const (
 // panelToken is the token usage section: title with the official as-of
 // line, the info/style/refresh controls, the mode picker and the chart.
 func panelToken(c *ui.Context, l l10n.Localizer, style store.ChartStyle, snap runway.Snapshot, acts PanelActions, first *bool, st *panelState) {
-	grokView := snap.Provider == store.ProviderGrok
-	claudeView := snap.Provider == store.ProviderClaude
 	heat := snap.Codex.Heatmap
 	refreshing := sectionRefreshing(snap, runway.SectionTokenHeatmap)
 	sectionBlock(c, first, func() {
-		tokenHeader(c, l, style, heat, !grokView && !claudeView, refreshing, sectionRefresh(acts, runway.SectionTokenHeatmap), st)
+		tokenHeader(c, l, style, heat, !localProvider(snap.Provider), refreshing, sectionRefresh(acts, runway.SectionTokenHeatmap), st)
 		panelChart(c, l, style, snap.Provider, heat, refreshing, st)
 	})
 }
@@ -161,7 +159,7 @@ func panelChart(c *ui.Context, l l10n.Localizer, style store.ChartStyle, provide
 		at = time.Now()
 	}
 	loc := time.UTC
-	if provider == store.ProviderGrok {
+	if provider == store.ProviderGrok || provider == store.ProviderGemini {
 		loc = time.Local
 	}
 	input := usage.HeatmapInput{AllDevices: heat.AllDevices, Local: heat.Local, Mode: st.mode(), Now: at, FirstWeekday: heatmapWeekStart, Loc: loc}
@@ -235,7 +233,7 @@ func panelHeatmap(c *ui.Context, l l10n.Localizer, grid usage.HeatmapSnapshot, p
 }
 
 func heatTooltip(l l10n.Localizer, provider store.Provider, day string, tokens, all, local int64) string {
-	if provider == store.ProviderGrok {
+	if provider == store.ProviderGrok || provider == store.ProviderGemini {
 		return fmt.Sprintf("%s\n%s %s %s", day, l.Text(l10n.KeyHeatmapLocalShort), usage.CompactTokenCount(local, l.Language()), l.Text(l10n.KeyTokens))
 	}
 	return fmt.Sprintf("%s\n%s %s\n%s: %s\n%s: %s", day, usage.CompactTokenCount(tokens, l.Language()), l.Text(l10n.KeyTokens), l.Text(l10n.KeyHeatmapAllDevices), usage.CompactTokenCount(all, l.Language()), l.Text(l10n.KeyHeatmapLocalShort), usage.CompactTokenCount(local, l.Language()))

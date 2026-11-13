@@ -44,6 +44,17 @@ func (s SessionScanner) SessionRoots() []string {
 	return out
 }
 
+// SessionClientOf names the client owning one of SessionRoots
+// (SessionClientApp or SessionClientCLI), "" for any other path.
+func (s SessionScanner) SessionClientOf(root string) string {
+	for _, r := range s.sessionRoots() {
+		if filepath.Clean(root) == r.path {
+			return r.client
+		}
+	}
+	return ""
+}
+
 func (s SessionScanner) sessionRoots() []sessionRoot {
 	if strings.TrimSpace(s.GeminiHome) == "" {
 		return nil

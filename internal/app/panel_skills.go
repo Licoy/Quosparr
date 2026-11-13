@@ -465,6 +465,8 @@ func skillToggleBlockText(l l10n.Localizer, sk skills.Skill) string {
 		return tx(l, xSkillsBlockIgnored)
 	case sk.ToggleBlock == skills.ReasonPluginCollection || sk.Scope == skills.ScopePlugin:
 		return tx(l, xSkillsBlockPlugin)
+	case sk.ToggleBlock == skills.ReasonNoToggle:
+		return tx(l, xSkillsBlockNoToggle)
 	case sk.State == skills.StateOff:
 		if why := skillReasonText(l, sk.Reason); why != "" {
 			return why
@@ -633,6 +635,8 @@ func skillReadOnlyText(l l10n.Localizer, sk skills.Skill) string {
 			return tx(l, xSkillsReadOnlyPluginCL, sk.Plugin)
 		case skills.ProviderGrok:
 			return tx(l, xSkillsReadOnlyPluginGK)
+		case skills.ProviderGemini:
+			return tx(l, xSkillsReadOnlyPluginGM)
 		}
 		return tx(l, xSkillsReadOnlyPluginCX)
 	}

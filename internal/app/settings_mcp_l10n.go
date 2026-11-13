@@ -48,6 +48,8 @@ const (
 	xMCPDisabledNotice       textKey = "mcpDisabledNotice"
 	xMCPApplyCodex           textKey = "mcpApplyCodex"
 	xMCPApplyGrok            textKey = "mcpApplyGrok"
+	xMCPApplyGemini          textKey = "mcpApplyGemini"
+	xMCPGeminiTransports     textKey = "mcpGeminiTransports"
 )
 
 func init() {
@@ -97,8 +99,22 @@ func init() {
 		xMCPToggleFailed:         {"Could not switch %s: %v", "无法切换 %s：%v", "無法切換 %s：%v", "%s을(를) 전환할 수 없습니다: %v", "%s を切り替えられません：%v", "Не удалось переключить %s: %v", "Impossible de basculer %s : %v"},
 		xMCPEnabledNotice:        {"Enabled %s. %s", "已启用 %s。%s", "已啟用 %s。%s", "%s을(를) 활성화했습니다. %s", "%s を有効にしました。%s", "%s включён. %s", "%s activé. %s"},
 		xMCPDisabledNotice:       {"Disabled %s. %s", "已停用 %s。%s", "已停用 %s。%s", "%s을(를) 비활성화했습니다. %s", "%s を無効にしました。%s", "%s отключён. %s", "%s désactivé. %s"},
-		xMCPApplyCodex:           {"Saved to config.toml after a backup; restart Codex to apply", "已备份并写入 config.toml，重启 Codex 后生效", "已備份並寫入 config.toml，重新啟動 Codex 後生效", "백업 후 config.toml에 저장했습니다. Codex를 다시 시작하면 적용됩니다", "バックアップ後に config.toml へ保存しました。Codex の再起動で反映されます", "Сохранено в config.toml после резервной копии; перезапустите Codex", "Enregistré dans config.toml après sauvegarde ; redémarrez Codex pour l’appliquer"},
-		xMCPApplyGrok:            {"Saved to config.toml after a backup; new Grok sessions use it, and an open session picks it up after pressing r in /mcps", "已备份并写入 config.toml，新的 Grok 会话直接生效，已打开的会话在 /mcps 中按 r 刷新", "已備份並寫入 config.toml，新的 Grok 工作階段直接生效，已開啟的工作階段在 /mcps 中按 r 重新整理", "백업 후 config.toml에 저장했습니다. 새 Grok 세션에 바로 적용되며, 열려 있는 세션은 /mcps에서 r을 눌러 새로 고치세요", "バックアップ後に config.toml へ保存しました。新しい Grok セッションに反映され、開いているセッションは /mcps で r を押すと更新されます", "Сохранено в config.toml после резервной копии; новые сеансы Grok применят это сразу, в открытом сеансе нажмите r в /mcps", "Enregistré dans config.toml après sauvegarde ; les nouvelles sessions Grok l’appliquent, et une session ouverte après avoir appuyé sur r dans /mcps"},
+		xMCPApplyGemini: {"Saved to mcp_config.json after a backup; restart the Antigravity app and agy to apply",
+			"已备份并写入 mcp_config.json，重启 Antigravity 桌面 App 与 agy 后生效",
+			"已備份並寫入 mcp_config.json，重新啟動 Antigravity 桌面 App 與 agy 後生效",
+			"백업 후 mcp_config.json에 저장했습니다. Antigravity 앱과 agy를 다시 시작하면 적용됩니다",
+			"バックアップ後に mcp_config.json へ保存しました。Antigravity アプリと agy の再起動で反映されます",
+			"Сохранено в mcp_config.json после резервной копии; перезапустите приложение Antigravity и agy",
+			"Enregistré dans mcp_config.json après sauvegarde ; redémarrez l’app Antigravity et agy pour l’appliquer"},
+		xMCPGeminiTransports: {"Antigravity supports stdio and HTTP servers only, not SSE",
+			"Antigravity 仅支持 stdio 与 HTTP 服务，不支持 SSE",
+			"Antigravity 僅支援 stdio 與 HTTP 服務，不支援 SSE",
+			"Antigravity는 stdio와 HTTP 서버만 지원하며 SSE는 지원하지 않습니다",
+			"Antigravity は stdio と HTTP のサーバーのみ対応し、SSE には対応していません",
+			"Antigravity поддерживает только серверы stdio и HTTP, без SSE",
+			"Antigravity ne prend en charge que les serveurs stdio et HTTP, pas SSE"},
+		xMCPApplyCodex: {"Saved to config.toml after a backup; restart Codex to apply", "已备份并写入 config.toml，重启 Codex 后生效", "已備份並寫入 config.toml，重新啟動 Codex 後生效", "백업 후 config.toml에 저장했습니다. Codex를 다시 시작하면 적용됩니다", "バックアップ後に config.toml へ保存しました。Codex の再起動で反映されます", "Сохранено в config.toml после резервной копии; перезапустите Codex", "Enregistré dans config.toml après sauvegarde ; redémarrez Codex pour l’appliquer"},
+		xMCPApplyGrok:  {"Saved to config.toml after a backup; new Grok sessions use it, and an open session picks it up after pressing r in /mcps", "已备份并写入 config.toml，新的 Grok 会话直接生效，已打开的会话在 /mcps 中按 r 刷新", "已備份並寫入 config.toml，新的 Grok 工作階段直接生效，已開啟的工作階段在 /mcps 中按 r 重新整理", "백업 후 config.toml에 저장했습니다. 새 Grok 세션에 바로 적용되며, 열려 있는 세션은 /mcps에서 r을 눌러 새로 고치세요", "バックアップ後に config.toml へ保存しました。新しい Grok セッションに反映され、開いているセッションは /mcps で r を押すと更新されます", "Сохранено в config.toml после резервной копии; новые сеансы Grok применят это сразу, в открытом сеансе нажмите r в /mcps", "Enregistré dans config.toml après sauvegarde ; les nouvelles sessions Grok l’appliquent, et une session ouverte après avoir appuyé sur r dans /mcps"},
 	} {
 		extraTexts[key] = texts
 	}

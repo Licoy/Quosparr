@@ -24,16 +24,9 @@ func sectionBlock(c *ui.Context, first *bool, body func()) {
 func panelBody(c *ui.Context, l l10n.Localizer, prefs store.Preferences, snap runway.Snapshot, acts PanelActions, state *panelState) {
 	snap.Provider = prefs.SelectedProvider
 	snap.Codex = providerView(l, snap, prefs.APICostSummaryRange)
-	grok := prefs.SelectedProvider == store.ProviderGrok
-	claude := prefs.SelectedProvider == store.ProviderClaude
-	local := grok || claude
-	gemini := prefs.SelectedProvider == store.ProviderGemini
+	local := localProvider(prefs.SelectedProvider)
 	first := true
 	for _, m := range store.NormalizeModuleOrder(prefs.MainPanelModuleOrder) {
-		if gemini && m != store.ModuleQuota {
-			// Only the quota is read for Gemini; its local sessions are not scanned yet.
-			continue
-		}
 		if local && m == store.ModuleResetCredits && snap.Codex.ResetCreditSummary == nil {
 			continue
 		}
@@ -41,6 +34,12 @@ func panelBody(c *ui.Context, l l10n.Localizer, prefs store.Preferences, snap ru
 			panelModule(c, l, m, prefs, snap, acts, &first, state)
 		}
 	}
+}
+
+// localProvider tells the providers whose usage comes from their local
+// sessions only: Grok, Claude and Gemini.
+func localProvider(p store.Provider) bool {
+	return p == store.ProviderGrok || p == store.ProviderClaude || p == store.ProviderGemini
 }
 
 func panelModuleOn(m store.Module, p store.Preferences, grok bool) bool {
@@ -107,7 +106,7 @@ func panelModule(c *ui.Context, l l10n.Localizer, m store.Module, prefs store.Pr
 	case store.ModuleSessionRepair:
 		panelRepair(c, l, snap, acts, first, state)
 	case store.ModuleRecentSessions:
-		panelRecent(c, l, snap, grok || claude, acts, first, state)
+		panelRecent(c, l, snap, localProvider(prefs.SelectedProvider), acts, first, state)
 	case store.ModuleSkills:
 		panelSkills(c, l, snap, acts, first, state)
 	}

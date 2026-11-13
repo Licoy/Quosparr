@@ -2,11 +2,13 @@ package app
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"path/filepath"
 	"strings"
 
 	"github.com/egoist/mygo/ui"
+	"github.com/licoy/quosparr/internal/gemini"
 	"github.com/licoy/quosparr/internal/l10n"
 	"github.com/licoy/quosparr/internal/sessions"
 )
@@ -54,7 +56,24 @@ func (u *settingsUI) deleteSessions(actions SessionActions, items []sessions.Man
 	})
 }
 
+// geminiSessionRefusal is the text of a deletion the Gemini scanner refused
+// as a whole; such a refusal changes nothing.
+func geminiSessionRefusal(l l10n.Localizer, err error) (string, bool) {
+	switch {
+	case errors.Is(err, gemini.ErrSessionClientRunning):
+		return tx(l, xSessionsGeminiRunning), true
+	case errors.Is(err, gemini.ErrSessionBackup):
+		return tx(l, xSessionsGeminiBackup), true
+	case errors.Is(err, gemini.ErrSessionSelection):
+		return tx(l, xSessionsGeminiSelection), true
+	}
+	return "", false
+}
+
 func sessionDeleteResultText(l l10n.Localizer, results []sessions.DeleteResult, overall error) (string, bool) {
+	if text, ok := geminiSessionRefusal(l, overall); ok {
+		return text, true
+	}
 	if len(results) == 0 {
 		return tx(l, xSessionsDeleteFailed, overall), true
 	}

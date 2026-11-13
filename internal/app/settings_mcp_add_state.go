@@ -436,7 +436,7 @@ func (u *settingsUI) prepareMCPDrafts(actions MCPActions, retry bool) {
 		}
 	}
 	var targets []store.Provider
-	for _, p := range toolProviders() {
+	for _, p := range store.Providers() {
 		if w.targets[p] {
 			targets = append(targets, p)
 		}

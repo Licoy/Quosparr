@@ -305,6 +305,7 @@ func newRuntime(opts BackgroundOptions) *liveApp {
 	rt.desktopSharer = desktopSharer
 	bridge.pricingSnapshot = prices.manager.Snapshot
 	cbridge.pricingSnapshot = prices.manager.Snapshot
+	gbridge.pricingSnapshot = prices.manager.Snapshot
 	prices.changed = rt.pricesChanged
 	prices.invalidate = func() {
 		runOnMain(func() {

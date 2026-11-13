@@ -202,6 +202,8 @@ func pricingProviderID(provider store.Provider) string {
 		return "anthropic"
 	case store.ProviderGrok:
 		return "xai"
+	case store.ProviderGemini:
+		return "google"
 	}
 	return "openai"
 }

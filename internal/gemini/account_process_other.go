@@ -15,6 +15,11 @@ var psPaths = []string{"/bin/ps", "/usr/bin/ps"}
 // SystemProcessIDs lists running Antigravity and agy processes, excluding
 // this process.
 func SystemProcessIDs(ctx context.Context) ([]int, error) {
+	found, err := systemProcesses(ctx)
+	return processIDs(found), err
+}
+
+func systemProcesses(ctx context.Context) ([]antigravityProcess, error) {
 	var lastErr error
 	for _, ps := range psPaths {
 		if _, err := os.Stat(ps); err != nil {
@@ -27,7 +32,7 @@ func SystemProcessIDs(ctx context.Context) ([]int, error) {
 		if err := cmd.Run(); err != nil {
 			return nil, err
 		}
-		return parseProcessIDs(out.String(), os.Getpid()), nil
+		return parseProcesses(out.String(), os.Getpid()), nil
 	}
 	return nil, lastErr
 }

@@ -8,11 +8,15 @@ import (
 
 	"github.com/licoy/quosparr/internal/codex"
 	"github.com/licoy/quosparr/internal/export"
+	"github.com/licoy/quosparr/internal/export/swiftjson"
 	"github.com/licoy/quosparr/internal/gemini"
 	"github.com/licoy/quosparr/internal/l10n"
 	"github.com/licoy/quosparr/internal/platform"
+	"github.com/licoy/quosparr/internal/pricing"
 	"github.com/licoy/quosparr/internal/runway"
+	"github.com/licoy/quosparr/internal/speed"
 	"github.com/licoy/quosparr/internal/store"
+	"github.com/licoy/quosparr/internal/usage"
 )
 
 // geminiKeychain opens the keychain item the Antigravity clients share.
@@ -30,15 +34,25 @@ func newGeminiModule(home, version string) *gemini.Module {
 }
 
 type geminiBridge struct {
-	mod       *gemini.Module
-	installed func() bool
-	mu        sync.Mutex
-	onChange  func()
-	state     runway.GeminiState
-	refreshes int
-	lc        l10n.Localizer
-	prefs     store.Preferences
-	refreshMu sync.Mutex
+	pricingSnapshot   func() pricing.Snapshot
+	pricingGeneration uint64
+	mod               *gemini.Module
+	installed         func() bool
+	mu                sync.Mutex
+	onChange          func()
+	state             runway.GeminiState
+	refreshes         int
+	lc                l10n.Localizer
+	prefs             store.Preferences
+	local             *gemini.SessionUsageSummary
+	localRange        store.CostRange
+	localErr          error
+	speed             *speed.Report
+	speedErr          error
+	generation        uint64
+	refreshMu         sync.Mutex
+	scanMu            sync.Mutex
+	sessions          gemini.SessionCache
 }
 
 func newGeminiBridge(mod *gemini.Module, home string, prefs store.Preferences, langs []string) *geminiBridge {
@@ -73,8 +87,23 @@ func (g *geminiBridge) Refresh(ctx context.Context, _ bool) error {
 	return ctx.Err()
 }
 
-// RefreshLocal has nothing to scan yet: 本地会话由 gemini session 扫描接入.
-func (g *geminiBridge) RefreshLocal(ctx context.Context) error { return ctx.Err() }
+// RefreshLocal rescans the local Antigravity conversations without touching
+// the quota.
+func (g *geminiBridge) RefreshLocal(ctx context.Context) error {
+	g.changeRefreshing(1)
+	defer g.changeRefreshing(-1)
+	g.scanMu.Lock()
+	defer g.scanMu.Unlock()
+	if ctx.Err() != nil {
+		return ctx.Err()
+	}
+	err := g.scanLocal(ctx)
+	g.reload(true)
+	if err != nil {
+		return err
+	}
+	return ctx.Err()
+}
 
 func (g *geminiBridge) SetOnChange(fn func()) {
 	g.mu.Lock()
@@ -95,6 +124,18 @@ func (g *geminiBridge) changeRefreshing(delta int) {
 
 func (g *geminiBridge) setPreferences(p store.Preferences, langs []string) {
 	g.mu.Lock()
+	rangeChanged := g.prefs.APICostSummaryRange != p.APICostSummaryRange
+	speedChanged := g.prefs.ShowsSpeedAnalysis != p.ShowsSpeedAnalysis
+	if rangeChanged || g.prefs.ShowsRecentSessions != p.ShowsRecentSessions || speedChanged {
+		g.generation++
+	}
+	if speedChanged && !p.ShowsSpeedAnalysis {
+		g.speed = nil
+		g.speedErr = nil
+	}
+	if rangeChanged {
+		g.state.Cost = nil
+	}
 	languageChanged := g.prefs.Language != p.Language
 	g.prefs = p.Clone()
 	g.lc = l10n.ForPreference(string(p.Language), langs)
@@ -111,6 +152,7 @@ func (g *geminiBridge) reload(notify bool) {
 	next := buildGeminiState(mod, lc, installed)
 	g.mu.Lock()
 	next.Refreshing = g.refreshes > 0
+	g.applyLocalLocked(&next)
 	g.state = next
 	fn := g.onChange
 	g.mu.Unlock()
@@ -320,6 +362,13 @@ func geminiWidget(st runway.GeminiState) *export.ProviderSnapshot {
 	}
 	for day, tokens := range st.Heatmap.Local {
 		p.DailyTokens = append(p.DailyTokens, export.NewDailyTokens(day, int(tokens)))
+	}
+	if st.Cost != nil && st.Cost.EstimatedUSD != nil {
+		d, err := swiftjson.ParseDecimal(st.Cost.EstimatedUSD.String())
+		if err == nil {
+			p.APIEquivalentCostUSD = &d
+			p.APIEquivalentCostPartial = st.Cost.UnpricedTokens > 0 || st.Cost.Confidence == usage.ConfidencePartiallyPriced
+		}
 	}
 	out := export.NewProviderSnapshot(p)
 	return &out

@@ -24,9 +24,10 @@ func TestQueryCacheUsesEachProviderLocalStore(t *testing.T) {
 	rt := &liveApp{
 		codex: codexStore, grokMod: grokMod, grok: newGrokBridge(grokMod, store.DefaultPreferences(), nil),
 		claudeMod: claudeMod, claudeB: newClaudeBridge(claudeMod, store.DefaultPreferences(), nil),
+		geminiB: newGeminiBridge(newGeminiModule(home, "test"), home, store.DefaultPreferences(), nil),
 	}
 	window := usage.Window{Start: time.Date(2026, 10, 1, 0, 0, 0, 0, time.Local), End: time.Date(2026, 10, 2, 0, 0, 0, 0, time.Local)}
-	for _, provider := range toolProviders() {
+	for _, provider := range store.Providers() {
 		report, err := rt.queryCache(context.Background(), provider, CostQuery{Custom: &usage.CostRange{Window: window}})
 		if err != nil {
 			t.Fatalf("%s: %v", provider, err)

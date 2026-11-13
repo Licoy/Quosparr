@@ -78,4 +78,13 @@
 // while every touched client is stopped, backs up each summaries database
 // it edits first, moves the conversation files to the system Trash, and
 // removes the rows of the conversations whose files all moved.
+// RunningClients tells the App (an "Antigravity" executable) from agy, so
+// the caller can say which client owns a data root (SessionClientOf).
+// ScanCache weighs each call's whole prompt against its cache reads.
+//
+// # MCP
+//
+// The App and agy share <GeminiHome>/config/mcp_config.json; the Store
+// methods read and write it through package mcp, serialized among
+// themselves, with backups in <Quosparr data>/backups.
 package gemini

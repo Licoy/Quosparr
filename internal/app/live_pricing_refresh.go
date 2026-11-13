@@ -30,5 +30,25 @@ func (rt *liveApp) pricesChanged(provider string) {
 			g.mu.Unlock()
 			rt.svc.RefreshProviderLocal(store.ProviderClaude)
 		}
+		// Antigravity also runs Claude models.
+		rt.geminiPricesChanged()
+	case "google":
+		rt.geminiPricesChanged()
+	}
+}
+
+func (rt *liveApp) geminiPricesChanged() {
+	g := rt.geminiB
+	if g == nil {
+		return
+	}
+	g.mu.Lock()
+	g.pricingGeneration++
+	g.local = nil
+	g.state.Cost = nil
+	g.state.RecentSessions = nil
+	g.mu.Unlock()
+	if rt.svc != nil {
+		rt.svc.RefreshProviderLocal(store.ProviderGemini)
 	}
 }

@@ -63,7 +63,7 @@ func (u *settingsUI) floatingPage(c *ui.Context) {
 	})
 }
 
-// floatingProviderRows choose the providers: the panel's, or up to all three.
+// floatingProviderRows choose the providers: the panel's, or any of them.
 func (u *settingsUI) floatingProviderRows(c *ui.Context, row rowFunc, p store.Preferences, ro bool) {
 	s, l := u.s, u.L()
 	custom := len(p.FloatingWindow.Providers) > 0

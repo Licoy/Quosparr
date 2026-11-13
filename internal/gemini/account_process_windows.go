@@ -13,7 +13,12 @@ import (
 
 // SystemProcessIDs lists running Antigravity.exe and agy.exe processes,
 // excluding this process.
-func SystemProcessIDs(ctx context.Context) (pids []int, err error) {
+func SystemProcessIDs(ctx context.Context) ([]int, error) {
+	found, err := systemProcesses(ctx)
+	return processIDs(found), err
+}
+
+func systemProcesses(ctx context.Context) (found []antigravityProcess, err error) {
 	if err := ctx.Err(); err != nil {
 		return nil, err
 	}
@@ -29,13 +34,13 @@ func SystemProcessIDs(ctx context.Context) (pids []int, err error) {
 		if err := ctx.Err(); err != nil {
 			return nil, err
 		}
-		if pid, ok := windowsProcessID(entry.ProcessID, windows.UTF16ToString(entry.ExeFile[:]), os.Getpid()); ok {
-			pids = append(pids, pid)
+		if p, ok := windowsProcess(entry.ProcessID, windows.UTF16ToString(entry.ExeFile[:]), os.Getpid()); ok {
+			found = append(found, p)
 		}
 		err = windows.Process32Next(snapshot, &entry)
 	}
 	if !errors.Is(err, windows.ERROR_NO_MORE_FILES) {
 		return nil, err
 	}
-	return pids, nil
+	return found, nil
 }

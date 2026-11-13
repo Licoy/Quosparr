@@ -4,11 +4,13 @@ import (
 	"context"
 	"errors"
 	"path/filepath"
+	"sync"
 	"time"
 
 	"github.com/egoist/mygo"
 	"github.com/licoy/quosparr/internal/claude"
 	"github.com/licoy/quosparr/internal/export/swiftjson"
+	"github.com/licoy/quosparr/internal/gemini"
 	"github.com/licoy/quosparr/internal/grok"
 	"github.com/licoy/quosparr/internal/sessions"
 	"github.com/licoy/quosparr/internal/store"
@@ -52,6 +54,12 @@ func (rt *liveApp) queryManagedSessions(ctx context.Context, provider store.Prov
 			return nil, errSessionsUnavailable
 		}
 		return (grok.SessionScanner{GrokHome: rt.grokMod.Store.OfficialHome(), Location: time.Local}).ListManaged(ctx)
+	case store.ProviderGemini:
+		scanner, ok := rt.geminiB.sessionScanner()
+		if !ok {
+			return nil, errSessionsUnavailable
+		}
+		return scanner.ListManaged(ctx)
 	default:
 		return nil, errSessionsUnavailable
 	}
@@ -70,8 +78,36 @@ func managedSessionPricer(model string, totals sessions.Totals) (swiftjson.Decim
 	return value, err == nil
 }
 
+// sessionTrash moves a session file to the system Trash; tests replace it.
+var sessionTrash = mygo.Shell.TrashItem
+
+// geminiRunningClients lists the running Antigravity clients; tests replace
+// it so they never inspect the real processes.
+var geminiRunningClients = gemini.RunningClients
+
+// deleteManagedSessions sends Antigravity conversations through the Gemini
+// scanner, which also edits the summaries databases, and every other
+// provider through the shared deletion.
 func (rt *liveApp) deleteManagedSessions(ctx context.Context, selected []sessions.ManagedSession) ([]sessions.DeleteResult, error) {
-	results, err := sessions.DeleteManaged(ctx, selected, rt.sessionTrustedRoots(), mygo.Shell.TrashItem)
+	var others, antigravity []sessions.ManagedSession
+	for _, item := range selected {
+		if item.Provider == sessions.ProviderGemini {
+			antigravity = append(antigravity, item)
+		} else {
+			others = append(others, item)
+		}
+	}
+	var results []sessions.DeleteResult
+	var errs []error
+	if len(others) > 0 {
+		r, err := sessions.DeleteManaged(ctx, others, rt.sessionTrustedRoots(), sessionTrash)
+		results, errs = append(results, r...), append(errs, err)
+	}
+	if len(antigravity) > 0 {
+		r, err := rt.deleteGeminiSessions(ctx, antigravity)
+		results, errs = append(results, r...), append(errs, err)
+	}
+	err := errors.Join(errs...)
 	removed := map[store.Provider]bool{}
 	for _, result := range results {
 		if result.Removed > 0 {
@@ -82,6 +118,35 @@ func (rt *liveApp) deleteManagedSessions(ctx context.Context, selected []session
 		rt.refreshDeletedSessions(provider)
 	}
 	return results, err
+}
+
+func (rt *liveApp) deleteGeminiSessions(ctx context.Context, selected []sessions.ManagedSession) ([]sessions.DeleteResult, error) {
+	scanner, ok := rt.geminiB.sessionScanner()
+	if !ok {
+		results := make([]sessions.DeleteResult, len(selected))
+		for i, item := range selected {
+			results[i] = sessions.DeleteResult{Session: item, Total: len(item.Files), Err: errSessionsUnavailable}
+		}
+		return results, errSessionsUnavailable
+	}
+	// <Quosparr data>/backups, beside the account library, like every backup.
+	scanner.BackupDir = filepath.Join(filepath.Dir(rt.geminiB.mod.Store.Root()), "backups")
+	scanner.ClientRunning = geminiClientRunning(ctx, scanner)
+	return scanner.DeleteManaged(ctx, selected, sessionTrash, time.Now())
+}
+
+// geminiClientRunning checks the processes once per deletion: the App owns
+// ~/.gemini/antigravity and agy ~/.gemini/antigravity-cli. A failed check,
+// or a root of neither, counts as running so nothing is touched.
+func geminiClientRunning(ctx context.Context, scanner gemini.SessionScanner) func(root string) bool {
+	var once sync.Once
+	var running map[string]bool
+	var err error
+	return func(root string) bool {
+		once.Do(func() { running, err = geminiRunningClients(ctx) })
+		client := scanner.SessionClientOf(root)
+		return err != nil || client == "" || running[client]
+	}
 }
 
 func (rt *liveApp) sessionTrustedRoots() map[string][]string {
@@ -102,7 +167,7 @@ func (rt *liveApp) refreshDeletedSessions(provider store.Provider) {
 	if rt.svc == nil {
 		return
 	}
-	if provider == store.ProviderClaude || provider == store.ProviderGrok {
+	if localProvider(provider) {
 		rt.svc.RefreshProviderLocal(provider)
 		return
 	}

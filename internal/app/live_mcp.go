@@ -36,6 +36,10 @@ func (rt *liveApp) queryMCP(ctx context.Context, provider store.Provider) (mcp.S
 		if rt.claudeMod != nil && rt.claudeMod.Store != nil {
 			return rt.claudeMod.Store.LoadMCP(ctx)
 		}
+	case store.ProviderGemini:
+		if rt.geminiMod != nil && rt.geminiMod.Store != nil {
+			return rt.geminiMod.Store.LoadMCP(ctx)
+		}
 	case store.ProviderGrok:
 		if rt.grokMod != nil && rt.grokMod.Store != nil {
 			return rt.grokMod.Store.LoadMCP(ctx)
@@ -57,6 +61,10 @@ func (rt *liveApp) deleteMCP(ctx context.Context, provider store.Provider, selec
 		if rt.claudeMod != nil && rt.claudeMod.Store != nil {
 			return rt.claudeMod.Store.DeleteMCP(ctx, selected, now)
 		}
+	case store.ProviderGemini:
+		if rt.geminiMod != nil && rt.geminiMod.Store != nil {
+			return rt.geminiMod.Store.DeleteMCP(ctx, selected, now)
+		}
 	case store.ProviderGrok:
 		if rt.grokMod != nil && rt.grokMod.Store != nil {
 			return rt.grokMod.Store.DeleteMCP(ctx, selected, now)
@@ -67,14 +75,18 @@ func (rt *liveApp) deleteMCP(ctx context.Context, provider store.Provider, selec
 	return nil, errMCPUnavailable
 }
 
-// setMCPEnabled switches a Codex or Grok server; Claude Code records MCP
-// on/off state per project, which is outside the user-level scope here.
+// setMCPEnabled switches a Codex, Gemini or Grok server; Claude Code records
+// MCP on/off state per project, which is outside the user-level scope here.
 func (rt *liveApp) setMCPEnabled(ctx context.Context, provider store.Provider, server mcp.Server, enabled bool) error {
 	now := time.Now()
 	switch provider {
 	case store.ProviderCodex:
 		if rt.codex != nil {
 			return rt.codex.SetMCPEnabled(ctx, server, enabled, now)
+		}
+	case store.ProviderGemini:
+		if rt.geminiMod != nil && rt.geminiMod.Store != nil {
+			return rt.geminiMod.Store.SetMCPEnabled(ctx, server, enabled, now)
 		}
 	case store.ProviderGrok:
 		if rt.grokMod != nil && rt.grokMod.Store != nil {
@@ -96,6 +108,10 @@ func (rt *liveApp) prepareMCPAdd(ctx context.Context, provider store.Provider, d
 		if rt.claudeMod != nil && rt.claudeMod.Store != nil {
 			return rt.claudeMod.Store.PrepareMCPAdd(ctx, drafts)
 		}
+	case store.ProviderGemini:
+		if rt.geminiMod != nil && rt.geminiMod.Store != nil {
+			return rt.geminiMod.Store.PrepareMCPAdd(ctx, drafts)
+		}
 	case store.ProviderGrok:
 		if rt.grokMod != nil && rt.grokMod.Store != nil {
 			return rt.grokMod.Store.PrepareMCPAdd(ctx, drafts)
@@ -113,6 +129,10 @@ func (rt *liveApp) addMCP(ctx context.Context, provider store.Provider, plan mcp
 	case store.ProviderClaude:
 		if rt.claudeMod != nil && rt.claudeMod.Store != nil {
 			return rt.claudeMod.Store.AddMCP(ctx, plan, now)
+		}
+	case store.ProviderGemini:
+		if rt.geminiMod != nil && rt.geminiMod.Store != nil {
+			return rt.geminiMod.Store.AddMCP(ctx, plan, now)
 		}
 	case store.ProviderGrok:
 		if rt.grokMod != nil && rt.grokMod.Store != nil {

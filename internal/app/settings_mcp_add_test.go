@@ -131,7 +131,7 @@ func TestMCPAddPreflightAllTargetsBlocksOnAnyFailure(t *testing.T) {
 	mcpAddFixture(u)
 	w := u.mcp.add
 	w.step = mcpStepReview
-	for _, p := range toolProviders() {
+	for _, p := range store.Providers() {
 		w.targets[p] = true
 	}
 	u.prepareMCPDrafts(actions, false)
@@ -142,7 +142,7 @@ func TestMCPAddPreflightAllTargetsBlocksOnAnyFailure(t *testing.T) {
 	u.prepareMCPDrafts(actions, false)
 	finishMCPUntil(t, queue, func() bool { return !w.task.Running && !w.writing && !u.mcp.task.Running })
 	tt.Frame()
-	if calls.Load() != 3 || w.step != mcpStepReview || w.err == nil {
+	if calls.Load() != int32(len(store.Providers())) || w.step != mcpStepReview || w.err == nil {
 		t.Fatal("all target preflight must complete and block on any failure")
 	}
 	var writes atomic.Int32

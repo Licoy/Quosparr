@@ -15,7 +15,10 @@ import (
 	"github.com/licoy/quosparr/internal/store"
 )
 
-var errSkillsUnavailable = errors.New("skills service unavailable")
+var (
+	errSkillsUnavailable      = errors.New("skills service unavailable")
+	errSkillToggleUnsupported = errors.New("this CLI has no per-skill switch")
+)
 
 // installSkillActions wires the skills pages to the scanner, the provider
 // config writers, the Quosparr skills trash and the system shell. Deleting
@@ -142,6 +145,9 @@ func (rt *liveApp) skillsEnv() skills.Env {
 		Getenv:    os.Getenv,
 		Now:       time.Now(),
 	}
+	if rt.geminiMod != nil && rt.geminiMod.Store != nil {
+		env.GeminiHome = rt.geminiMod.Store.GeminiHome()
+	}
 	if rt.claudeMod != nil && rt.claudeMod.Store != nil {
 		env.Home = rt.claudeMod.Store.HomeDir()
 	}
@@ -151,7 +157,7 @@ func (rt *liveApp) skillsEnv() skills.Env {
 	return env
 }
 
-// querySkills scans all three CLIs so copies in a shared directory
+// querySkills scans every provider so copies in a shared directory
 // (~/.agents/skills, ~/.claude/skills) know who else reads them.
 func (rt *liveApp) querySkills(ctx context.Context) (map[store.Provider]skills.Summary, error) {
 	env := rt.skillsEnv()
@@ -163,20 +169,26 @@ func (rt *liveApp) querySkills(ctx context.Context) (map[store.Provider]skills.S
 	if err != nil {
 		return nil, err
 	}
+	gm, err := skills.ScanGemini(ctx, env)
+	if err != nil {
+		return nil, err
+	}
 	gk, err := skills.ScanGrok(ctx, env)
 	if err != nil {
 		return nil, err
 	}
-	skills.MarkShared(&cx, &cl, &gk)
+	skills.MarkShared(&cx, &cl, &gm, &gk)
 	return map[store.Provider]skills.Summary{
 		store.ProviderCodex:  cx,
 		store.ProviderClaude: cl,
+		store.ProviderGemini: gm,
 		store.ProviderGrok:   gk,
 	}, nil
 }
 
 // setSkillEnabled writes the provider's own switch: Codex [[skills.config]],
 // Claude skillOverrides, Grok [skills].disabled; each backs up first.
+// Antigravity has no per-skill switch, so Gemini skills are refused.
 func (rt *liveApp) setSkillEnabled(s skills.Skill, on bool) error {
 	now := time.Now()
 	switch s.Provider {
@@ -195,6 +207,8 @@ func (rt *liveApp) setSkillEnabled(s skills.Skill, on bool) error {
 			return errSkillsUnavailable
 		}
 		return rt.grokMod.Store.SetSkillEnabledFile(s.Name, on, now)
+	case skills.ProviderGemini:
+		return errSkillToggleUnsupported
 	}
 	return errSkillsUnavailable
 }

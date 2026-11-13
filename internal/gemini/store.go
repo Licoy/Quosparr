@@ -28,15 +28,21 @@ const (
 // locations. Both are injectable so tests never touch real data. A Store
 // serializes its own read-modify-write cycles.
 type Store struct {
-	root     string
-	Official *OfficialCredentials
-	mu       sync.Mutex
+	root       string
+	geminiHome string
+	Official   *OfficialCredentials
+	mu         sync.Mutex
+	mcpMu      sync.Mutex
 }
 
 // NewStore keeps accounts in <runwayHome>/accounts and reads the official
-// login from the system keychain and the mirror files under home.
+// login from the system keychain and the mirror files under home, whose
+// ~/.gemini is the Antigravity data directory.
 func NewStore(runwayHome, home string) *Store {
-	return &Store{root: filepath.Join(runwayHome, storeDirName), Official: DefaultOfficialCredentials(home)}
+	return &Store{
+		root: filepath.Join(runwayHome, storeDirName), geminiHome: filepath.Join(home, officialDirName),
+		Official: DefaultOfficialCredentials(home),
+	}
 }
 
 // NewStoreAt keeps accounts in root with the given official locations.
@@ -55,6 +61,10 @@ func DefaultStore() (*Store, error) {
 
 // Root is the library directory.
 func (s *Store) Root() string { return s.root }
+
+// GeminiHome is the Antigravity data directory (~/.gemini), "" for a Store
+// made by NewStoreAt.
+func (s *Store) GeminiHome() string { return s.geminiHome }
 
 // IndexPath is gemini-index.json.
 func (s *Store) IndexPath() string { return filepath.Join(s.root, indexFileName) }

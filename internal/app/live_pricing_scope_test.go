@@ -9,8 +9,8 @@ import (
 func TestPricingCatalogOnlyOfficialProviderRows(t *testing.T) {
 	d := pricingTestDecimal("2")
 	models := []pricing.Model{}
-	official := map[string]string{"openai": "OpenAI", "anthropic": "Anthropic", "xai": "xAI"}
-	for provider, id := range map[string]string{"openai": "gpt-shared", "anthropic": "claude-shared", "xai": "grok-shared"} {
+	official := map[string]string{"openai": "OpenAI", "anthropic": "Anthropic", "xai": "xAI", "google": "Google"}
+	for provider, id := range map[string]string{"openai": "gpt-shared", "anthropic": "claude-shared", "xai": "grok-shared", "google": "gemini-shared"} {
 		models = append(models, pricing.Model{ProviderID: provider, ProviderName: "Wrong name", ID: id, Name: id, Rate: pricing.Rate{Input: d, Output: d}})
 		for _, other := range []string{"openrouter", "azure", "nvidia", "OpenAI", "openai-compatible"} {
 			models = append(models, pricing.Model{ProviderID: other, ID: id, Name: id, Rate: pricing.Rate{Input: d, Output: d}})
@@ -22,8 +22,8 @@ func TestPricingCatalogOnlyOfficialProviderRows(t *testing.T) {
 	}
 	offline := pricingRows(pricing.Snapshot{}, l10n.New(l10n.English))
 	rows := pricingRows(catalog, l10n.New(l10n.English))
-	if len(rows) != len(offline)+3 {
-		t.Fatalf("rows=%d offline=%d, want exactly three official additions", len(rows), len(offline))
+	if len(rows) != len(offline)+4 {
+		t.Fatalf("rows=%d offline=%d, want exactly four official additions", len(rows), len(offline))
 	}
 	seen := map[string]bool{}
 	for _, row := range rows {
@@ -33,7 +33,7 @@ func TestPricingCatalogOnlyOfficialProviderRows(t *testing.T) {
 		}
 		seen[row.ProviderID+"/"+row.ID] = true
 	}
-	for _, key := range []string{"openai/gpt-shared", "anthropic/claude-shared", "xai/grok-shared", "openai/gpt-5", "anthropic/claude-haiku-4-5", "xai/grok-4.5"} {
+	for _, key := range []string{"openai/gpt-shared", "anthropic/claude-shared", "xai/grok-shared", "google/gemini-shared", "openai/gpt-5", "anthropic/claude-haiku-4-5", "xai/grok-4.5"} {
 		if !seen[key] {
 			t.Fatalf("official or offline builtin missing: %s", key)
 		}

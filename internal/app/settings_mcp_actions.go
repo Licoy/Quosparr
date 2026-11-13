@@ -137,8 +137,11 @@ func mcpToggleText(l l10n.Localizer, provider store.Provider, name string, enabl
 		return tx(l, xMCPToggleFailed, name, err), true
 	}
 	hint := tx(l, xMCPApplyCodex)
-	if provider == store.ProviderGrok {
+	switch provider {
+	case store.ProviderGrok:
 		hint = tx(l, xMCPApplyGrok)
+	case store.ProviderGemini:
+		hint = tx(l, xMCPApplyGemini)
 	}
 	if enabled {
 		return tx(l, xMCPEnabledNotice, name, hint), false

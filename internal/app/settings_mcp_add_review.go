@@ -2,6 +2,7 @@ package app
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"slices"
 
@@ -20,7 +21,7 @@ func (u *settingsUI) mcpAddReview(c *ui.Context, actions MCPActions) {
 		ui.Text(c, tx(l, xMCPTargets)).FontSize(13).FontWeight(600)
 		ui.Text(c, tx(l, xMCPTargetsHint)).FontSize(11).TextColor(t.TextMuted)
 	})
-	for _, p := range toolProviders() {
+	for _, p := range store.Providers() {
 		u.mcpTargetCard(c, p, actions, retrying)
 	}
 	if w.err != nil && !slices.ContainsFunc(w.plans, func(p mcpAddTarget) bool { return p.err != nil }) {
@@ -75,7 +76,7 @@ func (u *settingsUI) mcpTargetCard(c *ui.Context, p store.Provider, actions MCPA
 			return
 		}
 		if plan.err != nil {
-			listNotice(c, "", u.mcpAddError(plan.err), true, "", nil)
+			listNotice(c, "", u.mcpTargetError(p, plan.err), true, "", nil)
 			return
 		}
 		for _, item := range plan.plan.Items {
@@ -94,6 +95,15 @@ func (u *settingsUI) mcpTargetCard(c *ui.Context, p store.Provider, actions MCPA
 			})
 		}
 	})
+}
+
+// mcpTargetError names Antigravity's transports when it refuses SSE.
+func (u *settingsUI) mcpTargetError(p store.Provider, err error) string {
+	var draft *mcp.DraftError
+	if p == store.ProviderGemini && errors.As(err, &draft) && draft.Code == "unsupported" && draft.Field == "transport" {
+		return tx(u.L(), xMCPGeminiTransports)
+	}
+	return u.mcpAddError(err)
 }
 
 func mcpPlanCounts(plan mcp.AddPlan) (added, existing int) {

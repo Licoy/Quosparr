@@ -240,16 +240,20 @@ type GeminiState struct {
 	Details []DetailLine
 	// ValidationURL is the page that clears GeminiValidationRequired or
 	// GeminiSubscriptionRequired, "" when the service named none.
-	ValidationURL  string
-	LastError      string
-	Refreshing     bool
-	Widget         *export.ProviderSnapshot
-	Detail         any
+	ValidationURL string
+	LastError     string
+	Refreshing    bool
+	Widget        *export.ProviderSnapshot
+	Detail        any
+	// Cost, Heatmap, RecentSessions and Speed come from the local
+	// Antigravity conversations; LocalError is the error of their last
+	// scan, kept apart from the quota state of LastError.
 	Cost           *usage.Summary
 	Heatmap        HeatmapData
 	RecentSessions []sessions.Item
 	Speed          *speed.Report
 	SpeedError     string
+	LocalError     string
 }
 
 // GeminiAccountQuota is the cached quota line of one managed account.

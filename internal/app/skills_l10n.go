@@ -54,6 +54,8 @@ const (
 	xSkillsReadOnlyPluginCX textKey = "skillsReadOnlyPluginCodex"
 	xSkillsReadOnlyPluginCL textKey = "skillsReadOnlyPluginClaude"
 	xSkillsReadOnlyPluginGK textKey = "skillsReadOnlyPluginGrok"
+	xSkillsReadOnlyPluginGM textKey = "skillsReadOnlyPluginGemini"
+	xSkillsBlockNoToggle    textKey = "skillsToggleBlockedNoToggle"
 
 	xSkillsLocation    textKey = "skillsLocation"
 	xSkillsSource      textKey = "skillsSource"
@@ -151,6 +153,20 @@ func init() {
 		xSkillsReadOnlySynced:   {"Synced from claude.ai and overwritten on the next sync; it cannot be deleted here", "从 claude.ai 同步，下次同步会被覆盖，不能在这里删除", "從 claude.ai 同步，下次同步會被覆蓋，不能在這裡刪除", "claude.ai에서 동기화되며 다음 동기화 때 덮어써지므로 여기서 삭제할 수 없습니다", "claude.aiから同期され次回の同期で上書きされるため、ここでは削除できません", "Синхронизируется с claude.ai и перезаписывается; удалить здесь нельзя", "Synchronisé depuis claude.ai et écrasé à la prochaine synchronisation ; suppression impossible ici"},
 		xSkillsReadOnlyPluginCX: {"Installed by a Codex plugin; remove the plugin with `codex plugin`", "由 Codex 插件安装，请用 `codex plugin` 移除插件", "由 Codex 外掛安裝，請用 `codex plugin` 移除外掛", "Codex 플러그인으로 설치됨. `codex plugin`으로 플러그인을 제거하세요", "Codexプラグインでインストールされています。`codex plugin` でプラグインを削除してください", "Установлен плагином Codex; удалите плагин через `codex plugin`", "Installé par un plugin Codex ; retirez le plugin avec `codex plugin`"},
 		xSkillsReadOnlyPluginCL: {"Installed by a Claude Code plugin; remove it with `claude plugin uninstall %s`", "由 Claude Code 插件安装，请用 `claude plugin uninstall %s` 卸载", "由 Claude Code 外掛安裝，請用 `claude plugin uninstall %s` 解除安裝", "Claude Code 플러그인으로 설치됨. `claude plugin uninstall %s`로 제거하세요", "Claude Codeプラグインでインストールされています。`claude plugin uninstall %s` で削除してください", "Установлен плагином Claude Code; удалите командой `claude plugin uninstall %s`", "Installé par un plugin Claude Code ; retirez-le avec `claude plugin uninstall %s`"},
+		xSkillsReadOnlyPluginGM: {"Installed by an Antigravity plugin; manage it in Antigravity",
+			"由 Antigravity 插件安装，请在 Antigravity 中管理",
+			"由 Antigravity 外掛安裝，請在 Antigravity 中管理",
+			"Antigravity 플러그인으로 설치됨. Antigravity에서 관리하세요",
+			"Antigravity プラグインでインストールされています。Antigravity で管理してください",
+			"Установлен плагином Antigravity; управляйте им в Antigravity",
+			"Installé par un plugin Antigravity ; gérez-le dans Antigravity"},
+		xSkillsBlockNoToggle: {"Antigravity cannot turn a single skill on or off; move or delete the skill folder instead",
+			"Antigravity 不支持单独开关 Skill，可移动或删除该 Skill 文件夹",
+			"Antigravity 不支援單獨開關 Skill，可移動或刪除該 Skill 資料夾",
+			"Antigravity는 Skill을 개별로 켜고 끌 수 없습니다. Skill 폴더를 옮기거나 삭제하세요",
+			"Antigravity は Skill を個別にオン・オフできません。Skill フォルダを移動または削除してください",
+			"Antigravity не умеет включать и отключать отдельный навык; переместите или удалите его папку",
+			"Antigravity ne peut pas activer ou désactiver un skill seul ; déplacez ou supprimez plutôt son dossier"},
 		xSkillsReadOnlyPluginGK: {"Installed by a Grok plugin; manage it in Grok", "由 Grok 插件安装，请在 Grok 中管理", "由 Grok 外掛安裝，請在 Grok 中管理", "Grok 플러그인으로 설치됨. Grok에서 관리하세요", "Grokプラグインでインストールされています。Grokで管理してください", "Установлен плагином Grok; управляйте им в Grok", "Installé par un plugin Grok ; gérez-le dans Grok"},
 
 		xSkillsLocation:    {"Location", "位置", "位置", "위치", "場所", "Расположение", "Emplacement"},

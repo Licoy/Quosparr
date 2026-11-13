@@ -18,8 +18,18 @@ func TestParseProcessIDs(t *testing.T) {
 	if !isAntigravityExecutable(`C:\Users\x\AppData\Local\Programs\Antigravity\Antigravity.exe`, true) || !isAntigravityExecutable("agy.exe", true) {
 		t.Fatal("windows executables")
 	}
-	if _, ok := windowsProcessID(5, "agy.exe", 5); ok {
+	if _, ok := windowsProcess(5, "agy.exe", 5); ok {
 		t.Fatal("self excluded")
+	}
+	if p, ok := windowsProcess(6, `C:\Programs\Antigravity\Antigravity.exe`, 5); !ok || p.client != SessionClientApp {
+		t.Fatalf("windows app = %+v, %v", p, ok)
+	}
+	clients := map[int]string{}
+	for _, p := range parseProcesses(out, 99) {
+		clients[p.pid] = p.client
+	}
+	if clients[10] != SessionClientApp || clients[12] != SessionClientCLI || clients[13] != SessionClientApp {
+		t.Fatalf("clients = %v", clients)
 	}
 }
 

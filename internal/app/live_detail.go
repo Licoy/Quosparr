@@ -39,8 +39,7 @@ func (rt *liveApp) queryDetailCost(ctx context.Context, provider store.Provider,
 	case store.ProviderClaude:
 		return rt.queryClaudeDetailCost(ctx, q, now)
 	case store.ProviderGemini:
-		// The Gemini sessions are not scanned yet.
-		return usage.Summary{}, errDetailUnavailable
+		return rt.queryGeminiDetailCost(ctx, q, now)
 	}
 	if rt.svc == nil {
 		return usage.Summary{}, errDetailUnavailable
@@ -118,6 +117,32 @@ func (rt *liveApp) queryClaudeDetailCost(ctx context.Context, q CostQuery, now t
 		return usage.Summary{}, errInvalidCostRange
 	}
 	scanner := claude.SessionScanner{ConfigDir: rt.claudeMod.Store.ConfigDir(), Home: rt.claudeMod.Store.HomeDir(), Location: time.Local, Cache: &g.sessions, PricingSnapshot: g.pricingSnapshot}
+	return scanner.ScanCost(ctx, window, now)
+}
+
+// queryGeminiDetailCost scans the Antigravity conversations for one range.
+// The current and previous cycles follow geminiCostWindow.
+func (rt *liveApp) queryGeminiDetailCost(ctx context.Context, q CostQuery, now time.Time) (usage.Summary, error) {
+	g := rt.geminiB
+	scanner, ok := g.sessionScanner()
+	if !ok {
+		return usage.Summary{}, errDetailUnavailable
+	}
+	var window usage.Window
+	switch {
+	case q.Custom != nil:
+		window = q.Custom.Window
+	case q.Range.Valid():
+		g.mu.Lock()
+		detail := g.state.Detail
+		g.mu.Unlock()
+		window = geminiCostWindow(q.Range, detail, now)
+	default:
+		return usage.Summary{}, errInvalidCostRange
+	}
+	if !window.End.After(window.Start) {
+		return usage.Summary{}, errInvalidCostRange
+	}
 	return scanner.ScanCost(ctx, window, now)
 }
 

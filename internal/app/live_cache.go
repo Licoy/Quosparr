@@ -47,6 +47,12 @@ func (rt *liveApp) queryCache(ctx context.Context, provider store.Provider, q Co
 			ConfigDir: rt.claudeMod.Store.ConfigDir(), Home: rt.claudeMod.Store.HomeDir(),
 			Location: time.Local, Cache: &rt.claudeB.sessions,
 		}).ScanCache(ctx, window, now)
+	case store.ProviderGemini:
+		scanner, ok := rt.geminiB.sessionScanner()
+		if !ok {
+			return cachehit.Report{}, errDetailUnavailable
+		}
+		return scanner.ScanCache(ctx, window, now)
 	}
 	return cachehit.Report{}, errInvalidCacheProvider
 }
@@ -79,6 +85,8 @@ func (rt *liveApp) cacheWindow(ctx context.Context, provider store.Provider, q C
 		return rt.grokCacheWindow(previous, now)
 	case store.ProviderClaude:
 		return rt.claudeCacheWindow(previous, now)
+	case store.ProviderGemini:
+		return rt.geminiCacheWindow(q.Range, now)
 	default:
 		return usage.Window{}, errInvalidCacheProvider
 	}
@@ -125,6 +133,18 @@ func (rt *liveApp) claudeCacheWindow(previous bool, now time.Time) (usage.Window
 		}
 	}
 	return usage.Window{}, errClaudeCycleUnavailable
+}
+
+// geminiCacheWindow uses the same cycle as the Gemini cost, falling back to
+// the last seven days: Antigravity has no billing cycle to be missing.
+func (rt *liveApp) geminiCacheWindow(r store.CostRange, now time.Time) (usage.Window, error) {
+	if rt.geminiB == nil {
+		return usage.Window{}, errDetailUnavailable
+	}
+	rt.geminiB.mu.Lock()
+	detail := rt.geminiB.state.Detail
+	rt.geminiB.mu.Unlock()
+	return validCacheWindow(geminiCostWindow(r, detail, now))
 }
 
 func validCacheWindow(window usage.Window) (usage.Window, error) {

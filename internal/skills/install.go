@@ -25,11 +25,10 @@ const (
 	TargetGemini InstallTarget = "gemini" // <GeminiHome>/config/skills, read by the Antigravity App and CLI
 )
 
-// InstallTargets lists the targets in the order to offer them. TargetGemini
-// is valid for InstallRoot and PrepareInstall but not listed until the UI
-// labels it.
+// InstallTargets lists the targets in the order to offer them: the
+// providers in their display order, then the shared folder.
 func InstallTargets() []InstallTarget {
-	return []InstallTarget{TargetCodex, TargetClaude, TargetGrok, TargetShared}
+	return []InstallTarget{TargetCodex, TargetClaude, TargetGemini, TargetGrok, TargetShared}
 }
 
 // InstallRoot is the folder a target writes into.

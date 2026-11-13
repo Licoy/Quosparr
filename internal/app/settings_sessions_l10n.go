@@ -65,6 +65,10 @@ const (
 	xSessionsDeleteFailed         textKey = "sessionsDeleteFailed"
 	xSessionsDeletePartial        textKey = "sessionsDeletePartial"
 	xSessionsDeleteSuccess        textKey = "sessionsDeleteSuccess"
+	xSessionsGeminiRunning        textKey = "sessionsGeminiRunning"
+	xSessionsGeminiBackup         textKey = "sessionsGeminiBackup"
+	xSessionsGeminiSelection      textKey = "sessionsGeminiSelection"
+	xSessionsGeminiNoDetail       textKey = "sessionsGeminiNoDetail"
 )
 
 func init() {
@@ -133,6 +137,34 @@ func init() {
 		xSessionsDeleteFailed:         {"Could not move sessions to Trash: %s", "无法将会话移到系统回收站：%s", "無法將工作階段移到系統資源回收筒：%s", "세션을 시스템 휴지통으로 옮길 수 없습니다: %s", "セッションをシステムのゴミ箱へ移動できません：%s", "Не удалось переместить сеансы в корзину: %s", "Impossible de déplacer les sessions dans la corbeille : %s"},
 		xSessionsDeletePartial:        {"Moved %d sessions; %d failed; files moved %d/%d: %s", "已移动 %d 个会话，%d 个失败，文件已回收 %d/%d：%s", "已移動 %d 個工作階段，%d 個失敗，檔案已回收 %d/%d：%s", "%d개 세션을 이동했고 %d개는 실패했습니다. 파일 %d/%d개 이동: %s", "%d 件を移動し、%d 件失敗、ファイル %d/%d 件を移動：%s", "Перемещено сеансов: %d; ошибок: %d; файлов %d/%d: %s", "%d sessions déplacées ; %d échecs ; fichiers %d/%d : %s"},
 		xSessionsDeleteSuccess:        {"Moved %d sessions (%d files) to the system Trash", "已将 %d 个会话（%d 个文件）移到系统回收站", "已將 %d 個工作階段（%d 個檔案）移到系統資源回收筒", "%d개 세션(파일 %d개)을 시스템 휴지통으로 옮겼습니다", "%d 件（%d ファイル）をシステムのゴミ箱へ移動しました", "Перемещено в корзину: %d сеансов, %d файлов", "%d sessions (%d fichiers) déplacées dans la corbeille du système"},
+		xSessionsGeminiRunning: {"Quit the Antigravity app and every agy session first; nothing was moved",
+			"请先退出 Antigravity 桌面 App 和所有 agy 会话，未移动任何文件",
+			"請先結束 Antigravity 桌面 App 和所有 agy 工作階段，未移動任何檔案",
+			"먼저 Antigravity 앱과 모든 agy 세션을 종료하세요. 아무 파일도 이동하지 않았습니다",
+			"先に Antigravity アプリとすべての agy セッションを終了してください。ファイルは移動していません",
+			"Сначала закройте приложение Antigravity и все сеансы agy; ничего не перемещено",
+			"Quittez d’abord l’app Antigravity et toutes les sessions agy ; rien n’a été déplacé"},
+		xSessionsGeminiBackup: {"The Antigravity conversation list could not be backed up; nothing was moved",
+			"无法备份 Antigravity 会话列表，未移动任何文件",
+			"無法備份 Antigravity 對話清單，未移動任何檔案",
+			"Antigravity 대화 목록을 백업할 수 없어 아무 파일도 이동하지 않았습니다",
+			"Antigravity の会話一覧をバックアップできないため、ファイルは移動していません",
+			"Не удалось создать резервную копию списка бесед Antigravity; ничего не перемещено",
+			"La liste des conversations Antigravity n’a pas pu être sauvegardée ; rien n’a été déplacé"},
+		xSessionsGeminiSelection: {"The selection no longer matches the Antigravity conversations on disk; refresh and try again",
+			"所选内容与磁盘上的 Antigravity 会话不一致，请刷新后重试",
+			"所選內容與磁碟上的 Antigravity 對話不一致，請重新整理後再試",
+			"선택 항목이 디스크의 Antigravity 대화와 맞지 않습니다. 새로 고친 뒤 다시 시도하세요",
+			"選択内容がディスク上の Antigravity の会話と一致しません。更新してからやり直してください",
+			"Выбор больше не совпадает с беседами Antigravity на диске; обновите и повторите",
+			"La sélection ne correspond plus aux conversations Antigravity sur le disque ; actualisez puis réessayez"},
+		xSessionsGeminiNoDetail: {"Viewing Antigravity conversation content is not supported yet",
+			"暂不支持查看 Antigravity 会话内容",
+			"暫不支援檢視 Antigravity 對話內容",
+			"Antigravity 대화 내용 보기는 아직 지원되지 않습니다",
+			"Antigravity の会話内容の表示にはまだ対応していません",
+			"Просмотр содержимого бесед Antigravity пока не поддерживается",
+			"L’affichage du contenu des conversations Antigravity n’est pas encore pris en charge"},
 	} {
 		extraTexts[key] = texts
 	}

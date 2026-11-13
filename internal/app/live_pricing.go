@@ -33,6 +33,11 @@ type livePricing struct {
 	invalidate    func()
 }
 
+// pricingWatched are the snapshot providers whose version change reprices
+// local usage: OpenAI (Codex), Anthropic (Claude and the Claude models of
+// Gemini), xAI (Grok) and Google (Gemini).
+var pricingWatched = []string{"openai", "anthropic", "xai", "google"}
+
 func newLivePricing(home string, p store.Preferences, fetch pricing.Fetcher, now func() time.Time) *livePricing {
 	if now == nil {
 		now = time.Now
@@ -40,7 +45,7 @@ func newLivePricing(home string, p store.Preferences, fetch pricing.Fetcher, now
 	m := pricing.NewManager(pricing.Config{CachePath: filepath.Join(platform.RunwayDir(home), pricing.CacheFileName), Fetch: fetch, Now: now})
 	ctx, cancel := context.WithCancel(context.Background())
 	pstate := &livePricing{manager: m, prefs: p.ModelPricing, displayPrefs: p.Clone(), langs: l10n.SystemPreferredLanguages(), now: now, ctx: ctx, cancel: cancel, wake: make(chan struct{}, 1), versions: map[string]string{}}
-	for _, id := range []string{"openai", "anthropic", "xai"} {
+	for _, id := range pricingWatched {
 		pstate.versions[id] = m.Snapshot().ProviderVersion(id)
 	}
 	pstate.rows = pricingRows(pricing.Snapshot{}, l10n.ForPreference(string(p.Language), pstate.langs))
@@ -124,7 +129,7 @@ func (p *livePricing) refresh(ctx context.Context) error {
 	var changed []string
 	p.mu.Lock()
 	p.running--
-	for _, id := range []string{"openai", "anthropic", "xai"} {
+	for _, id := range pricingWatched {
 		v := snapshot.ProviderVersion(id)
 		if p.versions[id] != v {
 			p.versions[id] = v
@@ -157,13 +162,16 @@ func (rt *liveApp) pricingVersion(provider store.Provider) string {
 	if rt.pricing == nil {
 		return ""
 	}
-	id := "openai"
-	if provider == store.ProviderGrok {
-		id = "xai"
-	} else if provider == store.ProviderClaude {
-		id = "anthropic"
+	snapshot := rt.pricing.manager.Snapshot()
+	switch provider {
+	case store.ProviderGrok:
+		return snapshot.ProviderVersion("xai")
+	case store.ProviderClaude:
+		return snapshot.ProviderVersion("anthropic")
+	case store.ProviderGemini:
+		return geminiPriceVersion(snapshot)
 	}
-	return rt.pricing.manager.Snapshot().ProviderVersion(id)
+	return snapshot.ProviderVersion("openai")
 }
 func (rt *liveApp) pricingActions() PricingActions {
 	if rt == nil || rt.pricing == nil {
