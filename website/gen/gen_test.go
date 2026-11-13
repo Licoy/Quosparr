@@ -111,6 +111,7 @@ func TestBuildWritesEveryLanguage(t *testing.T) {
 			`data-asset="win-x64-setup"`,
 			`role="tablist"`,
 			`id="app-codex" role="tabpanel"`,
+			`id="app-gemini" role="tabpanel" aria-labelledby="app-tab-gemini" hidden`,
 			`id="app-grok" role="tabpanel" aria-labelledby="app-tab-grok" hidden`,
 			`<rect `,
 		} {

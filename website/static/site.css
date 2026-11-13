@@ -441,6 +441,7 @@ b.low { color: var(--a-low-ink); }
 .tier { padding: 1px 6px; border-radius: 4px; font-size: 10px; font-weight: 700; letter-spacing: .02em; white-space: nowrap; border: 1px solid; }
 .tier.black-gold { background: linear-gradient(100deg, #1f1c1a, #423829, #1a1714); color: #edc761; border-color: #c79e3d; }
 .tier.silver { background: var(--a-silver); color: var(--a-silver-ink); border-color: var(--a-silver-line); }
+.tier.gemini { background: linear-gradient(100deg, #4266db, #9e85fa, #293d9e); color: #f5f3ff; border-color: #4266db; }
 
 .expiry { display: inline-flex; overflow: hidden; border-radius: 5px; border: 1px solid var(--a-exp-line); font-size: 10px; white-space: nowrap; }
 .exp-k { display: inline-flex; align-items: center; gap: 4px; padding: 2px 6px; background: var(--a-exp-fill); color: var(--a-exp); font-weight: 600; border-right: 1px solid var(--a-exp-line); }

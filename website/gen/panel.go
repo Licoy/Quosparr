@@ -150,6 +150,22 @@ func buildPanel(l Locale, now time.Time) Panel {
 		},
 		Basis: basis,
 	}
+	gemini := PanelProvider{
+		Key: "gemini", Name: "Gemini", Tier: "Pro", TierClass: "gemini", Account: "m***@***.com",
+		QuotaHead: "Gemini",
+		Rows:      []QuotaRow{row("Gemini · "+p.FiveHour, 71, "", 2*time.Hour+26*time.Minute+40*time.Second)},
+		Slim: []SlimRow{
+			slim("Gemini · "+p.Weekly, 38), slim("Claude · "+p.FiveHour, 22),
+			slim("Claude · "+p.Weekly, 47), slim("Argon · "+p.Weekly, 9),
+		},
+		TTFT: true,
+		Speed: []SpeedRow{
+			{"gemini-3.5-pro", "", "2.4s", "71 tok/s"},
+			{"gemini-3.5-flash", "", "0.8s", "164 tok/s"},
+			{"claude-sonnet-5", "", "1.9s", "83 tok/s"},
+		},
+		Basis: basis,
+	}
 	grok := PanelProvider{
 		Key: "grok", Name: "Grok", Tier: "SuperGrok", TierClass: "silver", Account: "m***@***.com",
 		QuotaHead: p.GrokIncluded,
@@ -165,9 +181,10 @@ func buildPanel(l Locale, now time.Time) Panel {
 	specs := []usageSpec{
 		{seed: 0x9e3779b9, startCol: 10, perDay: 9e6, idle: 0.12, usdPerTok: 0.36e-6},
 		{seed: 0x85ebca6b, startCol: 17, perDay: 6e6, idle: 0.2, usdPerTok: 0.58e-6},
+		{seed: 0x27d4eb2f, startCol: 21, perDay: 3.2e6, idle: 0.3, usdPerTok: 0.31e-6},
 		{seed: 0xc2b2ae35, startCol: 27, perDay: 1.6e6, idle: 0.42, usdPerTok: 0.27e-6},
 	}
-	providers := []PanelProvider{codex, claude, grok}
+	providers := []PanelProvider{codex, claude, gemini, grok}
 	for i := range providers {
 		pr := &providers[i]
 		pr.Remaining = pr.Rows[0].Pct
