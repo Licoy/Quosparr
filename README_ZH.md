@@ -8,9 +8,9 @@
 
 <sub><i>名称取自 <b>Quo</b>ta（额度）+ <b>Sparr</b>ow（麻雀）</i></sub>
 
-一只停在菜单栏里的小麻雀，替你守着 Codex、Claude 与 Grok 的额度。
+一只停在菜单栏里的小麻雀，替你守着 Codex、Claude、Gemini 与 Grok 的额度。
 
-Quosparr 是面向 macOS、Windows、Linux 的原生菜单栏 / 系统托盘应用，展示 Codex、Claude Code 与 Grok 订阅额度、reset credits、API 等价成本与本机会话，三个供应商各自独立管理账号，并可集中管理三家的全局 Skill、MCP 服务与本机会话。
+Quosparr 是面向 macOS、Windows、Linux 的原生菜单栏 / 系统托盘应用，展示 Codex、Claude Code、Gemini（Google Antigravity）与 Grok 订阅额度、reset credits、API 等价成本与本机会话，四个供应商各自独立管理账号，并可集中管理四家的全局 Skill、MCP 服务与本机会话。
 
 </div>
 
@@ -37,25 +37,31 @@ Quosparr 是面向 macOS、Windows、Linux 的原生菜单栏 / 系统托盘应�
 - **Claude Desktop 订阅账号**：两个账号列表均可绑定，首次须在 Desktop 手动登录所示账号及组织后回到 Quosparr 明确确认；每次操作均须先保存任务并同意退出 Desktop，保存或恢复其完整本地配置，包括登录、设置及本地状态；完成或取消绑定均恢复之前的配置；联动切号默认关闭，当前 CLI 账号也能单独打开已绑定 Desktop；CLI 与 Desktop 结果分别报告，启动成功不代表已验证账号
 - Desktop 配置档及其本机原生加密登录数据私有保存在 `~/.quosparr/claude-desktop`，Windows 使用仅当前用户可访问的 protected ACL，保留官方数据路径，Quosparr 不解密且不纳入账号导出；原配置单独保留，不导入其中账号，不读取浏览器或其他应用数据；配置档与 Desktop 数据须在同一卷，中断后可主动恢复；不支持 API 账号，macOS、Windows、Linux 真机与 Desktop 版本兼容验收仍待完成
 
+**Gemini**
+
+- 查看 Google Antigravity 客户端（新版桌面 App 与 `agy` CLI）的额度：Gemini 模型与 Claude 模型各自 5 小时与每周窗口、Argon 每周窗口的剩余比例与重置时间，以及订阅档位（Free / Pro / Ultra）和按模型的额度明细。这个读数来自客户端使用的 Cloud Code 服务，不是公开的计费接口
+- 账号：通过浏览器登录 Google、导入当前登录、粘贴凭据 JSON 或导入账号文件；当前登录会自动加入，支持别名、排序、导出与刷新非当前账号。浏览器登录只加入账号库（账号库为空且本机尚未登录时的第一个账号除外）；确认切换后写入 App 与 `agy` 共用的系统凭据，macOS 上正在运行的 Antigravity 桌面 App 可在切换时重启，Windows 与 Linux 上的 App 以及正在运行的 `agy` 需自行重新启动
+- 从 App 与 `agy` 的本机会话统计 Token 用量、API 等价成本、热力图、最近会话和速率分析。成本按 models.dev 价格估算：Gemini 模型用 Google 价格，Antigravity 中的 Claude 模型用 Anthropic 价格；没有内置价格表，价格目录同步后才显示成本，未知模型不给精确费用
+
 **Grok**
 
 - 通过官方 CLI chat-proxy 计费接口查看包含额度、Build / Imagine / Chat 拆分、周 / 月周期、预付余额和按需用量
 - 多个 OAuth / SuperGrok 账号：隔离登录、导入当前登录、粘贴凭据、刷新、别名、排序与显式切号
 - 查看本地 Grok CLI 日志中的最近会话
 
-**三个供应商通用**
+**所有供应商通用**
 
 - 设置中的“模型价格”位于“高级”之前并与其同组；默认每小时自动同步 models.dev 公开目录，可关闭，可选预设或自定义 15 分钟至 7 天频率，修改立即保存，关闭自动同步后仍可手动同步
-- 模型价格列出美元 / 百万 Token 的参考费率，不代表图像、视频等全部模态费用；目录参考价与实际采用价可能因已核实的上下文阶梯、缓存写入时长、Fast 或地区计费规则不同，详情显示来源与版本，以下带日期的内置表保留为离线基线；仅按固定 Codex / Claude / Grok tabs 展示 OpenAI、Anthropic、xAI 三家原始服务商条目与对应内置价格，默认 Codex，不提供其他厂商入口，不展示第三方代理或其他服务商的同名模型，models.dev 是聚合公开目录而非供应商官方实时接口；tabs 右侧“频率设置”按钮打开原生弹窗，自动同步、频率与详细状态共同适用于三家，修改立即保存，关闭弹窗不取消同步任务
+- 模型价格列出美元 / 百万 Token 的参考费率，不代表图像、视频等全部模态费用；目录参考价与实际采用价可能因已核实的上下文阶梯、缓存写入时长、Fast 或地区计费规则不同，详情显示来源与版本，以下带日期的内置表保留为离线基线；仅按固定 Codex / Claude / Gemini / Grok tabs 展示 OpenAI、Anthropic、Google、xAI 四家原始服务商条目与对应内置价格，默认 Codex，不提供其他厂商入口，不展示第三方代理或其他服务商的同名模型，models.dev 是聚合公开目录而非供应商官方实时接口；tabs 右侧“频率设置”按钮打开原生弹窗，自动同步、频率与详细状态共同适用于所有服务商，修改立即保存，关闭弹窗不取消同步任务；Google 没有内置价格表，Gemini tab 与 Gemini 会话成本依赖同步后的目录，Antigravity 中的 Claude 模型使用 Anthropic 条目
 - API 等价成本按当前价格重新估算历史本机用量；总额、每日、项目、模型与会话的部分成本均有标记，并完整列出缺少的费率或规则；缺价显示 —，明确免费显示 $0，订阅额度与 reset credits 维持原有口径
 - 价格同步仅经已保存的代理策略下载公开目录，不上传会话日志；离线保留内置价格与最后成功保存的目录，同步失败会明确显示
-- 常驻 `Codex | Claude | Grok` 标签切换。macOS 设置中的“状态栏组件”可预览额度条、倒计时、电池（横向或竖向）、圆环进度（数值可置于环内）、进度文本五种样式；菜单栏可跟随主面板，或分别显示三个供应商中的任意几个，额度条、倒计时与电池还可将两个供应商上下叠放在同一组件中。已经保存的 “Codex + Grok” 仍是这一对
-- 可选的置顶桌面悬浮窗，最多显示三个供应商的剩余额度，提供胶囊、卡片、圆环、电池四种样式；单击打开主面板，拖动可移动，右键查看更多选项，可调不透明度、锁定位置，并选择是否显示在全屏应用上方
+- 常驻 `Codex | Claude | Gemini | Grok` 标签切换。macOS 设置中的“状态栏组件”可预览额度条、倒计时、电池（横向或竖向）、圆环进度（数值可置于环内）、进度文本五种样式；菜单栏可跟随主面板，或分别显示四个供应商中的任意几个，额度条、倒计时与电池还可将两个供应商上下叠放在同一组件中。已经保存的 “Codex + Grok” 仍是这一对
+- 可选的置顶桌面悬浮窗，最多显示四个供应商的剩余额度，提供胶囊、卡片、圆环、电池四种样式；单击打开主面板，拖动可移动，右键查看更多选项，可调不透明度、锁定位置，并选择是否显示在全屏应用上方
 - 查看今天、本周期、上周期、本月或自定义范围的 API 等价成本与 Token 用量
 - 年度 Token 用量图表，支持热力图、折线图和柱状图（按日 / 按周 / 累计）
-- Skills 页面列出各供应商的全局 skill，显示来源、是否被 CLI 加载以及与哪些 CLI 共享；可搜索、查看 `SKILL.md`、打开所在目录、在 CLI 自己的配置中启停（写入前备份）、复制或移动到其他 CLI（同名时不覆盖）、移到 Quosparr 的 Skill 回收站，并提示失效链接、嵌套与重名等问题，多数问题可一键修复，也可多选后批量删除或修复，执行前都会列出风险并请你确认；设置中的“Skill 管理”按供应商分页，可按状态与类型筛选，详情页展示安装来源、文件、frontmatter 及 GitHub 仓库或主页链接，回收站中的 skill 可恢复或移到系统回收站；设置中的“Skill 管理”还可从公开 GitHub 仓库（链接或 `owner/repo`）、本地文件夹或 zip 添加 skill：自动查找多级目录中的 skill，跳过版本控制、构建产物与系统文件，可选择要安装的 skill 及目标 CLI 或共享目录 `~/.agents/skills`，同名目录不覆盖；从 GitHub 添加的 skill 会记录来源并可检查更新，更新时以仓库最新版本替换，旧版本移入 Skill 回收站
-- 设置中的“会话管理”按供应商列出本机全部会话，可按标题、项目或 ID 搜索，按项目与日期范围筛选，详情页显示模型、Token 明细、API 等价成本、相关文件与对话预览；选中的会话确认后逐个移到系统回收站，不会永久删除，官方索引与数据库保持不变，派生统计随后按剩余日志重新计算
-- 设置中的“MCP 管理”按供应商列出用户级全局 MCP 服务（Codex 与 Grok 的 `config.toml`、Claude 的 `.claude.json`），只显示脱敏后的命令、站点与结构摘要，不展示 env 与 headers 的值，也不连接或启动任何服务；可多选后删除，删除前先备份到 `~/.quosparr/backups` 并保留其他配置，重启对应 CLI 后生效。Codex 与 Grok 的服务另有启停开关，同样先备份再写入：Codex 写条目的 `enabled`，Grok 与其官方 CLI 一致，同时更新 `disabled_mcp_servers`；Claude Code 按项目记录 MCP 启停，因此 Claude 服务不提供开关。项目级、插件与企业托管的 MCP 不显示
+- Skills 页面列出各供应商的全局 skill，显示来源、是否被 CLI 加载以及与哪些 CLI 共享；可搜索、查看 `SKILL.md`、打开所在目录、在 CLI 自己的配置中启停（写入前备份）、复制或移动到其他 CLI（同名时不覆盖）、移到 Quosparr 的 Skill 回收站，并提示失效链接、嵌套与重名等问题，多数问题可一键修复，也可多选后批量删除或修复，执行前都会列出风险并请你确认；设置中的“Skill 管理”按供应商分页，可按状态与类型筛选，详情页展示安装来源、文件、frontmatter 及 GitHub 仓库或主页链接，回收站中的 skill 可恢复或移到系统回收站；设置中的“Skill 管理”还可从公开 GitHub 仓库（链接或 `owner/repo`）、本地文件夹或 zip 添加 skill：自动查找多级目录中的 skill，跳过版本控制、构建产物与系统文件，可选择要安装的 skill 及目标 CLI 或共享目录 `~/.agents/skills`，同名目录不覆盖；从 GitHub 添加的 skill 会记录来源并可检查更新，更新时以仓库最新版本替换，旧版本移入 Skill 回收站；Gemini 的 skill 来自 `~/.gemini/config/skills` 与 Antigravity App、`agy` 的其他用户 skill 目录，以及它们的内置与插件 skill；Antigravity 没有单个 skill 的开关，因此 Gemini skill 只显示状态、不提供启停，用户 skill 可移到 Skill 回收站，也可复制或移动到其他 CLI
+- 设置中的“会话管理”按供应商列出本机全部会话，可按标题、项目或 ID 搜索，按项目与日期范围筛选，详情页显示模型、Token 明细、API 等价成本、相关文件与对话预览；选中的会话确认后逐个移到系统回收站，不会永久删除，官方索引与数据库保持不变，派生统计随后按剩余日志重新计算；Gemini 例外：须先退出 Antigravity App 与 `agy` 才能删除其会话，Quosparr 先备份会话索引数据库，把会话文件移到系统回收站，再从该索引中移除对应条目，Gemini 会话暂不提供详情页
+- 设置中的“MCP 管理”按供应商列出用户级全局 MCP 服务（Codex 与 Grok 的 `config.toml`、Claude 的 `.claude.json`、Gemini 由 Antigravity App 与 `agy` 共用的 `~/.gemini/config/mcp_config.json`），只显示脱敏后的命令、站点与结构摘要，不展示 env 与 headers 的值，除非你在添加时请求预览工具，否则不连接或启动任何服务；可通过表单或粘贴 JSON 向一个或多个 CLI 添加服务，同名服务保持不变，Gemini 只接受 stdio 与 HTTP 服务；可多选后删除，添加或删除前先备份到 `~/.quosparr/backups` 并保留其他配置，重启对应 CLI 后生效。Codex、Gemini 与 Grok 的服务另有启停开关，同样先备份再写入：Codex 写条目的 `enabled`，Gemini 写条目的 `disabled`，Grok 与其官方 CLI 一致，同时更新 `disabled_mcp_servers`；Claude Code 按项目记录 MCP 启停，因此 Claude 服务不提供开关。项目级、插件与企业托管的 MCP 不显示
 - 支持浅色、深色、跟随系统外观，以及 English、简体中文、繁體中文、한국어、日本語、Русский、Français
 - 内置在线更新，macOS 14+ 提供桌面组件
 
@@ -115,6 +121,7 @@ Linux 需要 GTK3、AppIndicator、支持托盘的桌面，以及可用的 Secre
 - 建议本机已安装并使用 Codex。Codex 数据来自 `CODEX_HOME`，默认 `~/.codex`，Windows 默认 `%USERPROFILE%\.codex`
 - 仅支持 `file` 凭据存储（Codex `config.toml` 中未设置 `cli_auth_credentials_store` 时即为该方式）；`keyring`、`auto`、`ephemeral` 会提示不支持，并阻止导入与切号
 - Claude 面板从 `CLAUDE_CONFIG_DIR`（未设置时为 `~/.claude`）读取 Claude Code 配置，订阅用量需要 Claude.ai 登录，API Key 或网关不提供这份用量；浏览器登录无需安装或先运行 CLI，在你显式切换前只写账号库；已有 CLI 登录会自动加入，也可粘贴凭据 JSON 或从文件导入；真实浏览器授权和切号仍需隔离账号验收
+- Gemini 面板需要安装并登录新版 Google Antigravity 桌面 App 或 `agy` CLI，二者共用系统凭据（macOS 钥匙串、Windows 凭据管理器或 Linux Secret Service）中的同一份登录；不支持 2.0 以下的旧版 Antigravity，也不支持 Gemini CLI。本机数据来自 `~/.gemini`。当前登录会自动加入；Quosparr 中的浏览器登录在你显式切换前只写账号库；真实浏览器授权、切号与客户端重启仍需隔离账号验收
 - 使用 Grok 面板前需要安装 [官方 Grok CLI](https://docs.x.ai/build/overview)：
 
   ```bash
@@ -125,13 +132,13 @@ Linux 需要 GTK3、AppIndicator、支持托盘的桌面，以及可用的 Secre
 
 ## 桌面组件
 
-桌面组件需要 macOS 14 或更高版本，Windows 与 Linux 不提供。共有四类组件：额度总览、Token 趋势、关键指标和 Codex 重置动态；每个组件都可在“编辑小组件”中选择 Codex、Claude、Grok，或一对组合：Codex + Claude、Codex + Grok、Grok + Claude。已经设成 Codex + Grok 的组件保持这一对。点击后跳转到对应页面
+桌面组件需要 macOS 14 或更高版本，Windows 与 Linux 不提供。共有四类组件：额度总览、Token 趋势、关键指标和 Codex 重置动态；每个组件都可在“编辑小组件”中选择 Codex、Claude、Gemini、Grok，或一对组合：Codex + Claude、Codex + Gemini、Codex + Grok、Claude + Gemini、Gemini + Grok、Grok + Claude。已经设成 Codex + Grok 的组件保持这一对。点击后跳转到对应页面
 
 快照位于 `~/.quosparr/widget-snapshot.json`，权限为 `0600`，只包含非密钥派生数据，不含邮箱、账号 ID、token、认证 JSON 或事件原文；主程序是唯一写入者，组件只读
 
 ## 网络代理
 
-在 **控制台 → 通用 → 网络** 中选择 **跟随系统**、HTTP 或 SOCKS5，自定义代理支持用户名和密码。设置覆盖应用发起的 Codex、Claude 与 Grok 请求、CLI 操作、公开状态与价格源以及软件更新；不修改系统代理，浏览器登录页和已经运行的外部 CLI 沿用各自设置
+在 **控制台 → 通用 → 网络** 中选择 **跟随系统**、HTTP 或 SOCKS5，自定义代理支持用户名和密码。设置覆盖应用发起的 Codex、Claude、Gemini 与 Grok 请求、CLI 操作、公开状态与价格源以及软件更新；不修改系统代理，浏览器登录页和已经运行的外部 CLI 沿用各自设置
 
 修改仅在点击 **保存代理设置** 后生效。**测试连接** 使用当前草稿访问测试站点（默认 `https://github.com`，可自定义），不发送账号凭据，也不保存草稿。代理密码分别保存在 macOS 钥匙串、Windows 凭据管理器和 Linux Secret Service 中。配置错误、凭据不可用或自定义代理失败时不会自动改为直连
 
@@ -142,8 +149,9 @@ Linux 需要 GTK3、AppIndicator、支持托盘的桌面，以及可用的 Secre
 - 官方 `~/.codex/auth.json` 仅在 OAuth 刷新回写或你确认切号时写入；刷新非当前账号只更新账号库副本
 - Claude 凭据在 macOS 上经 `/usr/bin/security` 读取钥匙串，在 Windows 与 Linux 上读取 `<config>/.credentials.json`。托管副本位于 `~/.quosparr/accounts/claude-<stable-id>/auth.json`，只含 `claudeAiOauth`。索引 `claude-index.json` 不含 token。切号保留 MCP 令牌，并只替换 `.claude.json` 的 `oauthAccount`。Quosparr 不刷新当前账号
 - API 账号的 Key 只保存在托管副本（`~/.quosparr/accounts/<id>/auth.json` 或 `claude-api-<id>/auth.json`），索引只保存 Base URL、模型与余额缓存。余额与模型请求只发往你填写的站点，并遵循代理设置。被修改的 `config.toml` 与 `settings.json` 会先备份到 `~/.quosparr/backups`；首次写入 `settings.json` 时会按键名重新排序
+- Gemini 凭据读取 Antigravity 客户端共用的系统凭据条目（macOS 上经 `/usr/bin/security`，密钥只经标准输入传入），读不到时依次读取 `~/.gemini/jetski-standalone-oauth-token` 与 `~/.gemini/antigravity-cli/antigravity-oauth-token`。托管副本位于 `~/.quosparr/accounts/gemini-<stable-id>/credential.json`，索引 `gemini-index.json` 不含 token。只有切号、空账号库加入第一个账号、刷新当前账号的 token 时才写官方登录：写入系统凭据并只更新已存在的镜像文件，逐一读回校验，失败时恢复原登录。Antigravity 或 `agy` 正在运行时切号需先确认
 - Grok 凭据从 `$GROK_HOME/auth.json` 读取，托管副本位于 `~/.quosparr/accounts/grok-<stable-id>/auth.json`。Grok 切号只替换 OAuth / 兼容 legacy scope，保留 API Key 与未知 scope，且仅保证新会话使用新账号；已运行的 Grok 进程不会被终止，可能写回旧账号，因此切换前会给出提示
-- 会话修复只处理 `session_index.jsonl`，写入前先备份。会话日志只有在你于“会话管理”中选中并确认后才会移到系统回收站，移动前逐个复核文件未变化，不会永久删除，也不改写官方索引或数据库
+- 会话修复只处理 `session_index.jsonl`，写入前先备份。会话日志只有在你于“会话管理”中选中并确认后才会移到系统回收站，移动前逐个复核文件未变化，不会永久删除，也不改写官方索引或数据库；Gemini 例外：删除其会话前先备份所改动的会话索引数据库，只移除文件已全部移走的会话条目，其余时候只从私有临时副本读取这些数据库
 - Skill 与 MCP 的启停、修复和删除都在你确认后才执行：配置文件写入前先备份到 `~/.quosparr/backups`，删除的 skill 先进入可恢复的 Quosparr Skill 回收站，MCP 列表不显示密钥以及 env、headers 的值
 - 添加 skill 时先列出来源中的文件，只把 skill 所在目录读入内存，确认后才写入，大仓库只多花下载时间、不多占内存，也不执行其中的脚本；GitHub 来源只经 HTTPS 访问 GitHub，并遵循代理设置。已添加 skill 的来源（仓库、分支、提交、仓库内目录或本地路径）记录在 `~/.quosparr/skill-sources.json`（`0600`），不含任何密钥
 - API 等价成本基于本机会话日志计算，不上传会话内容
@@ -157,6 +165,8 @@ Linux 需要 GTK3、AppIndicator、支持托盘的桌面，以及可用的 Secre
 - **Codex API 等价成本**：基于本机会话日志，使用内置价格表 `openai-builtin-2026-09-27`，支持的当前费率来自 models.dev，并保留已核实的内置规则；未知模型不报告精确费用
 - **Claude Code 订阅用量**：来自未公开的 OAuth usage 端点，只表示当前 Claude Code 订阅，不写成官方计费接口。不读取浏览器 Cookie 或 Console API 账单，Desktop 配置档仅由上述独立且明确确认的功能管理
 - **Claude API 等价成本**：基于 Claude Code 本机会话日志和价格表 `anthropic-builtin-2026-10-14`。同一条回复按消息 ID 只计一次。缓存写入分为 5 分钟和 1 小时，Fast 档单独计价。未知模型不报告精确费用。按日统计使用本地时区
+- **Gemini 额度**：Antigravity 客户端使用的未公开 Cloud Code 接口（`cloudcode-pa.googleapis.com` / `daily-cloudcode-pa.googleapis.com`），token 经 Google OAuth（`oauth2.googleapis.com`）续期，身份取自 ID token 或 Google userinfo，不写成官方计费接口。订阅档位取付费档位，没有时取当前档位。Google 要求验证或订阅时保留上一次读数
+- **Gemini API 等价成本**：从 App（`~/.gemini/antigravity`）与 `agy`（`~/.gemini/antigravity-cli`）的本机会话数据库读取 Token 用量，始终读取私有临时副本；只按已同步的 models.dev 目录计价（Gemini 模型用 Google 价格，Claude 模型用 Anthropic 价格），Anthropic 缓存写入与未知模型不报告精确费用。加密会话计为无法读取
 - **Grok 额度**：只使用官方 CLI chat-proxy `/v1/billing?format=credits` 接口；不读取浏览器 Cookie、不从本地日志伪造额度，也不混入 API 账单
 - **Grok API 等价成本**：基于本地 `turn_completed` 用量和价格表 `xai-builtin-2026-09-27`，区分输入、缓存、输出及长上下文价格；`costUsdTicks` 属于订阅额度记账，不作为 API 等价成本
 - **Codex 重置动态**：来自公开接口 [didcodexreset.com/api/status.json](https://didcodexreset.com/api/status.json)，非官方，仅供参考，可能延迟
