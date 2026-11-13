@@ -74,22 +74,17 @@ func (u *settingsUI) sidebarItem(c *ui.Context, tab settingsTab) bool {
 	title, selected := tab.title(u.L()), u.tab == tab
 	b := ui.ButtonBase(c.Key(fmt.Sprintf("tab-%d", tab))).Label(title).Padding(5, 6).Gap(8).Radius(6).AlignItems(ui.Center)
 	b.Role(ui.RoleTab).Selected(selected)
-	col := t.Text
+	col, iconCol := t.Text, t.TextMuted
 	if selected {
 		b.Background(t.Accent)
-		col = t.AccentText
+		col, iconCol = t.AccentText, t.AccentText
 	} else if b.Hovered() {
 		b.Background(pal(t).Hover)
 	}
 	b.Children(func() {
-		if selected {
-			// A tile in the tint could vanish into an accent of the same hue.
-			ui.Row(c).Size(20, 20).Radius(5.6).Background(ui.RGBA(255, 255, 255, 0.24)).Justify(ui.Center).AlignItems(ui.Center).Children(func() {
-				ui.Icon(c, tab.icon()).Size(11.6, 11.6).TextColor(t.AccentText)
-			})
-		} else {
-			Tile(c, tab.icon(), tab.tint(), 20, true)
-		}
+		ui.Row(c).Size(20, 20).Justify(ui.Center).AlignItems(ui.Center).Children(func() {
+			ui.Icon(c, tab.icon()).Size(16, 16).TextColor(iconCol)
+		})
 		ui.Text(c, title).FontSize(13).TextColor(col).SingleLine().Grow(1)
 		if badge := u.tabBadge(tab); badge != "" {
 			badgeCol := t.TextMuted

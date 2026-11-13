@@ -104,10 +104,6 @@ func (t settingsTab) icon() *ui.SVG {
 	return [...]*ui.SVG{icGear, icUsers, icEye, icGauge, icFloating, icLayout, icBell, icChat, icSkill, icPlug, icGauge, icSliders, icInfo}[t]
 }
 
-func (t settingsTab) tint() Tint {
-	return [...]Tint{TintGray, TintGreen, TintBlue, TintOrange, TintTeal, TintPurple, TintRed, TintTeal, TintPink, TintBlue, TintGreen, TintOrange, TintIndigo}[t]
-}
-
 //go:embed assets/app-icon.png
 var appIconPNG []byte
 
