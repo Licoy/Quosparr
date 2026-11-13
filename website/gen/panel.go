@@ -151,7 +151,7 @@ func buildPanel(l Locale, now time.Time) Panel {
 		Basis: basis,
 	}
 	gemini := PanelProvider{
-		Key: "gemini", Name: "Gemini", Tier: "Pro", TierClass: "gemini", Account: "m***@***.com",
+		Key: "gemini", Name: "Gemini", Tier: "Google AI Pro", TierClass: "gemini", Account: "m***@***.com",
 		QuotaHead: "Gemini",
 		Rows:      []QuotaRow{row("Gemini · "+p.FiveHour, 71, "", 2*time.Hour+26*time.Minute+40*time.Second)},
 		Slim: []SlimRow{

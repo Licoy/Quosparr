@@ -302,6 +302,9 @@ html:lang(zh) .etym, html:lang(ja) .etym, html:lang(ko) .etym { font-style: norm
   --a-silver: linear-gradient(100deg, #c7ccd6, #f0f2f7, #b3bac7);
   --a-silver-ink: #383d47;
   --a-silver-line: #949ca8;
+  --a-gemini: linear-gradient(100deg, #4266db, #9e85fa, #293d9e);
+  --a-gemini-ink: #1f2e7a;
+  --a-gemini-line: rgba(66, 102, 219, .85);
   color-scheme: light;
   display: flex;
   flex-direction: column;
@@ -346,6 +349,9 @@ html:lang(zh) .etym, html:lang(ja) .etym, html:lang(ko) .etym { font-style: norm
     --a-silver: linear-gradient(100deg, #6b7380, #b8bdc7, #616673);
     --a-silver-ink: #f0f2fa;
     --a-silver-line: #8a919e;
+    --a-gemini: linear-gradient(100deg, #22348a, #656ad3, #1d2b6f);
+    --a-gemini-ink: #d6d1ff;
+    --a-gemini-line: rgba(158, 133, 250, .45);
     color-scheme: dark;
   }
 }
@@ -378,6 +384,9 @@ html:lang(zh) .etym, html:lang(ja) .etym, html:lang(ko) .etym { font-style: norm
   --a-silver: linear-gradient(100deg, #6b7380, #b8bdc7, #616673);
   --a-silver-ink: #f0f2fa;
   --a-silver-line: #8a919e;
+  --a-gemini: linear-gradient(100deg, #22348a, #656ad3, #1d2b6f);
+  --a-gemini-ink: #d6d1ff;
+  --a-gemini-line: rgba(158, 133, 250, .45);
   color-scheme: dark;
 }
 @media (max-width: 480px) { .app { height: 560px; } }
@@ -441,7 +450,7 @@ b.low { color: var(--a-low-ink); }
 .tier { padding: 1px 6px; border-radius: 4px; font-size: 10px; font-weight: 700; letter-spacing: .02em; white-space: nowrap; border: 1px solid; }
 .tier.black-gold { background: linear-gradient(100deg, #1f1c1a, #423829, #1a1714); color: #edc761; border-color: #c79e3d; }
 .tier.silver { background: var(--a-silver); color: var(--a-silver-ink); border-color: var(--a-silver-line); }
-.tier.gemini { background: linear-gradient(100deg, #4266db, #9e85fa, #293d9e); color: #f5f3ff; border-color: #4266db; }
+.tier.gemini { background: var(--a-gemini); color: var(--a-gemini-ink); border-color: var(--a-gemini-line); }
 
 .expiry { display: inline-flex; overflow: hidden; border-radius: 5px; border: 1px solid var(--a-exp-line); font-size: 10px; white-space: nowrap; }
 .exp-k { display: inline-flex; align-items: center; gap: 4px; padding: 2px 6px; background: var(--a-exp-fill); color: var(--a-exp); font-weight: 600; border-right: 1px solid var(--a-exp-line); }
