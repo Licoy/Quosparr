@@ -8,6 +8,15 @@ Quosparr 官网的源码。`website/gen` 用 Go 标准库把模板和七种语�
 - `templates/`：页面模板，`index.html` 渲染每种语言的首页，`404.html` 为未找到页面
 - `static/`：样式、脚本、站点图标与 OG 分享图；样式与脚本按内容哈希命名后输出
 - `static/img/og-<code>.png`：各语言 1200×630 分享图，使用思源宋体排入该语言的 `hero.etymology` 与 `hero.tagline`；修改这两项文案后需同步重新生成
+- 分享图由 `Scripts/generate-og-images.py` 用无头 Chrome 渲染：除思源宋体外，素材都取自仓库（文案、`docs/images/panel*.webp`、应用与供应商图标、`icons/`）；本机工具在仓库根目录的 `.env`（已被 Git 忽略）中配置：
+
+  ```bash
+  OG_CHROME=<Chrome 或 Chromium 可执行文件>
+  OG_MAGICK=<ImageMagick 7 的 magick>
+  OG_FONTS=<含 SourceHanSerif-{Heavy,SemiBold,Medium}.ttc 的思源宋体 OTC 目录>
+  ```
+
+  然后运行 `python3 Scripts/generate-og-images.py`，结果直接覆盖 `static/img/og-*.png`
 - `icons/`：从 Remix Icon v4.9.1 复制的 SVG，构建时内联，不依赖 CDN
 - 截图直接取自 `docs/images/*.webp`，供应商图标取自 `internal/app/assets/providers/`
 - 首页右侧的主面板由 `gen/panel.go` 生成示例数据、`templates/index.html` 的 `panel` 模板以 HTML 还原，配色随站点深浅色切换，标签名沿用应用文案（`locales/*.json` 的 `panel`）；应用主面板布局或文案变化时同步调整

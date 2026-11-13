@@ -4,6 +4,9 @@ dist/
 *.xcuserstate
 xcuserdata/
 
+# Local tool paths for Scripts/generate-og-images.py
+/.env
+
 # Local Python bytecode and scratch files
 __pycache__/
 *.pyc
