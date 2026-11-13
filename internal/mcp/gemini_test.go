@@ -3,6 +3,7 @@ package mcp
 import (
 	"context"
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -124,7 +125,7 @@ func TestAddGeminiWritesCLIShape(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			source := testSource(t, ProviderGemini, "config/mcp_config.json")
 			if name != "missing" {
-				if err := os.MkdirAll(strings.TrimSuffix(source.Path, "/mcp_config.json"), 0o700); err != nil {
+				if err := os.MkdirAll(filepath.Dir(source.Path), 0o700); err != nil {
 					t.Fatal(err)
 				}
 				writeConfig(t, source, content)
