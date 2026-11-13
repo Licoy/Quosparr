@@ -4,6 +4,7 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"runtime"
 	"slices"
 	"testing"
 	"time"
@@ -112,7 +113,7 @@ func TestSessionScanSummaryDailyAndPricing(t *testing.T) {
 		cli.Model == nil || *cli.Model != "gemini-3.8-pro-high" || cli.MessageCount != 2 || !cli.UpdatedAt.Equal(time.Date(2026, 11, 12, 8, 0, 0, 0, time.UTC)) {
 		t.Fatalf("cli item = %+v", cli)
 	}
-	if app.ID != "conv-a" || app.Title != "Alpha" || app.ProjectName != "alpha" || app.CWD == nil || *app.CWD != "/work/alpha" || app.Client != SessionClientApp ||
+	if app.ID != "conv-a" || app.Title != "Alpha" || app.ProjectName != "alpha" || app.CWD == nil || *app.CWD != filepath.FromSlash("/work/alpha") || app.Client != SessionClientApp ||
 		app.Model == nil || *app.Model != "claude-sonnet-5" || app.Totals.TotalTokens != 3650 || app.Totals.EstimatedUSD.String() != "0.01146" {
 		t.Fatalf("app item = %+v", app)
 	}
@@ -244,5 +245,15 @@ func TestSessionScanSpeed(t *testing.T) {
 	sessionMust(t, err)
 	if len(late) != 0 {
 		t.Fatalf("old conversation in speed window: %+v", late)
+	}
+}
+
+func TestSessionWorkspaceDrivePath(t *testing.T) {
+	want := "/C:/Users/a b"
+	if runtime.GOOS == "windows" {
+		want = `C:\Users\a b`
+	}
+	if got := sessionWorkspace(`["file:///C:/Users/a%20b"]`); got != want {
+		t.Fatalf("workspace = %q, want %q", got, want)
 	}
 }

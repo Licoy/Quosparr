@@ -252,6 +252,7 @@ func sessionParseTime(value any) time.Time {
 }
 
 // sessionWorkspace is the local folder of the first file:// workspace URI.
+// On Windows "file:///C:/x" names C:\x, so the slash before the drive goes.
 func sessionWorkspace(raw string) string {
 	var uris []string
 	if json.Unmarshal([]byte(raw), &uris) != nil {
@@ -262,7 +263,11 @@ func sessionWorkspace(raw string) string {
 		if err != nil || parsed.Scheme != "file" || parsed.Path == "" {
 			continue
 		}
-		return filepath.Clean(filepath.FromSlash(parsed.Path))
+		path := parsed.Path
+		if filepath.Separator == '\\' && len(path) >= 3 && path[0] == '/' && path[2] == ':' {
+			path = path[1:]
+		}
+		return filepath.Clean(filepath.FromSlash(path))
 	}
 	return ""
 }
