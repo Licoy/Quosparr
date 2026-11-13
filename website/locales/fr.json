@@ -1,7 +1,7 @@
 {
   "meta": {
-    "title": "Quosparr : quotas Codex, Claude Code et Grok dans la barre de menus",
-    "description": "Quosparr est une application native et gratuite de barre de menus et de zone de notification pour macOS, Windows et Linux. Elle affiche les quotas d’abonnement Codex, Claude Code et Grok, les reset credits, le coût équivalent API et les sessions locales."
+    "title": "Quosparr : quotas Codex, Claude Code, Gemini et Grok dans la barre de menus",
+    "description": "Quosparr est une application native et gratuite de barre de menus et de zone de notification pour macOS, Windows et Linux. Elle affiche les quotas d’abonnement Codex, Claude Code, Gemini et Grok, les reset credits, le coût équivalent API et les sessions locales."
   },
   "nav": {
     "features": "Fonctionnalités",
@@ -18,7 +18,7 @@
   },
   "hero": {
     "etymology": "Nom formé de <b>Quo</b>ta (quota) + <b>Sparr</b>ow (moineau)",
-    "tagline": "Un petit moineau perché dans votre barre de menus, qui veille sur vos quotas Codex, Claude et Grok.",
+    "tagline": "Un petit moineau perché dans votre barre de menus, qui veille sur vos quotas Codex, Claude, Gemini et Grok.",
     "description": "Une application native de barre de menus et de zone de notification pour macOS, Windows et Linux. Quotas d’abonnement, reset credits, coût équivalent API et sessions locales d’un coup d’œil, avec des comptes séparés pour chaque fournisseur. Skills globaux, serveurs MCP et sessions locales se gèrent au même endroit.",
     "download": "Télécharger",
     "downloadFor": "Télécharger pour {os}",
@@ -27,7 +27,7 @@
   },
   "features": {
     "title": "Fonctionnalités",
-    "lead": "Codex, Claude Code et Grok ont chacun leur onglet. Quotas, coûts et comptes restent séparés par fournisseur.",
+    "lead": "Codex, Claude Code, Gemini et Grok ont chacun leur onglet. Quotas, coûts et comptes restent séparés par fournisseur.",
     "codex": [
       "Quota restant des fenêtres de 5 heures, hebdomadaire et supplémentaires, avec compte, offre et date d’expiration",
       "Nombre de reset credits, état et date d’expiration",
@@ -39,6 +39,11 @@
       "Tokens consommés, coût équivalent API, sessions récentes et vitesse de sortie d’après les journaux locaux",
       "Import et changement de comptes d’abonnement ; les jetons MCP sont conservés lors du changement"
     ],
+    "gemini": [
+      "Quotas de l’app de bureau Antigravity et de la CLI agy : fenêtres de 5 heures et hebdomadaire pour les modèles Gemini et Claude, fenêtre hebdomadaire Argon, heures de réinitialisation, formule Free / Pro / Ultra et détail par modèle",
+      "Ajout de comptes par connexion Google dans le navigateur ou import de la connexion actuelle ; le changement écrit la connexion partagée par l’app et agy et peut redémarrer l’app de bureau sur macOS",
+      "Tokens consommés, coût équivalent API, carte de chaleur, sessions récentes et vitesse d’après les sessions locales de l’app et d’agy"
+    ],
     "grok": [
       "Quota inclus avec répartition Build / Imagine / Chat, solde prépayé et usage à la demande",
       "Plusieurs comptes OAuth / SuperGrok avec connexion isolée et changement explicite",
@@ -47,12 +52,12 @@
     "commonTitle": "Pour tous les fournisseurs",
     "common": [
       { "title": "La barre de menus en un coup d’œil", "text": "Suivez l’onglet actif ou affichez chaque fournisseur à part, dans cinq styles à prévisualiser." },
-      { "title": "Fenêtre flottante", "text": "Une fenêtre toujours au premier plan sur les trois plateformes, avec jusqu’à trois fournisseurs en style capsule, carte, anneaux ou batterie, opacité réglable et position verrouillable." },
+      { "title": "Fenêtre flottante", "text": "Une fenêtre toujours au premier plan sur les trois plateformes, avec jusqu’à quatre fournisseurs en style capsule, carte, anneaux ou batterie, opacité réglable et position verrouillable." },
       { "title": "Panneau principal épuré", "text": "Masquez les fournisseurs inutilisés du panneau principal ; s’il n’en reste qu’un, les onglets disparaissent." },
       { "title": "Coût équivalent API", "text": "Aujourd’hui, ce cycle, le cycle précédent, ce mois-ci ou une période personnalisée, calculé à partir des journaux locaux." },
       { "title": "Graphiques de tokens", "text": "Utilisation de l’année en carte de chaleur, courbe ou barres, par jour, par semaine ou en cumul." },
-      { "title": "Gestion des skills", "text": "Les skills globaux des trois CLI avec leur origine et leur état de chargement. Activez-les ou désactivez-les, copiez-les vers une autre CLI, réparez liens cassés, imbrications et noms en double, et restaurez depuis la corbeille les skills supprimés." },
-      { "title": "Gestion MCP", "text": "Les serveurs MCP de niveau utilisateur de chaque CLI en résumés expurgés ; activez ou désactivez ceux de Codex et Grok, ou supprimez-les par lots, après une sauvegarde de la configuration." },
+      { "title": "Gestion des skills", "text": "Les skills globaux des quatre CLI avec leur origine et leur état de chargement. Activez-les ou désactivez-les quand la CLI le permet, copiez-les vers une autre CLI, réparez liens cassés, imbrications et noms en double, et restaurez depuis la corbeille les skills supprimés." },
+      { "title": "Gestion MCP", "text": "Les serveurs MCP de niveau utilisateur de chaque CLI en résumés expurgés ; activez ou désactivez ceux de Codex, Gemini et Grok, ou supprimez-les par lots, après une sauvegarde de la configuration." },
       { "title": "Gestion des sessions", "text": "Parcourez les sessions locales par projet, date ou mot-clé, prévisualisez la conversation et le coût, puis envoyez celles choisies dans la corbeille du système." },
       { "title": "Thèmes et langues", "text": "Apparence claire, sombre ou selon le système, en sept langues." },
       { "title": "Police d’affichage", "text": "Police système ou toute police installée, pour le panneau principal et les réglages." },
@@ -138,6 +143,6 @@
     "releases": "Versions",
     "issues": "Tickets",
     "license": "Licence",
-    "disclaimer": "Quosparr est un projet indépendant, sans lien avec OpenAI, Anthropic ni xAI."
+    "disclaimer": "Quosparr est un projet indépendant, sans lien avec OpenAI, Anthropic, Google ni xAI."
   }
 }

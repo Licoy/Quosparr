@@ -211,6 +211,10 @@ if(c){if(c!=="en")location.replace("/"+c+"/"+location.hash);return}}})();</scrip
           <ul>{{range .T.Features.Claude}}<li>{{.}}</li>{{end}}</ul>
         </article>
         <article class="provider">
+          <h3>{{provider "gemini"}}Gemini</h3>
+          <ul>{{range .T.Features.Gemini}}<li>{{.}}</li>{{end}}</ul>
+        </article>
+        <article class="provider">
           <h3>{{provider "grok"}}Grok</h3>
           <ul>{{range .T.Features.Grok}}<li>{{.}}</li>{{end}}</ul>
         </article>

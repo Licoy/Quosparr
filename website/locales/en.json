@@ -1,7 +1,7 @@
 {
   "meta": {
-    "title": "Quosparr: Codex, Claude Code and Grok quota in your menu bar",
-    "description": "Quosparr is a free, native menu bar and system tray app for macOS, Windows and Linux. Track Codex, Claude Code and Grok subscription quota, reset credits, API-equivalent cost and local sessions."
+    "title": "Quosparr: Codex, Claude Code, Gemini and Grok quota in your menu bar",
+    "description": "Quosparr is a free, native menu bar and system tray app for macOS, Windows and Linux. Track Codex, Claude Code, Gemini and Grok subscription quota, reset credits, API-equivalent cost and local sessions."
   },
   "nav": {
     "features": "Features",
@@ -18,7 +18,7 @@
   },
   "hero": {
     "etymology": "Named from <b>Quo</b>ta + <b>Sparr</b>ow",
-    "tagline": "A small sparrow perched in your menu bar, keeping watch over your Codex, Claude, and Grok quota.",
+    "tagline": "A small sparrow perched in your menu bar, keeping watch over your Codex, Claude, Gemini, and Grok quota.",
     "description": "A native menu bar and system tray app for macOS, Windows and Linux. See subscription quota, reset credits, API-equivalent cost and local sessions at a glance, with separate accounts for each provider. Global skills, MCP servers and local sessions are managed in one place.",
     "download": "Download",
     "downloadFor": "Download for {os}",
@@ -27,7 +27,7 @@
   },
   "features": {
     "title": "Features",
-    "lead": "Codex, Claude Code and Grok each get their own tab. Quota, cost and accounts stay separate per provider.",
+    "lead": "Codex, Claude Code, Gemini and Grok each get their own tab. Quota, cost and accounts stay separate per provider.",
     "codex": [
       "Remaining quota for the 5-hour, weekly and additional windows, with account, plan and expiry",
       "Reset credit count, status and expiry time",
@@ -39,6 +39,11 @@
       "Token usage, API-equivalent cost, recent sessions and output speed from local session logs",
       "Import and switch subscription accounts; MCP tokens are kept when you switch"
     ],
+    "gemini": [
+      "Antigravity desktop App and agy CLI quota: 5-hour and weekly windows for Gemini and Claude models and the weekly Argon window, with reset times, Free / Pro / Ultra tier and per-model details",
+      "Add accounts with Google sign-in in the browser or import the current login; switching writes the login the App and agy share, and on macOS can restart the desktop App",
+      "Token usage, API-equivalent cost, heatmap, recent sessions and speed from local App and agy sessions"
+    ],
     "grok": [
       "Included quota with a Build / Imagine / Chat breakdown, prepaid balance and on-demand usage",
       "Multiple OAuth / SuperGrok accounts with isolated sign-in and explicit switching",
@@ -47,12 +52,12 @@
     "commonTitle": "For every provider",
     "common": [
       { "title": "Menu bar at a glance", "text": "Follow the active tab, or show every provider on its own, in five styles you can preview." },
-      { "title": "Floating window", "text": "An always-on-top window on all three platforms with up to three providers, in capsule, card, rings or battery style, with adjustable opacity and a lockable position." },
+      { "title": "Floating window", "text": "An always-on-top window on all three platforms with up to four providers, in capsule, card, rings or battery style, with adjustable opacity and a lockable position." },
       { "title": "Focused main panel", "text": "Hide the providers you don't use from the main panel. With only one left, the provider tabs go away." },
       { "title": "API-equivalent cost", "text": "Today, this cycle, last cycle, this month or a custom range, computed from local logs." },
       { "title": "Token charts", "text": "Year-to-date usage as a heatmap, line or bar chart, by day, week or cumulative." },
-      { "title": "Skill management", "text": "Global skills of all three CLIs with their source and load state. Turn them on or off, copy them to another CLI, fix broken links, nesting and duplicate names, and restore deleted skills from the trash." },
-      { "title": "MCP management", "text": "User-level MCP servers of each CLI as redacted summaries; switch Codex and Grok servers on or off, or delete in batches, with the config backed up first." },
+      { "title": "Skill management", "text": "Global skills of all four CLIs with their source and load state. Turn them on or off where the CLI allows it, copy them to another CLI, fix broken links, nesting and duplicate names, and restore deleted skills from the trash." },
+      { "title": "MCP management", "text": "User-level MCP servers of each CLI as redacted summaries; switch Codex, Gemini and Grok servers on or off, or delete in batches, with the config backed up first." },
       { "title": "Session management", "text": "Browse local sessions by project, date or keyword, preview conversations and cost, and move the ones you pick to the system Trash." },
       { "title": "Themes and languages", "text": "Light, dark or system appearance, in seven languages." },
       { "title": "Display font", "text": "Use the system font or any installed font in the main panel and settings." },
@@ -138,6 +143,6 @@
     "releases": "Releases",
     "issues": "Issues",
     "license": "License",
-    "disclaimer": "Quosparr is an independent project and is not affiliated with OpenAI, Anthropic or xAI."
+    "disclaimer": "Quosparr is an independent project and is not affiliated with OpenAI, Anthropic, Google or xAI."
   }
 }

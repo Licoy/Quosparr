@@ -522,7 +522,7 @@ b.low { color: var(--a-low-ink); }
   gap: 16px;
   margin-top: 36px;
 }
-@media (min-width: 860px) { .providers { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+@media (min-width: 720px) { .providers { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 
 .provider {
   padding: 24px;

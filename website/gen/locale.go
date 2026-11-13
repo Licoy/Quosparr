@@ -78,6 +78,7 @@ type Strings struct {
 		Lead        string
 		Codex       []string
 		Claude      []string
+		Gemini      []string
 		Grok        []string
 		CommonTitle string
 		Common      []Item

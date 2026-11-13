@@ -1,7 +1,7 @@
 {
   "meta": {
-    "title": "Quosparr: 메뉴 막대에서 보는 Codex, Claude Code, Grok 할당량",
-    "description": "Quosparr는 macOS, Windows, Linux용 무료 네이티브 메뉴 막대 / 시스템 트레이 앱입니다. Codex, Claude Code, Grok 구독 할당량, reset credits, API 환산 비용, 로컬 세션을 보여 줍니다."
+    "title": "Quosparr: 메뉴 막대에서 보는 Codex, Claude Code, Gemini, Grok 할당량",
+    "description": "Quosparr는 macOS, Windows, Linux용 무료 네이티브 메뉴 막대 / 시스템 트레이 앱입니다. Codex, Claude Code, Gemini, Grok 구독 할당량, reset credits, API 환산 비용, 로컬 세션을 보여 줍니다."
   },
   "nav": {
     "features": "기능",
@@ -18,7 +18,7 @@
   },
   "hero": {
     "etymology": "이름은 <b>Quo</b>ta(할당량) + <b>Sparr</b>ow(참새)에서 왔습니다",
-    "tagline": "메뉴 막대에 앉은 작은 참새가 Codex, Claude, Grok 할당량을 지켜봅니다.",
+    "tagline": "메뉴 막대에 앉은 작은 참새가 Codex, Claude, Gemini, Grok 할당량을 지켜봅니다.",
     "description": "macOS, Windows, Linux용 네이티브 메뉴 막대 / 시스템 트레이 앱입니다. 구독 할당량, reset credits, API 환산 비용, 로컬 세션을 한눈에 확인하고, 공급자별로 계정을 따로 관리합니다. 전역 Skill, MCP 서버, 로컬 세션도 한곳에서 관리합니다.",
     "download": "다운로드",
     "downloadFor": "{os}용 다운로드",
@@ -27,7 +27,7 @@
   },
   "features": {
     "title": "기능",
-    "lead": "Codex, Claude Code, Grok은 각자의 탭을 가지며, 할당량과 비용, 계정은 공급자별로 분리됩니다.",
+    "lead": "Codex, Claude Code, Gemini, Grok은 각자의 탭을 가지며, 할당량과 비용, 계정은 공급자별로 분리됩니다.",
     "codex": [
       "5시간, 주간, 추가 창의 남은 할당량과 계정, 요금제, 만료일",
       "reset credits 개수, 상태, 만료 시간",
@@ -39,20 +39,25 @@
       "로컬 세션 로그 기반의 토큰 사용량, API 환산 비용, 최근 세션, 출력 속도",
       "구독 계정을 가져와 전환하며, 전환할 때 MCP 토큰은 유지"
     ],
+    "gemini": [
+      "Antigravity 데스크톱 App과 agy CLI 할당량: Gemini·Claude 모델의 5시간·주간 창과 Argon 주간 창, 초기화 시간, Free / Pro / Ultra 등급, 모델별 세부 정보",
+      "브라우저 Google 로그인이나 현재 로그인 가져오기로 계정을 추가하고, 전환하면 App과 agy가 함께 쓰는 로그인에 기록하며 macOS에서는 데스크톱 App도 다시 시작 가능",
+      "App과 agy 로컬 세션 기반의 토큰 사용량, API 환산 비용, 히트맵, 최근 세션, 속도"
+    ],
     "grok": [
       "포함 할당량과 Build / Imagine / Chat 분류, 선불 잔액, 온디맨드 사용량",
       "격리된 로그인과 명시적 전환을 지원하는 여러 OAuth / SuperGrok 계정",
       "로컬 Grok CLI 로그의 최근 세션"
     ],
-    "commonTitle": "세 공급자 공통",
+    "commonTitle": "모든 공급자 공통",
     "common": [
       { "title": "메뉴 막대에서 한눈에", "text": "현재 탭을 따르거나 공급자마다 따로 표시하며, 다섯 가지 스타일을 미리 보고 고를 수 있습니다." },
-      { "title": "플로팅 창", "text": "세 플랫폼 모두에서 항상 위에 떠 있는 창으로, 최대 세 공급자를 캡슐, 카드, 링, 배터리 스타일로 보여 주며 불투명도 조절과 위치 고정을 지원합니다." },
+      { "title": "플로팅 창", "text": "세 플랫폼 모두에서 항상 위에 떠 있는 창으로, 최대 네 공급자를 캡슐, 카드, 링, 배터리 스타일로 보여 주며 불투명도 조절과 위치 고정을 지원합니다." },
       { "title": "메인 패널 정리", "text": "쓰지 않는 공급자는 메인 패널에서 숨기고, 하나만 남으면 공급자 탭을 표시하지 않습니다." },
       { "title": "API 환산 비용", "text": "오늘, 이번 주기, 지난 주기, 이번 달 또는 사용자 지정 범위를 로컬 로그로 계산합니다." },
       { "title": "토큰 차트", "text": "연간 사용량을 히트맵, 꺾은선, 막대 차트로 일별, 주별, 누적으로 봅니다." },
-      { "title": "Skill 관리", "text": "세 CLI의 전역 skill을 출처와 로드 상태와 함께 보여 줍니다. 켜고 끄기, 다른 CLI로 복사, 끊어진 링크·중첩·중복 이름 한 번에 고치기를 지원하며 삭제한 skill은 휴지통에서 복원할 수 있습니다." },
-      { "title": "MCP 관리", "text": "CLI별 사용자 수준 MCP 서버를 민감 정보를 가린 요약으로 보고, 구성을 먼저 백업한 뒤 Codex와 Grok 서버를 켜거나 끄고 여러 개를 한 번에 삭제합니다." },
+      { "title": "Skill 관리", "text": "네 CLI의 전역 skill을 출처와 로드 상태와 함께 보여 줍니다. CLI가 지원하면 켜고 끄기, 다른 CLI로 복사, 끊어진 링크·중첩·중복 이름 한 번에 고치기를 지원하며 삭제한 skill은 휴지통에서 복원할 수 있습니다." },
+      { "title": "MCP 관리", "text": "CLI별 사용자 수준 MCP 서버를 민감 정보를 가린 요약으로 보고, 구성을 먼저 백업한 뒤 Codex, Gemini, Grok 서버를 켜거나 끄고 여러 개를 한 번에 삭제합니다." },
       { "title": "세션 관리", "text": "프로젝트, 날짜, 키워드로 로컬 세션을 찾아 대화와 비용을 미리 보고, 선택한 세션을 확인 후 시스템 휴지통으로 옮깁니다." },
       { "title": "테마와 언어", "text": "라이트, 다크, 시스템 설정 모양과 7개 언어를 지원합니다." },
       { "title": "표시 글꼴", "text": "메인 패널과 설정 창에 시스템 글꼴이나 설치된 다른 글꼴을 사용할 수 있습니다." },
@@ -138,6 +143,6 @@
     "releases": "릴리스",
     "issues": "이슈",
     "license": "라이선스",
-    "disclaimer": "Quosparr는 독립 프로젝트이며 OpenAI, Anthropic, xAI와 관련이 없습니다."
+    "disclaimer": "Quosparr는 독립 프로젝트이며 OpenAI, Anthropic, Google, xAI와 관련이 없습니다."
   }
 }

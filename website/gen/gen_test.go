@@ -118,6 +118,16 @@ func TestBuildWritesEveryLanguage(t *testing.T) {
 				t.Errorf("%s: missing %s", l.Code, want)
 			}
 		}
+		// Feature cards follow the app's provider order.
+		at := 0
+		for _, name := range []string{"Codex", "Claude", "Gemini", "Grok"} {
+			i := strings.Index(html[at:], "</svg>"+name+"</h3>")
+			if i < 0 {
+				t.Errorf("%s: feature card %s missing or out of order", l.Code, name)
+				break
+			}
+			at += i
+		}
 		og := "img/og-" + l.Code + ".png"
 		if !strings.Contains(html, `content="https://quosparr.com/`+og+`"`) {
 			t.Errorf("%s: missing og:image %s", l.Code, og)

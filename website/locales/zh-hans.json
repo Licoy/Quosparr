@@ -1,7 +1,7 @@
 {
   "meta": {
-    "title": "Quosparr：在菜单栏查看 Codex、Claude Code 与 Grok 额度",
-    "description": "Quosparr 是免费的原生菜单栏 / 系统托盘应用，支持 macOS、Windows 与 Linux，展示 Codex、Claude Code 与 Grok 订阅额度、reset credits、API 等价成本和本机会话。"
+    "title": "Quosparr：在菜单栏查看 Codex、Claude Code、Gemini 与 Grok 额度",
+    "description": "Quosparr 是免费的原生菜单栏 / 系统托盘应用，支持 macOS、Windows 与 Linux，展示 Codex、Claude Code、Gemini 与 Grok 订阅额度、reset credits、API 等价成本和本机会话。"
   },
   "nav": {
     "features": "功能",
@@ -18,8 +18,8 @@
   },
   "hero": {
     "etymology": "名称取自 <b>Quo</b>ta（额度）+ <b>Sparr</b>ow（麻雀）",
-    "tagline": "一只停在菜单栏里的小麻雀，替你守着 Codex、Claude 与 Grok 的额度。",
-    "description": "面向 macOS、Windows、Linux 的原生菜单栏 / 系统托盘应用。订阅额度、reset credits、API 等价成本与本机会话一眼可见，三个供应商各自独立管理账号。全局 Skill、MCP 服务与本机会话也能集中管理。",
+    "tagline": "一只停在菜单栏里的小麻雀，替你守着 Codex、Claude、Gemini 与 Grok 的额度。",
+    "description": "面向 macOS、Windows、Linux 的原生菜单栏 / 系统托盘应用。订阅额度、reset credits、API 等价成本与本机会话一眼可见，四个供应商各自独立管理账号。全局 Skill、MCP 服务与本机会话也能集中管理。",
     "download": "下载",
     "downloadFor": "下载 {os} 版",
     "source": "在 GitHub 查看",
@@ -27,7 +27,7 @@
   },
   "features": {
     "title": "功能",
-    "lead": "Codex、Claude Code 与 Grok 各有独立标签页，额度、成本和账号按供应商分开管理。",
+    "lead": "Codex、Claude Code、Gemini 与 Grok 各有独立标签页，额度、成本和账号按供应商分开管理。",
     "codex": [
       "5 小时、每周与附加窗口的剩余额度，以及账号、订阅等级和到期时间",
       "reset credits 数量、状态与过期时间",
@@ -39,20 +39,25 @@
       "从本机会话日志统计 Token 用量、API 等价成本、最近会话和输出速率",
       "导入并切换订阅账号，切号时保留 MCP 令牌"
     ],
+    "gemini": [
+      "Antigravity 桌面 App 与 agy CLI 的额度：Gemini 与 Claude 模型的 5 小时和每周窗口、Argon 每周窗口，含重置时间、Free / Pro / Ultra 档位与按模型明细",
+      "通过浏览器登录 Google 或导入当前登录来添加账号，切号时写入 App 与 agy 共用的登录，macOS 上可同时重启桌面 App",
+      "从 App 与 agy 的本机会话统计 Token 用量、API 等价成本、热力图、最近会话和速率"
+    ],
     "grok": [
       "包含额度及 Build / Imagine / Chat 拆分、预付余额和按需用量",
       "多个 OAuth / SuperGrok 账号，隔离登录，显式切号",
       "本地 Grok CLI 日志中的最近会话"
     ],
-    "commonTitle": "三个供应商通用",
+    "commonTitle": "所有供应商通用",
     "common": [
       { "title": "菜单栏一眼可见", "text": "跟随当前标签，或分别显示每个供应商，五种样式可预览选择。" },
-      { "title": "桌面悬浮窗", "text": "三端可用的置顶悬浮窗，最多显示三个供应商，提供胶囊、卡片、圆环、电池四种样式，可调不透明度并锁定位置。" },
+      { "title": "桌面悬浮窗", "text": "三端可用的置顶悬浮窗，最多显示四个供应商，提供胶囊、卡片、圆环、电池四种样式，可调不透明度并锁定位置。" },
       { "title": "精简主面板", "text": "在主面板隐藏不用的供应商，只剩一家时不再显示供应商标签。" },
       { "title": "API 等价成本", "text": "今天、本周期、上周期、本月或自定义范围，基于本机日志计算。" },
       { "title": "Token 图表", "text": "年度用量热力图、折线图或柱状图，可按日、按周或累计查看。" },
-      { "title": "Skill 管理", "text": "列出三家 CLI 的全局 skill 及来源与加载状态，可启停、复制到其他 CLI，一键修复失效链接、嵌套与重名，删除后可从回收站恢复。" },
-      { "title": "MCP 管理", "text": "以脱敏摘要查看各 CLI 的用户级 MCP 服务，可启停 Codex 与 Grok 的服务或批量删除，写入前自动备份配置。" },
+      { "title": "Skill 管理", "text": "列出四家 CLI 的全局 skill 及来源与加载状态，可在 CLI 支持时启停、复制到其他 CLI，一键修复失效链接、嵌套与重名，删除后可从回收站恢复。" },
+      { "title": "MCP 管理", "text": "以脱敏摘要查看各 CLI 的用户级 MCP 服务，可启停 Codex、Gemini 与 Grok 的服务或批量删除，写入前自动备份配置。" },
       { "title": "会话管理", "text": "按项目、日期或关键词浏览本机会话，预览对话与成本，确认后把选中的会话移到系统回收站。" },
       { "title": "外观与语言", "text": "浅色、深色或跟随系统，支持七种语言。" },
       { "title": "显示字体", "text": "主面板与设置窗口可使用系统字体，或本机已安装的任意字体。" },
@@ -138,6 +143,6 @@
     "releases": "版本发布",
     "issues": "问题反馈",
     "license": "许可证",
-    "disclaimer": "Quosparr 是独立项目，与 OpenAI、Anthropic、xAI 无关联。"
+    "disclaimer": "Quosparr 是独立项目，与 OpenAI、Anthropic、Google、xAI 无关联。"
   }
 }
