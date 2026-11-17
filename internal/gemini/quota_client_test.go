@@ -149,7 +149,7 @@ func TestQuotaFetchOnboardsAndParsesBuckets(t *testing.T) {
 	}
 	for _, call := range server.calls {
 		if call.path == "/v1internal:retrieveUserQuotaSummary" || call.path == "/v1internal:fetchAvailableModels" {
-			if call.ua != "antigravity/2.31.2 (aidev_client; os_type=darwin; arch=arm64)" || call.body["project"] != "proj-7" {
+			if call.ua != "antigravity/hub/2.31.2 (aidev_client; os_type=darwin; arch=arm64)" || call.body["project"] != "proj-7" {
 				t.Fatalf("quota call: %q %v", call.ua, call.body)
 			}
 		}

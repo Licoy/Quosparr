@@ -1,0 +1,61 @@
+{
+  "groups": [
+    {
+      "displayName": "Gemini Models",
+      "description": "Models within this group: Gemini 4 Hydrogen, Gemini 3.8 Flash",
+      "buckets": [
+        {
+          "bucketId": "gemini-weekly",
+          "displayName": "Weekly Limit Remaining",
+          "description": "You have used some of your weekly limit, it will fully refresh in 6 days.",
+          "window": "weekly",
+          "remainingFraction": 0.87981594,
+          "resetTime": "2026-11-23T01:43:47Z"
+        },
+        {
+          "bucketId": "gemini-5h",
+          "displayName": "Five Hour Limit Remaining",
+          "description": "You have used some of your 5-hour limit, it will fully refresh in 4 hours, 23 minutes.",
+          "window": "5h",
+          "remainingFraction": 0.9899333,
+          "resetTime": "2026-11-17T05:54:47Z"
+        }
+      ]
+    },
+    {
+      "displayName": "Claude and GPT models",
+      "description": "Models within this group: Claude Opus 5.5, Claude Sonnet 5.5, GPT-OSS 120B",
+      "buckets": [
+        {
+          "bucketId": "3p-weekly",
+          "displayName": "Weekly Limit Remaining",
+          "window": "weekly",
+          "remainingFraction": 1,
+          "resetTime": "2026-11-24T01:30:47Z"
+        },
+        {
+          "bucketId": "3p-5h",
+          "displayName": "Five Hour Limit Remaining",
+          "window": "5h",
+          "remainingFraction": 1,
+          "resetTime": "2026-11-17T06:30:47Z"
+        }
+      ]
+    },
+    {
+      "displayName": "Gemini 4 Argon",
+      "description": "For paid Pro plans, Argon quota is separate. Higher Argon quota (included as part of the larger Gemini quota bucket) is available on Ultra plans.",
+      "buckets": [
+        {
+          "bucketId": "gemini-argon-wtu-weekly",
+          "displayName": "Gemini 4 Argon Weekly Limit",
+          "description": "You have used some of your weekly limit, it will fully refresh in 6 days, 6 hours.",
+          "window": "weekly",
+          "remainingFraction": 0.47933266,
+          "resetTime": "2026-11-23T07:59:09Z"
+        }
+      ]
+    }
+  ],
+  "description": "Within each group, models share a weekly limit and a 5-hour limit. Quota is consumed proportionally to the cost of the tokens. Thus, limits will last longer with shorter tasks or using more cost-effective models. The 5-hour limit smooths out aggregate demand to fairly distribute global capacity across all users, while your weekly limit is tied directly to your individual tier."
+}

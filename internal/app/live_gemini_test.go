@@ -87,6 +87,7 @@ func TestGeminiStateOrdersQuotaWindowsAndKeepsCredits(t *testing.T) {
 			{ID: "x", Family: gemini.FamilyOther, DisplayName: "Other", RemainingFraction: 0.9},
 			{ID: "cw", Family: gemini.FamilyClaude, Window: gemini.WindowWeekly, RemainingFraction: 0.8},
 			{ID: "gw", Family: gemini.FamilyGemini, Window: gemini.WindowWeekly, RemainingFraction: 0.6},
+			{ID: "gemini-argon-wtu-weekly", Family: gemini.FamilyArgon, Group: "Gemini 4 Argon", Window: gemini.WindowWeekly, RemainingFraction: 0.48, ResetAt: &reset},
 			{ID: "g5", Family: gemini.FamilyGemini, Window: gemini.WindowFiveHour, RemainingFraction: 0.25, ResetAt: &reset},
 		},
 		Models:    []gemini.ModelQuota{{ID: "m", DisplayName: "Gemini 3 Pro", RemainingFraction: &half}},
@@ -105,12 +106,18 @@ func TestGeminiStateOrdersQuotaWindowsAndKeepsCredits(t *testing.T) {
 	for _, m := range st.Meters {
 		titles = append(titles, m.Title)
 	}
-	want := []string{"Gemini · 5-hour", "Gemini · Weekly", "Claude · Weekly", "Other"}
+	want := []string{"Gemini · 5-hour", "Gemini · Weekly", "Claude · Weekly", "Gemini 4 Argon · Weekly", "Other"}
 	if strings.Join(titles, "|") != strings.Join(want, "|") {
 		t.Fatalf("meters = %q, want %q", titles, want)
 	}
 	if st.Meters[0].Source != runway.SourceStandard || st.Meters[2].Source != runway.SourceModelSpecific || st.Meters[0].UsedPercent != 75 {
 		t.Fatalf("first meters: %+v %+v", st.Meters[0], st.Meters[2])
+	}
+	if argon := st.Meters[3]; argon.UsedPercent != 52 || argon.Source != runway.SourceModelSpecific || !argon.ResetsAt.Equal(reset) {
+		t.Fatalf("Argon meter = %+v", argon)
+	}
+	if len(st.AccountQuotas["a"].Meters) != len(st.Meters) || len(geminiWidget(st).Quota) != len(st.Meters) {
+		t.Fatal("account and widget must retain the independent Argon quota")
 	}
 	q := st.AccountQuotas["a"]
 	if len(q.Details) != 1 || q.Details[0].Value != "25" || q.Title != "Gemini · 5-hour" {

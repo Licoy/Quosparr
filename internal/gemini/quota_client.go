@@ -176,9 +176,11 @@ func (c *QuotaClient) assistHeaders(version string) http.Header {
 	return h
 }
 
+// quotaHeaders identifies the desktop hub subclient: Cloud Code filters
+// model visibility and quota pools by this identity.
 func (c *QuotaClient) quotaHeaders(version string) http.Header {
 	h := http.Header{}
-	h.Set("User-Agent", "antigravity/"+version+" (aidev_client; os_type="+clientOS(c.goos())+"; arch="+clientArch(c.goarch())+")")
+	h.Set("User-Agent", "antigravity/hub/"+version+" (aidev_client; os_type="+clientOS(c.goos())+"; arch="+clientArch(c.goarch())+")")
 	return h
 }
 
