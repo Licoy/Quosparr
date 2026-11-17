@@ -180,8 +180,12 @@ func TestClosingPricingModalKeepsManualSyncRunning(t *testing.T) {
 	if u.pricing.syncSettings || ctx.Err() != nil || !u.pricing.task.Running {
 		t.Fatal("modal close canceled the sync")
 	}
+	// Another UI callback may run before the refresh completion.
+	queue <- func() {}
 	close(release)
-	finishDetail(t, queue)
+	for u.pricing.task.Running {
+		finishDetail(t, queue)
+	}
 	tt.Frame()
 	if u.pricing.task.Running || u.pricing.task.Err != nil {
 		t.Fatal("sync did not complete after modal closed")
