@@ -176,9 +176,11 @@ func (c *QuotaClient) assistHeaders(version string) http.Header {
 	return h
 }
 
+// quotaHeaders identifies the desktop hub subclient: Cloud Code filters
+// model visibility and quota pools by this identity.
 func (c *QuotaClient) quotaHeaders(version string) http.Header {
 	h := http.Header{}
-	h.Set("User-Agent", "antigravity/"+version+" (aidev_client; os_type="+clientOS(c.goos())+"; arch="+clientArch(c.goarch())+")")
+	h.Set("User-Agent", "antigravity/hub/"+version+" (aidev_client; os_type="+clientOS(c.goos())+"; arch="+clientArch(c.goarch())+")")
 	return h
 }
 
@@ -337,7 +339,6 @@ type summaryResponse struct {
 		Name        string `json:"name"`
 		Buckets     []struct {
 			BucketID          string   `json:"bucketId"`
-			Window            string   `json:"window"`
 			DisplayName       string   `json:"displayName"`
 			RemainingFraction *float64 `json:"remainingFraction"`
 			ResetTime         string   `json:"resetTime"`
@@ -370,7 +371,7 @@ func parseQuotaSummary(raw []byte) ([]QuotaBucket, error) {
 			if b.RemainingFraction != nil {
 				fraction = *b.RemainingFraction
 			}
-			out = append(out, bucketFrom(id, group, trimSpace(b.DisplayName), b.Window, fraction, parseResetTime(b.ResetTime)))
+			out = append(out, bucketFrom(id, group, trimSpace(b.DisplayName), fraction, parseResetTime(b.ResetTime)))
 		}
 	}
 	return out, nil

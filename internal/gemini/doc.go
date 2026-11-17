@@ -67,9 +67,11 @@
 // paidTier.id, else currentTier.id: "ultra" in it is Ultra, "pro" is Pro,
 // anything else Free, nothing Unknown.
 //
-// Quota buckets retain independent Gemini and Gemini 4 Argon pools. Argon
-// is identified by its bucket id or group/display name; an explicit window
-// takes precedence over legacy bucket-id window aliases.
+// Quota summary and model-list requests identify the desktop subclient as
+// "antigravity/hub/<version>". Cloud Code filters the returned quota pools
+// and models by this identity; omitting "hub" can hide the independent
+// Gemini 4 Argon pool of Pro accounts. Pools follow the service response;
+// accounts with a shared Gemini pool do not get a synthetic Argon bucket.
 //
 // # Local sessions
 //

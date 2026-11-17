@@ -87,7 +87,7 @@ func TestGeminiStateOrdersQuotaWindowsAndKeepsCredits(t *testing.T) {
 			{ID: "x", Family: gemini.FamilyOther, DisplayName: "Other", RemainingFraction: 0.9},
 			{ID: "cw", Family: gemini.FamilyClaude, Window: gemini.WindowWeekly, RemainingFraction: 0.8},
 			{ID: "gw", Family: gemini.FamilyGemini, Window: gemini.WindowWeekly, RemainingFraction: 0.6},
-			{ID: "gw", Family: gemini.FamilyArgon, Group: "Gemini 4 Argon", Window: gemini.WindowWeekly, RemainingFraction: 0.48, ResetAt: &reset},
+			{ID: "gemini-argon-wtu-weekly", Family: gemini.FamilyArgon, Group: "Gemini 4 Argon", Window: gemini.WindowWeekly, RemainingFraction: 0.48, ResetAt: &reset},
 			{ID: "g5", Family: gemini.FamilyGemini, Window: gemini.WindowFiveHour, RemainingFraction: 0.25, ResetAt: &reset},
 		},
 		Models:    []gemini.ModelQuota{{ID: "m", DisplayName: "Gemini 3 Pro", RemainingFraction: &half}},

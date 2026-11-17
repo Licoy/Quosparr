@@ -25,7 +25,7 @@ func geminiQuotaFixture(t *testing.T, l l10n.Localizer, now time.Time) (codex.Ma
 		Buckets: []gemini.QuotaBucket{
 			{ID: "g5", Family: gemini.FamilyGemini, Window: gemini.WindowFiveHour, RemainingFraction: 0.51, ResetAt: &short},
 			{ID: "gw", Family: gemini.FamilyGemini, Window: gemini.WindowWeekly, RemainingFraction: 0.39, ResetAt: &long},
-			{ID: "gw", Family: gemini.FamilyArgon, Group: "Gemini 4 Argon", Window: gemini.WindowWeekly, RemainingFraction: 0.48, ResetAt: &long},
+			{ID: "gemini-argon-wtu-weekly", Family: gemini.FamilyArgon, Group: "Gemini 4 Argon", Window: gemini.WindowWeekly, RemainingFraction: 0.48, ResetAt: &long},
 		},
 		Credits:   []gemini.Credit{{Type: "GOOGLE_ONE_AI", Amount: 25}},
 		UpdatedAt: now,

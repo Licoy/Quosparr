@@ -153,29 +153,21 @@ func withValidation(cached json.RawMessage, v Validation, now time.Time) (json.R
 	return MarshalQuotaSnapshot(s)
 }
 
-// bucketFrom classifies a quota pool using both its id and its group. Argon
-// is independent of the general Gemini pool even when a group reuses a
-// Gemini bucket id. Unknown ids keep their display name.
-func bucketFrom(id, group, displayName, window string, fraction float64, reset *time.Time) QuotaBucket {
+// bucketFrom classifies a bucket id. Unknown ids keep their display name
+// and fall into FamilyOther, with the window guessed from the id.
+func bucketFrom(id, group, displayName string, fraction float64, reset *time.Time) QuotaBucket {
 	b := QuotaBucket{ID: id, Group: group, DisplayName: displayName, RemainingFraction: clampFraction(fraction), ResetAt: reset}
 	if known, ok := knownBuckets[strings.ToLower(id)]; ok {
 		b.Family, b.Window = known[0], known[1]
-	} else {
-		b.Family = FamilyOther
+		return b
 	}
-	if strings.Contains(strings.ToLower(id+" "+group+" "+displayName), "argon") {
-		b.Family = FamilyArgon
-	}
-	if window = strings.ToLower(trimSpace(window)); window != "" {
-		b.Window = window
-	} else if b.Window == "" {
-		lower := strings.ToLower(id)
-		switch {
-		case strings.Contains(lower, "5h"):
-			b.Window = WindowFiveHour
-		case strings.Contains(lower, "weekly"):
-			b.Window = WindowWeekly
-		}
+	lower := strings.ToLower(id)
+	b.Family = FamilyOther
+	switch {
+	case strings.Contains(lower, "5h"):
+		b.Window = WindowFiveHour
+	case strings.Contains(lower, "weekly"):
+		b.Window = WindowWeekly
 	}
 	return b
 }
