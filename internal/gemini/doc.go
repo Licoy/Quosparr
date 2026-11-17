@@ -67,6 +67,10 @@
 // paidTier.id, else currentTier.id: "ultra" in it is Ultra, "pro" is Pro,
 // anything else Free, nothing Unknown.
 //
+// Quota buckets retain independent Gemini and Gemini 4 Argon pools. Argon
+// is identified by its bucket id or group/display name; an explicit window
+// takes precedence over legacy bucket-id window aliases.
+//
 // # Local sessions
 //
 // SessionScanner reads the conversations of the desktop App

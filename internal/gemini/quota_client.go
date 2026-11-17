@@ -337,6 +337,7 @@ type summaryResponse struct {
 		Name        string `json:"name"`
 		Buckets     []struct {
 			BucketID          string   `json:"bucketId"`
+			Window            string   `json:"window"`
 			DisplayName       string   `json:"displayName"`
 			RemainingFraction *float64 `json:"remainingFraction"`
 			ResetTime         string   `json:"resetTime"`
@@ -369,7 +370,7 @@ func parseQuotaSummary(raw []byte) ([]QuotaBucket, error) {
 			if b.RemainingFraction != nil {
 				fraction = *b.RemainingFraction
 			}
-			out = append(out, bucketFrom(id, group, trimSpace(b.DisplayName), fraction, parseResetTime(b.ResetTime)))
+			out = append(out, bucketFrom(id, group, trimSpace(b.DisplayName), b.Window, fraction, parseResetTime(b.ResetTime)))
 		}
 	}
 	return out, nil

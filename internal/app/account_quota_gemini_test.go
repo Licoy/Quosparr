@@ -14,7 +14,8 @@ import (
 )
 
 // geminiQuotaFixture is one Pro account with a 5-hour and a weekly Gemini
-// window and a credit balance, read through the bridge like the live app.
+// window, an independent Argon week and a credit balance, read through
+// the bridge like the live app.
 func geminiQuotaFixture(t *testing.T, l l10n.Localizer, now time.Time) (codex.ManagedAccount, runway.GeminiState) {
 	t.Helper()
 	mod := geminiTestModule(t)
@@ -24,6 +25,7 @@ func geminiQuotaFixture(t *testing.T, l l10n.Localizer, now time.Time) (codex.Ma
 		Buckets: []gemini.QuotaBucket{
 			{ID: "g5", Family: gemini.FamilyGemini, Window: gemini.WindowFiveHour, RemainingFraction: 0.51, ResetAt: &short},
 			{ID: "gw", Family: gemini.FamilyGemini, Window: gemini.WindowWeekly, RemainingFraction: 0.39, ResetAt: &long},
+			{ID: "gw", Family: gemini.FamilyArgon, Group: "Gemini 4 Argon", Window: gemini.WindowWeekly, RemainingFraction: 0.48, ResetAt: &long},
 		},
 		Credits:   []gemini.Credit{{Type: "GOOGLE_ONE_AI", Amount: 25}},
 		UpdatedAt: now,
@@ -72,7 +74,7 @@ func TestGeminiAccountRowsShowQuotaAndControls(t *testing.T) {
 						renderGeminiAccountRow(c, u, &accountForm{}, rt, acc, rowPlace{}, "one", false)
 					})
 				}, width, 700)
-				for _, want := range []string{"51% " + l.Text(l10n.KeyLeft), "39% " + l.Text(l10n.KeyLeft), "25", l.Text(l10n.KeyRefresh)} {
+				for _, want := range []string{"51% " + l.Text(l10n.KeyLeft), "39% " + l.Text(l10n.KeyLeft), "48% " + l.Text(l10n.KeyLeft), "Gemini 4 Argon · " + l.Text(l10n.KeyWeeklyUsage), "25", l.Text(l10n.KeyRefresh)} {
 					if !hasExact(tt, want) {
 						t.Fatalf("missing %q in %q", want, tt.Texts())
 					}

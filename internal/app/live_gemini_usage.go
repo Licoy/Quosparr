@@ -67,7 +67,7 @@ func geminiBucketTitle(lc l10n.Localizer, b gemini.QuotaBucket) string {
 	case gemini.FamilyClaude:
 		family = "Claude"
 	case gemini.FamilyArgon:
-		family = "Argon"
+		family = "Gemini 4 Argon"
 	default:
 		if b.DisplayName != "" {
 			return b.DisplayName
