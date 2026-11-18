@@ -442,8 +442,7 @@ func TestPanelSpeedCardKeepsFiguresWhenNarrow(t *testing.T) {
 	}
 }
 
-// A tiered report marks Fast and standard rows and explains the split; the
-// plain fixture has neither.
+// A tiered report labels each known tier and explains the split.
 func TestPanelSpeedDetailMarksTiers(t *testing.T) {
 	l := l10n.New(l10n.English)
 	plain := speedFixture()
@@ -459,11 +458,16 @@ func TestPanelSpeedDetailMarksTiers(t *testing.T) {
 	r.Tiered = true
 	r.Groups[0].Tier = speed.TierFast
 	r.Groups[1].Tier = speed.TierStandard
+	r.Groups[2].Tier = speed.TierUltrafast
+	r.Sessions[0].Groups[0].Tier = speed.TierUltrafast
 	_, tt = speedPanel(t, nil, speedSnapshot(r), PanelActions{})
+	if !hasExact(tt, "gpt-5.4-mini · Ultrafast") {
+		t.Fatalf("speed card missing Ultrafast; texts %q", tt.Texts())
+	}
 	if err := tt.Click(l.Text(l10n.KeyShowDetails)); err != nil {
 		t.Fatal(err)
 	}
-	for _, text := range []string{"gpt-5.5 high · Fast", "gpt-5.5 medium · Standard", "gpt-5.4-mini", tx(l, xSpeedInfoTier)} {
+	for _, text := range []string{"gpt-5.5 high · Fast", "gpt-5.5 medium · Standard", "gpt-5.4-mini · Ultrafast", "gpt-5.5 high · Ultrafast", tx(l, xSpeedInfoTier)} {
 		if !hasExact(tt, text) {
 			t.Fatalf("tiered detail missing %q; texts %q", text, tt.Texts())
 		}

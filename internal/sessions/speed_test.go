@@ -123,13 +123,15 @@ func TestScanSpeedFileTracksServiceTier(t *testing.T) {
 	turn(0) // before any settings line: unknown
 	l.settings(9, "priority")
 	turn(10)
-	l.settings(19, "default")
+	l.settings(19, "ultrafast")
 	turn(20)
-	l.settings(29, "flex")
+	l.settings(29, "default")
 	turn(30)
+	l.settings(39, "flex")
+	turn(40)
 
 	samples := scanOneFile(t, l)
-	want := []speed.Tier{speed.TierUnknown, speed.TierFast, speed.TierStandard, speed.TierUnknown}
+	want := []speed.Tier{speed.TierUnknown, speed.TierFast, speed.TierUltrafast, speed.TierStandard, speed.TierUnknown}
 	if len(samples) != len(want) {
 		t.Fatalf("samples = %+v", samples)
 	}

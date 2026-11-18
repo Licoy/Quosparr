@@ -23,6 +23,8 @@ const (
 	TierStandard Tier = "standard"
 	// TierFast is the paid faster tier (Codex priority, Claude fast mode).
 	TierFast Tier = "fast"
+	// TierUltrafast is the Codex ultrafast tier.
+	TierUltrafast Tier = "ultrafast"
 )
 
 // Sample is one measurement of a model call. Codex logs a full sample per
@@ -100,9 +102,8 @@ type Report struct {
 	// NoTTFT marks a source whose logs have no first-token time, so the
 	// views leave the TTFT and call count columns out.
 	NoTTFT bool
-	// Tiered marks a report with at least one fast sample: only then are the
-	// tiers told apart, so a source that never ran fast keeps one row per
-	// model and effort.
+	// Tiered marks a report that groups calls by tier because it has at least
+	// one Fast or Ultrafast sample.
 	Tiered bool
 	// From and To bound the samples; CalculatedAt is when the report was built.
 	From, To     time.Time

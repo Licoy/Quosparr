@@ -274,12 +274,13 @@ func (c *speedCursor) sample(end time.Time, outputTokens int64) (speed.Sample, b
 	return s, s.HasTTFT || s.Decode > 0
 }
 
-// codexTier maps a Codex service tier: "priority" is fast mode, "default" the
-// standard tier; anything else, flex included, is not compared.
+// codexTier maps the service tiers used by the speed report.
 func codexTier(v string) speed.Tier {
 	switch v {
 	case "priority", "fast":
 		return speed.TierFast
+	case "ultrafast":
+		return speed.TierUltrafast
 	case "default":
 		return speed.TierStandard
 	}

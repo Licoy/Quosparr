@@ -121,6 +121,7 @@ const (
 	xSpeedEmpty                   textKey = "speedAnalysisEmpty"
 	xSpeedRange                   textKey = "speedAnalysisRange"
 	xSpeedTierFast                textKey = "speedAnalysisTierFast"
+	xSpeedTierUltrafast           textKey = "speedAnalysisTierUltrafast"
 	xSpeedTierStandard            textKey = "speedAnalysisTierStandard"
 	xSpeedInfoTier                textKey = "speedAnalysisInfoTier"
 	xLegacyRunningTitle           textKey = "legacyRunningTitle"
@@ -480,16 +481,17 @@ var extraTexts = map[textKey][7]string{
 		"Samples from %@ to %@", "样本时间：%@ 至 %@", "樣本時間：%@ 至 %@", "표본 기간: %@ ~ %@",
 		"サンプル期間: %@ ～ %@", "Период выборки: %@ — %@", "Échantillons du %@ au %@",
 	},
-	xSpeedTierFast:     {"Fast", "Fast", "Fast", "Fast", "Fast", "Fast", "Fast"},
-	xSpeedTierStandard: {"Standard", "标准", "標準", "표준", "標準", "Стандарт", "Standard"},
+	xSpeedTierFast:      {"Fast", "Fast", "Fast", "Fast", "Fast", "Fast", "Fast"},
+	xSpeedTierUltrafast: {"Ultrafast", "Ultrafast", "Ultrafast", "Ultrafast", "Ultrafast", "Ultrafast", "Ultrafast"},
+	xSpeedTierStandard:  {"Standard", "标准", "標準", "표준", "標準", "Стандарт", "Standard"},
 	xSpeedInfoTier: {
-		"Once a Fast call falls in the range, Fast and standard calls are listed separately; calls whose log does not record the tier stay unmarked. Speed also depends on load and time of day, so treat the comparison as a rough guide.",
-		"统计范围内出现 Fast 调用时，Fast 与标准档分行列出；日志未记录档位的调用不加标记。速率还受负载与时段影响，对比仅供参考。",
-		"統計範圍內出現 Fast 呼叫時，Fast 與標準檔分行列出；記錄未標示檔位的呼叫不加標記。速率也受負載與時段影響，比較僅供參考。",
-		"범위 안에 Fast 호출이 있으면 Fast와 표준 호출을 따로 표시하며, 로그에 등급이 기록되지 않은 호출에는 표시를 붙이지 않습니다. 속도는 부하와 시간대의 영향도 받으므로 비교는 참고용입니다.",
-		"範囲内に Fast の呼び出しがあると、Fast と標準を別々の行に表示し、ログに区分がない呼び出しには表示を付けません。速度は負荷や時間帯にも左右されるため、比較は目安です。",
-		"Если в периоде есть вызовы Fast, они показываются отдельно от стандартных; вызовы без указания режима в логе не помечаются. Скорость зависит также от нагрузки и времени суток, поэтому сравнение приблизительное.",
-		"Dès qu’un appel Fast figure dans la période, les appels Fast et standard sont listés séparément ; ceux dont le journal n’indique pas le niveau ne sont pas marqués. La vitesse dépend aussi de la charge et de l’heure : la comparaison reste indicative.",
+		"When the range includes calls on a faster tier, calls are listed by tier. Labels reflect the tier recorded in the log. Speed also depends on load and time of day, so treat the comparison as a rough guide.",
+		"统计范围内出现加速档调用时，按档位分行统计，标签取自日志记录。速率还受负载与时段影响，对比仅供参考。",
+		"統計範圍內出現加速檔呼叫時，依檔位分行統計，標籤取自日誌記錄。速率也受負載與時段影響，比較僅供參考。",
+		"범위 안에 가속 등급의 호출이 있으면 등급별로 나누어 표시합니다. 라벨은 로그에 기록된 등급을 나타냅니다. 속도는 부하와 시간대의 영향도 받으므로 비교는 참고용입니다.",
+		"範囲内に高速ティアの呼び出しがある場合は、ティアごとに集計します。ラベルはログに記録されたティアを示します。速度は負荷や時間帯にも左右されるため、比較は目安です。",
+		"Если за выбранный период были вызовы в ускоренном режиме, данные группируются по режиму. Метки соответствуют записи в журнале. Скорость также зависит от нагрузки и времени суток, поэтому сравнение приблизительное.",
+		"Si la période comprend des appels en mode accéléré, les appels sont regroupés par mode. Les libellés correspondent au mode consigné dans le journal. La vitesse dépend aussi de la charge et de l’heure, donc la comparaison reste indicative.",
 	},
 	xAccountCount: {
 		"%@ accounts", "%@ 个账号", "%@ 個帳號", "계정 %@개", "%@ アカウント", "Аккаунтов: %@", "%@ comptes",

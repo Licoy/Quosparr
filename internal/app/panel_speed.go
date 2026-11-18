@@ -100,9 +100,7 @@ func speedGroupRow(c *ui.Context, l l10n.Localizer, s speed.Stat, first, ttft bo
 	})
 }
 
-// speedModelCell is the model name followed by its reasoning effort in dim
-// ink and its tier, Fast in purple, on one line that ends in an ellipsis when
-// it does not fit.
+// speedModelCell shows the model, reasoning effort and tier on one line.
 func speedModelCell(c *ui.Context, l l10n.Localizer, s speed.Stat) {
 	t := c.Theme()
 	name := speedModelName(l, s.Model)
@@ -112,11 +110,19 @@ func speedModelCell(c *ui.Context, l l10n.Localizer, s speed.Stat) {
 		name += " " + s.Effort
 	}
 	if tier := speedTierLabel(l, s.Tier); tier != "" {
-		color := inkSecondary(t)
-		if s.Tier == speed.TierFast {
-			color = sys(t, sysPurple)
+		stops := []ui.Color{inkSecondary(t)}
+		switch s.Tier {
+		case speed.TierFast:
+			stops[0] = sys(t, sysPurple)
+		case speed.TierUltrafast:
+			stops = pick(!t.Dark,
+				[]ui.Color{ui.Hex("#B21C36"), ui.Hex("#946200")},
+				[]ui.Color{ui.Hex("#FF6466"), ui.Hex("#FFD074")},
+			)
 		}
-		spans = append(spans, ui.Span{Text: " · " + tier, Size: fsCallout, Weight: 500, Color: color})
+		tierSpans := gradientSpans(tier, stops, fsCallout, 500)
+		tierSpans[0].Text = " · " + tierSpans[0].Text
+		spans = append(spans, tierSpans...)
 		name += " · " + tier
 	}
 	ui.RichText(c, spans...).SingleLine().Ellipsis("…").Grow(1).Basis(0).Tooltip(name)
@@ -127,6 +133,8 @@ func speedTierLabel(l l10n.Localizer, tier speed.Tier) string {
 	switch tier {
 	case speed.TierFast:
 		return tx(l, xSpeedTierFast)
+	case speed.TierUltrafast:
+		return tx(l, xSpeedTierUltrafast)
 	case speed.TierStandard:
 		return tx(l, xSpeedTierStandard)
 	}

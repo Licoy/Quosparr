@@ -195,6 +195,7 @@ func TestBuildSplitsTiersNextToEachOther(t *testing.T) {
 		ttft(at, "big", "high", 4*time.Second),
 		tiered(ttft(at, "big", "high", 3*time.Second), TierStandard),
 		tiered(output(at, "big", "high", 100, time.Second), TierFast),
+		tiered(ttft(at, "big", "high", time.Second), TierUltrafast),
 	)
 	for i := 0; i < 5; i++ {
 		samples = append(samples, tiered(ttft(at, "mid", "", time.Second), TierStandard))
@@ -207,9 +208,9 @@ func TestBuildSplitsTiersNextToEachOther(t *testing.T) {
 	for _, g := range r.Groups {
 		got = append(got, g.Model+"/"+string(g.Tier))
 	}
-	// big leads with 6 samples although each of its tiers has fewer than the 5
-	// of mid; inside it the tiers go standard, fast, unknown.
-	want := []string{"big/standard", "big/fast", "big/", "mid/standard"}
+	// big leads by total samples even though each of its tiers has fewer
+	// samples than mid.
+	want := []string{"big/standard", "big/fast", "big/ultrafast", "big/", "mid/standard"}
 	if len(got) != len(want) {
 		t.Fatalf("groups = %v, want %v", got, want)
 	}
@@ -221,7 +222,19 @@ func TestBuildSplitsTiersNextToEachOther(t *testing.T) {
 	if fast := r.Groups[1]; fast.Calls != 3 || fast.TPS() != 100 {
 		t.Fatalf("fast = %+v", fast)
 	}
-	if g := r.Sessions[0].Groups; len(g) != 4 || g[1].Tier != TierFast {
+	if g := r.Sessions[0].Groups; len(g) != 5 || g[1].Tier != TierFast || g[2].Tier != TierUltrafast {
 		t.Fatalf("session groups = %+v", g)
+	}
+}
+
+func TestBuildUltrafastEnablesTiersWithoutFast(t *testing.T) {
+	at := testNow.Add(-time.Hour)
+	r := Build([]Session{{ID: "s", Samples: []Sample{
+		tiered(ttft(at, "m", "high", 2*time.Second), TierStandard),
+		tiered(output(at, "m", "high", 100, time.Second), TierUltrafast),
+	}}}, testNow)
+	if !r.Tiered || len(r.Groups) != 2 || r.Groups[0].Tier != TierStandard ||
+		r.Groups[1].Tier != TierUltrafast || r.Groups[1].TPS() != 100 {
+		t.Fatalf("report = %+v", r)
 	}
 }

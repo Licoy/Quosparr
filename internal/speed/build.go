@@ -16,15 +16,17 @@ type groupKey struct {
 // listed together so that they can be compared.
 func (k groupKey) family() [2]string { return [2]string{k.model, k.effort} }
 
-// tierRank orders the tiers inside a family: standard, fast, then unknown.
+// tierRank orders the tiers inside a family: Standard, Fast, Ultrafast, Unknown.
 func tierRank(t Tier) int {
 	switch t {
 	case TierStandard:
 		return 0
 	case TierFast:
 		return 1
+	case TierUltrafast:
+		return 2
 	}
-	return 2
+	return 3
 }
 
 // acc collects the raw numbers of one group before they become a Stat.
@@ -138,10 +140,10 @@ func addTo(groups map[groupKey]*acc, s Sample) {
 // Build turns the sessions' samples into a report. Samples without a model, or
 // older than Window before now, or after now, are dropped, as are samples with
 // nothing to measure; a session left without samples is not listed. Without
-// any fast sample the tiers are not told apart.
+// any Fast or Ultrafast sample the tiers are not told apart.
 func Build(sessions []Session, now time.Time) Report {
 	from := now.Add(-Window)
-	tiered := hasFast(sessions, from, now)
+	tiered := hasAcceleratedSample(sessions, from, now)
 	all := map[groupKey]*acc{}
 	var kept []sessionAcc
 	var first, last time.Time
@@ -178,11 +180,10 @@ func Build(sessions []Session, now time.Time) Report {
 	}
 }
 
-// hasFast reports whether any usable sample ran at the fast tier.
-func hasFast(sessions []Session, from, to time.Time) bool {
+func hasAcceleratedSample(sessions []Session, from, to time.Time) bool {
 	for _, session := range sessions {
 		for _, raw := range session.Samples {
-			if _, ok := usable(raw, from, to); ok && raw.Tier == TierFast {
+			if _, ok := usable(raw, from, to); ok && (raw.Tier == TierFast || raw.Tier == TierUltrafast) {
 				return true
 			}
 		}
