@@ -235,9 +235,13 @@ func TestSettingsSessionsListAndDetailRender(t *testing.T) {
 			t.Fatalf("list missing %q; texts %q", text, tt.Texts())
 		}
 	}
+	// Another UI callback can arrive before the preview completion.
+	queue <- func() {}
 	u.sessions.open = sessionKey(u.sessions.items[0])
 	tt.Frame()
-	finishDetail(t, queue)
+	for u.sessions.detail.task.Running {
+		finishDetail(t, queue)
+	}
 	tt.Frame()
 	for _, text := range []string{tx(u.L(), xSessionsPreview), tx(u.L(), xSessionsRoleUser), "Please review the release", tx(u.L(), xSessionsPreviewTruncated), "gpt-6", tx(u.L(), xSessionsCacheHitRate), "44.4%"} {
 		if !tt.HasText(text) {
