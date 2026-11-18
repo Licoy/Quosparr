@@ -10,6 +10,7 @@ import (
 
 	"github.com/licoy/quosparr/internal/l10n"
 	"github.com/licoy/quosparr/internal/resettoday"
+	"github.com/licoy/quosparr/internal/testzone"
 )
 
 // The frozen fixture comes from the Swift releases' core; only
@@ -122,7 +123,7 @@ func TestDetailAndNoneHintMatchSwift(t *testing.T) {
 		if c.DecodeError || len(c.Probes) == 0 {
 			continue
 		}
-		loc, err := time.LoadLocation(c.Zone)
+		loc, err := testzone.LoadLocation(c.Zone)
 		if err != nil {
 			t.Fatal(err)
 		}

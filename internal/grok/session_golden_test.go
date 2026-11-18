@@ -14,6 +14,7 @@ import (
 	"time"
 	_ "time/tzdata"
 
+	"github.com/licoy/quosparr/internal/testzone"
 	"github.com/licoy/quosparr/internal/usage"
 	"github.com/licoy/quosparr/internal/usage/decimal"
 )
@@ -207,7 +208,7 @@ func TestSessionScanMatchesSwift(t *testing.T) {
 				t.Fatal(err)
 			}
 		}
-		loc, err := time.LoadLocation(sp.TZ)
+		loc, err := testzone.LoadLocation(sp.TZ)
 		if err != nil {
 			t.Fatal(err)
 		}

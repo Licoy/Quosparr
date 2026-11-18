@@ -10,6 +10,7 @@ import (
 
 	"github.com/licoy/quosparr/internal/export/swiftjson"
 	"github.com/licoy/quosparr/internal/l10n"
+	"github.com/licoy/quosparr/internal/testzone"
 )
 
 // swiftCase is one feed evaluated by the Swift releases' core in one time
@@ -148,7 +149,7 @@ func TestSwiftDifferential(t *testing.T) {
 	cases := loadSwiftCases(t)
 	var probes, decodeErrors int
 	for _, c := range cases {
-		loc, err := time.LoadLocation(c.Zone)
+		loc, err := testzone.LoadLocation(c.Zone)
 		if err != nil {
 			t.Fatal(err)
 		}
