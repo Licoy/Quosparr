@@ -25,11 +25,13 @@ type Doer interface {
 	Do(*http.Request) (*http.Response, error)
 }
 
-// Probe asks the site for its balance. Requests of one round run in parallel;
-// when the first round finds nothing better than a dashboard estimate, a
-// second round tries the origin without /v1. The whole probe is bounded by
-// 8 seconds and ctx. The key is trimmed and sent only as a Bearer token; it is
-// redacted from the result. An empty key is reported as unsupported.
+// Probe asks the site for its balance. The official DeepSeek API has its own
+// balance endpoint and is asked there only; every other site uses the billing
+// endpoints, in parallel, with a second round at the origin without /v1 when
+// the first finds nothing better than a dashboard estimate. The whole probe is
+// bounded by 8 seconds and ctx. The key is trimmed and sent only as a Bearer
+// token; it is redacted from the result. An empty key is reported as
+// unsupported.
 func Probe(ctx context.Context, client Doer, baseURL, apiKey string, now time.Time) Quota {
 	if now.IsZero() {
 		now = time.Now()
@@ -60,6 +62,11 @@ type prober struct {
 }
 
 func (p prober) run(ctx context.Context, openAIBase string) Quota {
+	if balanceURL, ok := deepSeekBalanceURL(openAIBase); ok {
+		r := round{deepSeekURL: balanceURL}
+		r.deepSeek = p.fetch(ctx, balanceURL, expectDeepSeekBalance, true)
+		return p.finish(r)
+	}
 	first := p.finish(p.fetchRound(ctx, openAIBase, publicAPIBases(openAIBase), true))
 	if !needsFallback(first) {
 		return first

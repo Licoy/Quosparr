@@ -3,15 +3,18 @@ package apiquota
 import "time"
 
 // round holds the answers of one probe round: the billing endpoints under one
-// API root plus the optional public token and status endpoints.
+// API root with the optional public token and status endpoints, or the DeepSeek
+// balance endpoint.
 type round struct {
-	urls     billingURLs
-	tokenURL string
-	grants   hit
-	sub      hit
-	usage    hit
-	token    hit
-	status   hit
+	urls        billingURLs
+	tokenURL    string
+	deepSeekURL string
+	grants      hit
+	sub         hit
+	usage       hit
+	token       hit
+	status      hit
+	deepSeek    hit
 }
 
 // firstInvalid remembers the first inconsistency so it can be reported when
@@ -44,13 +47,20 @@ func (r round) normalizeToken() hit {
 	return hit{kind: hitToken, token: t}
 }
 
-// interpret picks the best quota of a round. Source priority is token usage,
-// credit grants, subscription with usage, subscription alone, usage alone.
-// The token hit must already be normalized (see normalizeToken).
+// interpret picks the best quota of a round. Source priority is DeepSeek
+// balance, token usage, credit grants, subscription with usage, subscription
+// alone, usage alone. The token hit must already be normalized (see
+// normalizeToken).
 func (r round) interpret(at time.Time) Quota {
 	var invalid firstInvalid
+	if r.deepSeek.kind == hitInvalidData {
+		invalid.keep(r.deepSeek.msg, r.deepSeekURL)
+	}
 	if r.token.kind == hitInvalidData {
 		invalid.keep(r.token.msg, r.tokenURL)
+	}
+	if q, ok := r.deepSeekQuota(&invalid, at); ok {
+		return q
 	}
 	if q, ok := r.tokenQuota(&invalid, at); ok {
 		return q
@@ -69,6 +79,23 @@ func (r round) subExpiry() int64 {
 		return r.sub.sub.expiresAt
 	}
 	return 0
+}
+
+// deepSeekQuota reads the official DeepSeek balance. It reports the remaining
+// amount only: DeepSeek does not publish a quota total, so there is no used
+// share to compute.
+func (r round) deepSeekQuota(invalid *firstInvalid, at time.Time) (Quota, bool) {
+	if r.deepSeek.kind != hitDeepSeekBalance {
+		return Quota{}, false
+	}
+	b := r.deepSeek.deepSeek
+	remaining := b.total
+	q, err := available(SourceDeepSeekBalance, &remaining, nil, nil, false, b.currency, 0, r.deepSeekURL, at)
+	if err != nil {
+		invalid.keep(err.Error(), r.deepSeekURL)
+		return Quota{}, false
+	}
+	return q, true
 }
 
 func (r round) tokenQuota(invalid *firstInvalid, at time.Time) (Quota, bool) {
@@ -143,7 +170,7 @@ func (r round) quiet(invalid firstInvalid, at time.Time) Quota {
 	if invalid.set {
 		return quiet(StatusInvalidData, invalid.msg, invalid.endpoint, at)
 	}
-	hits := [...]hit{r.grants, r.sub, r.usage, r.token}
+	hits := [...]hit{r.grants, r.sub, r.usage, r.token, r.deepSeek}
 	for _, h := range hits {
 		if h.kind == hitUnauthorized {
 			return quiet(StatusUnauthorized, "", "", at)

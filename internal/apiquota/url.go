@@ -161,3 +161,19 @@ func newBillingURLs(apiRoot string, now time.Time) billingURLs {
 func tokenUsageURL(origin string) string { return strings.TrimRight(origin, "/") + "/api/usage/token" }
 
 func quotaStatusURL(origin string) string { return strings.TrimRight(origin, "/") + "/api/status" }
+
+// deepSeekBalanceURL is the official DeepSeek balance endpoint when the base
+// URL points at api.deepseek.com. DeepSeek serves that endpoint from the site
+// origin, not from /v1, so both its OpenAI-compatible base and its Anthropic
+// path map to the same URL.
+func deepSeekBalanceURL(openAIBase string) (string, bool) {
+	origin, ok := siteOrigin(openAIBase)
+	if !ok {
+		return "", false
+	}
+	u, err := url.Parse(origin)
+	if err != nil || !strings.EqualFold(u.Hostname(), "api.deepseek.com") {
+		return "", false
+	}
+	return origin + "/user/balance", true
+}
