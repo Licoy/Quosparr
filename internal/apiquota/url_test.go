@@ -153,3 +153,24 @@ func TestUsageDateRangeIsMonthStartToTomorrow(t *testing.T) {
 		}
 	}
 }
+
+func TestDeepSeekBalanceURL(t *testing.T) {
+	tests := map[string]string{
+		"https://api.deepseek.com":                 "https://api.deepseek.com/user/balance",
+		"https://api.deepseek.com/v1":              "https://api.deepseek.com/user/balance",
+		"https://api.deepseek.com/anthropic/v1":    "https://api.deepseek.com/user/balance",
+		"https://api.deepseek.com:8443/v1/":        "https://api.deepseek.com:8443/user/balance",
+		"https://API.DeepSeek.com/v1":              "https://api.deepseek.com/user/balance",
+		"https://api.deepseek.com.evil.example/v1": "",
+		"https://deepseek.com/v1":                  "",
+		"https://relay.example.com/v1":             "",
+		"ftp://api.deepseek.com/v1":                "",
+		"api.deepseek.com":                         "",
+	}
+	for in, want := range tests {
+		got, ok := deepSeekBalanceURL(in)
+		if got != want || ok != (want != "") {
+			t.Fatalf("deepSeekBalanceURL(%q) = %q, %v; want %q", in, got, ok, want)
+		}
+	}
+}
