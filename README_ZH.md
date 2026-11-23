@@ -23,7 +23,7 @@ Quosparr 是面向 macOS、Windows、Linux 的原生菜单栏 / 系统托盘应�
 - 根据官方周用量百分比与每日 Credits 推算本周额度，并与往周对比，便于发现额度缩水
 - Codex 重置动态：查看今天 Codex 速率限制是否已重置，可单独设置刷新间隔（数据来自 [Did Codex Reset](https://didcodexreset.com)）
 - 服务商账号：浏览器登录、导入本机 `auth.json`、粘贴 token / JSON（含 `/auth/session`）、导入文件或添加 API Key；确认后原子写入 `~/.codex/auth.json` 完成切号
-- API 账号：Base URL + API Key（Base URL 留空即官方 OpenAI API），可从站点获取模型列表选择模型；切换时写入 `auth.json` 与 `config.toml` 中的 `quosparr` 服务商（写入前备份），new-api 类或 OpenAI 兼容中转站的余额显示在账号列表、面板、状态栏、悬浮窗与 Widget；已在 `config.toml` 选用中转站的 Key 登录会自动带上该站点与模型；编辑当前账号时可替换 Key（留空保留），并选择是否立即改写配置文件，改写后需重启 Codex
+- API 账号：Base URL + API Key（Base URL 留空即官方 OpenAI API），可从站点获取模型列表选择模型；切换时写入 `auth.json` 与 `config.toml` 中的 `quosparr` 服务商（写入前备份），new-api 类或 OpenAI 兼容中转站以及 DeepSeek 官方 API 的余额显示在账号列表、面板、状态栏、悬浮窗与 Widget；已在 `config.toml` 选用中转站的 Key 登录会自动带上该站点与模型；编辑当前账号时可替换 Key（留空保留），并选择是否立即改写配置文件，改写后需重启 Codex
 - 查看最近会话、项目与状态，并修复本机会话索引
 
 **Claude**

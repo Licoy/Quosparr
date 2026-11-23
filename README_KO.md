@@ -23,7 +23,7 @@ Quosparr는 macOS, Windows, Linux용 네이티브 메뉴 막대 / 시스템 트�
 - 공식 주간 사용률과 일별 Credits로 주간 한도를 추정하고, 이전 주와 비교해 할당량 삭감 여부를 확인합니다.
 - Codex 초기화 업데이트: 오늘 Codex 속도 제한이 리셋되었는지를 자체 새로고침 간격으로 확인합니다([Did Codex Reset](https://didcodexreset.com) 데이터).
 - 공급자 계정: 브라우저 로그인, 로컬 `auth.json` 가져오기, 토큰 / JSON 붙여넣기(`/auth/session` 포함), 파일 가져오기, API 키 추가. 확인 후 전환하면 `~/.codex/auth.json`을 원자적으로 씁니다.
-- API 계정: Base URL + API 키(Base URL을 비우면 OpenAI 공식 API)이며, 사이트에서 모델 목록을 가져와 모델을 고를 수 있습니다. 전환 시 `auth.json`과 `config.toml`의 `quosparr` 제공자를 기록하고(먼저 백업), new-api 계열 또는 OpenAI 호환 중계 사이트의 잔액을 계정 목록, 패널, 상태 표시줄, 플로팅 창, 위젯에 표시합니다. `config.toml`에서 이미 중계 사이트를 선택한 키 로그인은 해당 사이트와 모델로 자동 인식합니다. 사용 중인 계정을 편집할 때 키를 교체할 수 있고(비우면 유지) 설정 파일을 바로 다시 쓸지 묻습니다. 다시 쓴 뒤에는 Codex를 재시작해야 합니다.
+- API 계정: Base URL + API 키(Base URL을 비우면 OpenAI 공식 API)이며, 사이트에서 모델 목록을 가져와 모델을 고를 수 있습니다. 전환 시 `auth.json`과 `config.toml`의 `quosparr` 제공자를 기록하고(먼저 백업), new-api 계열 또는 OpenAI 호환 중계 사이트와 DeepSeek 공식 API의 잔액을 계정 목록, 패널, 상태 표시줄, 플로팅 창, 위젯에 표시합니다. `config.toml`에서 이미 중계 사이트를 선택한 키 로그인은 해당 사이트와 모델로 자동 인식합니다. 사용 중인 계정을 편집할 때 키를 교체할 수 있고(비우면 유지) 설정 파일을 바로 다시 쓸지 묻습니다. 다시 쓴 뒤에는 Codex를 재시작해야 합니다.
 - 최근 세션, 프로젝트, 상태와 로컬 세션 인덱스 복구.
 
 **Claude**
