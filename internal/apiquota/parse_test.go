@@ -359,3 +359,38 @@ func TestRawScaleOverflowIsInvalidData(t *testing.T) {
 		t.Fatal("overflowed scale accepted")
 	}
 }
+
+func TestParseDeepSeekBalance(t *testing.T) {
+	tests := []struct {
+		name, body, currency string
+		total                float64
+	}{
+		{"CNY", `{"is_available":true,"balance_infos":[{"currency":"CNY","total_balance":"110.00","granted_balance":"10.00","topped_up_balance":"100.00"}]}`, UnitCNY, 110},
+		{"USD", `{"is_available":true,"balance_infos":[{"currency":"USD","total_balance":"4.25"}]}`, UnitUSD, 4.25},
+		{"positive currency wins over zero", `{"balance_infos":[{"currency":"CNY","total_balance":"0"},{"currency":"USD","total_balance":"3.50"}]}`, UnitUSD, 3.5},
+		{"all zero keeps the first", `{"balance_infos":[{"currency":"CNY","total_balance":"0"},{"currency":"USD","total_balance":"0"}]}`, UnitCNY, 0},
+		{"components are summed", `{"balance_infos":[{"currency":"CNY","granted_balance":"2.5","topped_up_balance":"7.5"}]}`, UnitCNY, 10},
+		{"unit normalized", `{"balance_infos":[{"currency":"rmb","total_balance":1}]}`, UnitCNY, 1},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			b, ok := parseDeepSeekBalance(mustJSON(t, tt.body))
+			if !ok || b.currency != tt.currency {
+				t.Fatalf("%+v %v", b, ok)
+			}
+			wantFloat(t, "total", &b.total, tt.total)
+		})
+	}
+}
+
+func TestParseDeepSeekBalanceRejects(t *testing.T) {
+	for _, body := range []string{
+		`{}`, `[]`, `"x"`, `{"balance_infos":[]}`, `{"balance_infos":"x"}`,
+		`{"balance_infos":[{}]}`, `{"balance_infos":[{"currency":"","total_balance":"1"}]}`,
+		`{"balance_infos":[{"currency":"CNY"}]}`, `{"balance_infos":[{"currency":"CNY","total_balance":"NaN"}]}`,
+	} {
+		if b, ok := parseDeepSeekBalance(mustJSON(t, body)); ok {
+			t.Fatalf("accepted %s: %+v", body, b)
+		}
+	}
+}

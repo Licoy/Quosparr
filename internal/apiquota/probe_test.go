@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"net/http"
 	"net/url"
 	"strings"
@@ -361,5 +362,80 @@ func TestProbeIsRaceFreeAcrossCalls(t *testing.T) {
 		if q := <-done; q.Source != SourceTokenUsage {
 			t.Fatalf("%+v", q)
 		}
+	}
+}
+
+const deepSeekBalanceBody = `{"is_available":true,"balance_infos":[{"currency":"CNY","total_balance":"72.50","granted_balance":"2.50","topped_up_balance":"70.00"}]}`
+
+func TestProbeDeepSeekBalanceUsesTheOfficialEndpoint(t *testing.T) {
+	for _, base := range []string{
+		"https://api.deepseek.com",
+		"https://api.deepseek.com/v1",
+		"https://api.deepseek.com/anthropic/v1",
+	} {
+		t.Run(base, func(t *testing.T) {
+			var requests []*http.Request
+			client := doerFunc(func(r *http.Request) (*http.Response, error) {
+				requests = append(requests, r)
+				return &http.Response{StatusCode: 200, Header: http.Header{}, Body: io.NopCloser(strings.NewReader(deepSeekBalanceBody))}, nil
+			})
+			q := Probe(context.Background(), client, base, " sk-deep\n", testNow)
+			if q.Status != StatusAvailable || q.Source != SourceDeepSeekBalance || q.Unit != UnitCNY {
+				t.Fatalf("%+v", q)
+			}
+			wantFloat(t, "remaining", q.Remaining, 72.5)
+			wantNil(t, "used", q.Used)
+			wantNil(t, "total", q.Total)
+			if q.Endpoint != "https://api.deepseek.com/user/balance" || !q.FetchedAt.Equal(testNow) {
+				t.Fatalf("endpoint %q at %v", q.Endpoint, q.FetchedAt)
+			}
+			if len(requests) != 1 {
+				t.Fatalf("%d requests", len(requests))
+			}
+			got := requests[0]
+			if got.Method != http.MethodGet || got.URL.String() != "https://api.deepseek.com/user/balance" {
+				t.Fatalf("%s %s", got.Method, got.URL)
+			}
+			if got.Header.Get("Authorization") != "Bearer sk-deep" || got.Header.Get("Accept") != "application/json" {
+				t.Fatalf("headers: %v", got.Header)
+			}
+		})
+	}
+}
+
+func TestProbeDeepSeekBalanceFailures(t *testing.T) {
+	tests := []struct {
+		name       string
+		status     int
+		body       string
+		wantStatus Status
+		wantError  string
+		wantURL    string
+	}{
+		{"unauthorized", 401, `{"error":"bad key"}`, StatusUnauthorized, "", ""},
+		{"empty balances", 200, `{"is_available":false,"balance_infos":[]}`, StatusInvalidData, msgInvalidQuota, "https://api.deepseek.com/user/balance"},
+		{"unrelated json", 200, `{"hello":"world"}`, StatusUnsupported, "", ""},
+		{"server error", 502, "down", StatusError, "HTTP 502", ""},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			client := doerFunc(func(*http.Request) (*http.Response, error) {
+				return &http.Response{StatusCode: tt.status, Header: http.Header{}, Body: io.NopCloser(strings.NewReader(tt.body))}, nil
+			})
+			q := Probe(context.Background(), client, "https://api.deepseek.com/v1", "sk-deep", testNow)
+			if q.Status != tt.wantStatus || q.Error != tt.wantError || q.Endpoint != tt.wantURL {
+				t.Fatalf("%+v", q)
+			}
+		})
+	}
+}
+
+func TestProbeDoesNotAskOtherSitesForTheDeepSeekEndpoint(t *testing.T) {
+	site := newFakeSite(t, map[string]reply{
+		"/v1/dashboard/billing/credit_grants": {200, grantsBody},
+	})
+	Probe(context.Background(), site.client(), site.url()+"/v1", "sk-test", testNow)
+	if _, ok := site.find("/user/balance"); ok {
+		t.Fatalf("asked an unrelated site:\n%s", site.paths())
 	}
 }

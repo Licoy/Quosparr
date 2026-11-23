@@ -1,6 +1,7 @@
 // Package apiquota queries the balance and the model list of third-party API
 // relay sites from a base URL and an API key. It understands new-api / one-api
-// style token endpoints and OpenAI-compatible billing dashboards.
+// style token endpoints, OpenAI-compatible billing dashboards and the official
+// DeepSeek balance endpoint that is not part of the OpenAI-compatible API.
 //
 // The package is pure business logic: no UI, no localization, no file access
 // and no global state. HTTP goes through a caller supplied Doer so proxy and
@@ -26,6 +27,7 @@ type Source string
 
 const (
 	SourceTokenUsage        Source = "tokenUsage"
+	SourceDeepSeekBalance   Source = "deepSeekBalance"
 	SourceCreditGrants      Source = "creditGrants"
 	SourceSubscriptionUsage Source = "subscriptionUsage"
 	SourceSubscriptionOnly  Source = "subscriptionOnly"
@@ -73,6 +75,8 @@ func (q Quota) UsedFraction() (float64, bool) {
 
 func (s Source) rank() int {
 	switch s {
+	case SourceDeepSeekBalance:
+		return 6
 	case SourceTokenUsage:
 		return 5
 	case SourceCreditGrants:

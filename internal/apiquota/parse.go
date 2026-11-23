@@ -115,6 +115,12 @@ type tokenUsage struct {
 	hasDisplay             bool
 }
 
+// deepSeekBalance is the official DeepSeek balance in one currency.
+type deepSeekBalance struct {
+	currency string
+	total    float64
+}
+
 type displayType int
 
 const (
@@ -237,6 +243,65 @@ func displayBlock(data object) (tokenUsage, bool) {
 		unit:       normalizeUnit(unit),
 		hasDisplay: true,
 	}, true
+}
+
+// parseDeepSeekBalance reads the official DeepSeek balance document:
+//
+//	{"is_available":true,"balance_infos":[{"currency":"CNY",
+//	 "total_balance":"110.00","granted_balance":"10.00",
+//	 "topped_up_balance":"100.00"}]}
+//
+// An account can hold several currencies. The first row with money left wins,
+// so a zero CNY row does not hide a positive USD one; an account with no money
+// left still reports its first row. A row without total_balance but with both
+// components is summed, since DeepSeek defines the total as their sum.
+func parseDeepSeekBalance(v any) (deepSeekBalance, bool) {
+	o, ok := asObject(v)
+	if !ok {
+		return deepSeekBalance{}, false
+	}
+	rows, ok := o["balance_infos"].([]any)
+	if !ok {
+		return deepSeekBalance{}, false
+	}
+	var picked deepSeekBalance
+	for _, row := range rows {
+		b, ok := parseDeepSeekBalanceRow(row)
+		if !ok {
+			continue
+		}
+		if picked.currency == "" || picked.total <= 0 && b.total > 0 {
+			picked = b
+		}
+	}
+	return picked, picked.currency != ""
+}
+
+func parseDeepSeekBalanceRow(v any) (deepSeekBalance, bool) {
+	o, ok := asObject(v)
+	if !ok {
+		return deepSeekBalance{}, false
+	}
+	currency, ok := fieldString(o, "currency")
+	if !ok || strings.TrimSpace(currency) == "" {
+		return deepSeekBalance{}, false
+	}
+	total := fieldFloat(o, "total_balance")
+	if total == nil {
+		granted, toppedUp := fieldFloat(o, "granted_balance"), fieldFloat(o, "topped_up_balance")
+		if granted != nil && toppedUp != nil {
+			sum := *granted + *toppedUp
+			total = &sum
+		}
+	}
+	if total == nil {
+		return deepSeekBalance{}, false
+	}
+	unit := normalizeUnit(currency)
+	if unit == "" {
+		return deepSeekBalance{}, false
+	}
+	return deepSeekBalance{currency: unit, total: *total}, true
 }
 
 func normalizeUnit(raw string) string {

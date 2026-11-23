@@ -228,7 +228,7 @@ func TestFirstErrorHitIsReported(t *testing.T) {
 
 func TestNeedsFallbackOnlyForWeakSources(t *testing.T) {
 	for source, want := range map[Source]bool{
-		SourceTokenUsage: false, SourceCreditGrants: false,
+		SourceTokenUsage: false, SourceDeepSeekBalance: false, SourceCreditGrants: false,
 		SourceSubscriptionUsage: true, SourceSubscriptionOnly: true, SourceUsageOnly: true,
 	} {
 		if got := needsFallback(Quota{Status: StatusAvailable, Source: source}); got != want {
@@ -277,5 +277,46 @@ func TestQuotaJSONContract(t *testing.T) {
 	}
 	if got := marshal(t, Quota{Status: StatusAvailable, Unlimited: true, FetchedAt: at}); got != `{"status":"available","unlimited":true,"fetchedAt":"2026-08-21T12:00:00Z"}` {
 		t.Fatal(got)
+	}
+}
+
+func TestDeepSeekBalanceIsRemainingOnly(t *testing.T) {
+	r := round{
+		deepSeekURL: "d",
+		deepSeek: hit{kind: hitDeepSeekBalance, deepSeek: deepSeekBalance{
+			currency: UnitCNY, total: 110,
+		}},
+	}
+	q := r.interpret(testNow)
+	if q.Status != StatusAvailable || q.Source != SourceDeepSeekBalance || q.Unit != UnitCNY || q.Endpoint != "d" {
+		t.Fatalf("%+v", q)
+	}
+	wantFloat(t, "remaining", q.Remaining, 110)
+	wantNil(t, "used", q.Used)
+	wantNil(t, "total", q.Total)
+	if _, ok := q.UsedFraction(); ok {
+		t.Fatal("a prepaid balance has no used share")
+	}
+	if q.Unlimited {
+		t.Fatal("balance marked unlimited")
+	}
+}
+
+func TestDeepSeekInvalidBalanceReportsItsEndpoint(t *testing.T) {
+	r := round{
+		deepSeekURL: "d",
+		deepSeek:    hit{kind: hitInvalidData, msg: msgInvalidQuota},
+	}
+	q := r.interpret(testNow)
+	if q.Status != StatusInvalidData || q.Error != msgInvalidQuota || q.Endpoint != "d" {
+		t.Fatalf("%+v", q)
+	}
+}
+
+func TestDeepSeekUnauthorizedNeedsNoFallback(t *testing.T) {
+	r := round{deepSeekURL: "d", deepSeek: hit{kind: hitUnauthorized}}
+	q := r.interpret(testNow)
+	if q.Status != StatusUnauthorized || q.Endpoint != "" {
+		t.Fatalf("%+v", q)
 	}
 }

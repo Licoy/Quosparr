@@ -15,6 +15,7 @@ const (
 	expectUsage
 	expectToken
 	expectStatus
+	expectDeepSeekBalance
 )
 
 type hitKind int
@@ -31,17 +32,19 @@ const (
 	hitUsage
 	hitToken
 	hitStatus
+	hitDeepSeekBalance
 )
 
 // hit is the classified answer of one endpoint.
 type hit struct {
-	kind   hitKind
-	msg    string // hitError and hitInvalidData only
-	grants grants
-	sub    subscription
-	usage  usage
-	token  tokenUsage
-	status quotaStatus
+	kind     hitKind
+	msg      string // hitError and hitInvalidData only
+	grants   grants
+	sub      subscription
+	usage    usage
+	token    tokenUsage
+	status   quotaStatus
+	deepSeek deepSeekBalance
 }
 
 func errorHit(msg string) hit { return hit{kind: hitError, msg: msg} }
@@ -116,6 +119,15 @@ func parseExpected(value any, exp expected) hit {
 	case expectStatus:
 		if s, ok := parseQuotaStatus(value); ok {
 			return hit{kind: hitStatus, status: s}
+		}
+	case expectDeepSeekBalance:
+		if b, ok := parseDeepSeekBalance(value); ok {
+			return hit{kind: hitDeepSeekBalance, deepSeek: b}
+		}
+		if o, ok := asObject(value); ok {
+			if _, present := o["balance_infos"]; present {
+				return hit{kind: hitInvalidData, msg: msgInvalidQuota}
+			}
 		}
 	}
 	return hit{kind: hitUnsupported}

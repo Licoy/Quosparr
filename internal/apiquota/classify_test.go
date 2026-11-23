@@ -75,3 +75,22 @@ func TestClassifyNeverCopiesBody(t *testing.T) {
 		}
 	}
 }
+
+func TestClassifyDeepSeekBalance(t *testing.T) {
+	body := `{"is_available":true,"balance_infos":[{"currency":"CNY","total_balance":"12.30"}]}`
+	h := classifyStatus(200, body, expectDeepSeekBalance)
+	if h.kind != hitDeepSeekBalance || h.deepSeek.currency != UnitCNY {
+		t.Fatalf("%+v", h)
+	}
+	wantFloat(t, "total", &h.deepSeek.total, 12.3)
+
+	if h := classifyStatus(200, `{"is_available":false,"balance_infos":[]}`, expectDeepSeekBalance); h.kind != hitInvalidData || h.msg != msgInvalidQuota {
+		t.Fatalf("%+v", h)
+	}
+	if h := classifyStatus(200, `{"hello":"world"}`, expectDeepSeekBalance); h.kind != hitUnsupported {
+		t.Fatalf("%+v", h)
+	}
+	if h := classifyStatus(401, `{"error":"bad key"}`, expectDeepSeekBalance); h.kind != hitUnauthorized {
+		t.Fatalf("%+v", h)
+	}
+}
