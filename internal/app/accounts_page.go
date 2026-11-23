@@ -106,8 +106,8 @@ func renderClaudeAccountRow(c *ui.Context, u *settingsUI, f *accountForm, rt *li
 		}
 	}
 	accountSettingsRow(c, l, accountIdentityView{account: acc, current: acc.ID == current, privacy: priv, provider: store.ProviderClaude, claudeQuota: quota, quota: quotaOptionsFor(u.s.Prefs(), false)}, func() {
-		if IconButton(c, icRefresh, l.Text(l10n.KeyRefresh), f.busy || rt == nil).Clicked() {
-			u.accountAct(f, "", func() string { return rt.refreshClaude(context.Background(), l, acc.ID) })
+		if accountRefreshButton(c, l, f, acc.ID, rt == nil).Clicked() {
+			u.accountRefresh(f, acc.ID, func() string { return rt.refreshClaude(context.Background(), l, acc.ID) })
 		}
 		accountRowActions(c, f.busy || rt == nil, claudeRowActions(u, f, rt, acc, place, name, acc.ID == current, priv))
 	})
@@ -179,6 +179,7 @@ type accountForm struct {
 	note, status       string
 	editorError        string
 	busy               bool
+	refreshing         map[refreshKey]bool
 	cancel             context.CancelFunc
 	claudeLogin        *claudeLoginAttempt
 	geminiLogin        *geminiLoginAttempt
@@ -220,16 +221,55 @@ func (u *settingsUI) accountAct(f *accountForm, waiting string, fn func() string
 	}()
 }
 
+// refreshKey names a refresh in flight: an account, or allRefreshing, of a
+// provider tab.
+type refreshKey struct {
+	kind int
+	id   string
+}
+
+// accountRefresh polls quota beside any other action. It leaves busy alone,
+// so only the refresh button clicked spins and the rest stay usable.
+func (u *settingsUI) accountRefresh(f *accountForm, id string, fn func() string) {
+	key := refreshKey{f.kind, id}
+	if f.busy || f.refreshing[key] {
+		return
+	}
+	if f.refreshing == nil {
+		f.refreshing = map[refreshKey]bool{}
+	}
+	f.refreshing[key] = true
+	go func() {
+		msg := fn()
+		u.post(func() {
+			delete(f.refreshing, key)
+			u.providerNotice(key.kind, msg)
+		})
+	}()
+}
+
+// accountRefreshButton is a row's refresh control; it spins while that
+// account refreshes.
+func accountRefreshButton(c *ui.Context, l l10n.Localizer, f *accountForm, id string, disabled bool) ui.Element {
+	return LoadingIconButton(c, icRefresh, l.Text(l10n.KeyRefresh), f.busy || disabled, f.refreshing[refreshKey{f.kind, id}])
+}
+
 // accountNotice shows the result of an account action in a dialog titled
 // with the provider of the tab, so it never lingers under another tab. A
 // cancelled login needs no answer.
 func (u *settingsUI) accountNotice(f *accountForm, msg string) {
+	u.providerNotice(f.kind, msg)
+}
+
+// providerNotice is accountNotice for the tab kind, which a refresh keeps
+// as the tabs may change while it runs.
+func (u *settingsUI) providerNotice(kind int, msg string) {
 	l := u.L()
 	if msg == "" || msg == l.Text(l10n.KeyAccountsOAuthCancelled) {
 		return
 	}
 	providers := store.Providers()
-	title := l.Text(providerKey(providers[min(max(f.kind, 0), len(providers)-1)]))
+	title := l.Text(providerKey(providers[min(max(kind, 0), len(providers)-1)]))
 	u.showNotice(title, msg)
 }
 
@@ -353,8 +393,9 @@ func accountToolbar(c *ui.Context, u *settingsUI, f *accountForm, title string, 
 			}
 		}
 		ui.MenuButton(c, l.Text(l10n.KeyAccountsAdd), menu).Disabled(f.busy)
-		if IconButton(c, icRefresh, l.Text(l10n.KeyAccountsRefreshAll), f.busy).Clicked() {
-			u.accountAct(f, "", refresh)
+		all := refreshKey{f.kind, allRefreshing}
+		if LoadingIconButton(c, icRefresh, l.Text(l10n.KeyAccountsRefreshAll), f.busy, f.refreshing[all]).Clicked() {
+			u.accountRefresh(f, allRefreshing, refresh)
 		}
 		priv := u.s.Prefs().AccountPrivacyModeEnabled
 		if privacyButton(c, l, priv, 26, 26, 5).Clicked() {
@@ -402,9 +443,9 @@ func renderCodexSettingsRow(c *ui.Context, u *settingsUI, f *accountForm, rt *li
 	name := maskAccount(priv, acc.ResolvedDisplayName())
 	current := acc.ID == activeID
 	accountSettingsRow(c, l, accountIdentityView{account: acc, current: current, privacy: priv, provider: store.ProviderCodex, quota: quotaOptionsFor(u.s.Prefs(), false)}, func() {
-		if IconButton(c, icRefresh, l.Text(l10n.KeyRefresh), f.busy || rt == nil).Clicked() {
+		if accountRefreshButton(c, l, f, acc.ID, rt == nil).Clicked() {
 			id := acc.ID
-			u.accountAct(f, "", func() string { <-rt.svc.RefreshAccountQuota(id); return "" })
+			u.accountRefresh(f, id, func() string { <-rt.svc.RefreshAccountQuota(id); return "" })
 		}
 		accountRowActions(c, f.busy || rt == nil, codexRowActions(u, f, rt, acc, place, name, current))
 	})
@@ -420,8 +461,8 @@ func renderGrokAccountRow(c *ui.Context, u *settingsUI, f *accountForm, rt *live
 		}
 	}
 	accountSettingsRow(c, l, accountIdentityView{account: acc, current: acc.ID == current, privacy: priv, provider: store.ProviderGrok, grokQuota: quota, quota: quotaOptionsFor(u.s.Prefs(), false)}, func() {
-		if IconButton(c, icRefresh, l.Text(l10n.KeyRefresh), f.busy || rt == nil).Clicked() {
-			u.accountAct(f, "", func() string { return rt.refreshGrok(acc.ID) })
+		if accountRefreshButton(c, l, f, acc.ID, rt == nil).Clicked() {
+			u.accountRefresh(f, acc.ID, func() string { return rt.refreshGrok(acc.ID) })
 		}
 		accountRowActions(c, f.busy || rt == nil, grokRowActions(u, f, rt, acc, place, name, acc.ID == current))
 	})

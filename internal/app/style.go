@@ -357,8 +357,17 @@ func PillTabs(c *ui.Context, selected *int, disabled bool, labels ...string) boo
 
 // IconButton is compact toolbar chrome with a translated tooltip and name.
 func IconButton(c *ui.Context, icon *ui.SVG, label string, disabled bool) ui.Element {
+	return LoadingIconButton(c, icon, label, disabled, false)
+}
+
+// LoadingIconButton is IconButton showing a spinner, and taking no clicks,
+// while loading.
+func LoadingIconButton(c *ui.Context, icon *ui.SVG, label string, disabled, loading bool) ui.Element {
 	t := c.Theme()
-	b := ui.ButtonBase(c).Label(label).Tooltip(label).Disabled(disabled).Size(26, 26).Radius(5).AlignItems(ui.Center).Justify(ui.Center)
+	b := ui.ButtonBase(c).Label(label).Tooltip(label).Disabled(disabled || loading).Size(26, 26).Radius(5).AlignItems(ui.Center).Justify(ui.Center)
+	if loading {
+		return b.Children(func() { ui.Spinner(c).Size(14, 14) })
+	}
 	if !disabled {
 		b.Cursor(ui.CursorPointer)
 	}

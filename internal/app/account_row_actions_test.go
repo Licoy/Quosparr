@@ -204,3 +204,63 @@ func TestSettingsAccountRowHoverFades(t *testing.T) {
 		t.Fatalf("hover did not fade out: %v", wash())
 	}
 }
+
+// A refresh spins only its own button: the other rows, the toolbar and the
+// account actions stay usable, and the toolbar shows no spinner of its own.
+func TestSettingsAccountRefreshStaysOnItsButton(t *testing.T) {
+	e, f, tt, _ := codexOrderFixture(t)
+	l := e.s.L()
+	f.refreshing = map[refreshKey]bool{{accountKindCodex, "c"}: true}
+	tt.Frame()
+	// The first Refresh is the first row's, which another refresh leaves usable.
+	if err := tt.Click(l.Text(l10n.KeyRefresh)); err != nil {
+		t.Fatal(err)
+	}
+	if err := tt.Click(l.Text(l10n.KeyAccountsRefreshAll)); err != nil {
+		t.Fatal(err)
+	}
+	all := refreshKey{accountKindCodex, allRefreshing}
+	if f.busy || !f.refreshing[refreshKey{accountKindCodex, "a"}] || !f.refreshing[all] {
+		t.Fatalf("busy=%v refreshing=%v", f.busy, f.refreshing)
+	}
+	// A spinning button takes no second click.
+	if err := tt.Click(l.Text(l10n.KeyAccountsRefreshAll)); err != nil {
+		t.Fatal(err)
+	}
+	if err := tt.Click(l.Text(l10n.KeyAccountsMoveDown)); err != nil {
+		t.Fatal(err)
+	}
+	if !f.busy {
+		t.Fatal("refresh blocked the row actions")
+	}
+	delete(f.refreshing, refreshKey{accountKindCodex, "c"})
+	deadline := time.Now().Add(5 * time.Second)
+	for (f.busy || len(f.refreshing) > 0) && time.Now().Before(deadline) {
+		e.q.drain()
+		time.Sleep(5 * time.Millisecond)
+	}
+	if f.busy || len(f.refreshing) > 0 {
+		t.Fatalf("refreshes did not end: %v", f.refreshing)
+	}
+}
+
+// A refresh answers under the tab it started from, even after a tab change.
+func TestSettingsAccountRefreshRemembersItsProvider(t *testing.T) {
+	e := newEnv(t, nil)
+	if err := e.s.Load(); err != nil {
+		t.Fatal(err)
+	}
+	u := newSettingsUI(e.s, SettingsOptions{})
+	f := accountFormOf(u)
+	f.kind = accountKindClaude
+	u.accountRefresh(f, "x", func() string { return "failed" })
+	f.kind = accountKindCodex
+	deadline := time.Now().Add(time.Second)
+	for len(f.refreshing) > 0 && time.Now().Before(deadline) {
+		e.q.drain()
+		time.Sleep(time.Millisecond)
+	}
+	if !u.noticeOpen || u.notice != "failed" || u.noticeTitle != u.L().Text(l10n.KeyProviderClaude) {
+		t.Fatalf("open=%v title=%q notice=%q", u.noticeOpen, u.noticeTitle, u.notice)
+	}
+}

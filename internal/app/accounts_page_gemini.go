@@ -67,9 +67,9 @@ func renderGeminiAccountRow(c *ui.Context, u *settingsUI, f *accountForm, rt *li
 		}
 	}
 	accountSettingsRow(c, l, accountIdentityView{account: acc, current: acc.ID == current, privacy: priv, provider: store.ProviderGemini, geminiQuota: quota, quota: quotaOptionsFor(u.s.Prefs(), false)}, func() {
-		if IconButton(c, icRefresh, l.Text(l10n.KeyRefresh), f.busy || rt == nil).Clicked() {
+		if accountRefreshButton(c, l, f, acc.ID, rt == nil).Clicked() {
 			id := acc.ID
-			u.accountAct(f, "", func() string {
+			u.accountRefresh(f, id, func() string {
 				return rt.geminiRefresh(l, gemini.RefreshTarget{Kind: gemini.RefreshAccount, ID: id})
 			})
 		}
