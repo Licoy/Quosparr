@@ -7,7 +7,6 @@ import (
 	"errors"
 	"net/http"
 	"net/url"
-	"os"
 	"runtime"
 	"sort"
 	"strconv"
@@ -19,8 +18,6 @@ import (
 const (
 	DailyCloudCodeURL = "https://daily-cloudcode-pa.googleapis.com"
 	ProdCloudCodeURL  = "https://cloudcode-pa.googleapis.com"
-	// CloudCodeURLEnv overrides every Cloud Code host (development hook).
-	CloudCodeURLEnv = "QUOSPARR_DEV_GEMINI_CLOUDCODE_URL"
 
 	placeholderProject         = "aicode-consumers"
 	reasonValidationRequired   = "VALIDATION_REQUIRED"
@@ -39,9 +36,9 @@ const (
 type QuotaClient struct {
 	// HTTP nil follows the current netx proxy.
 	HTTP *http.Client
-	// BaseURL, when set, is used for every request (beats the environment).
+	// BaseURL is an explicit fixture override for all requests.
 	BaseURL string
-	// DailyURL and ProdURL default to the Cloud Code hosts.
+	// DailyURL and ProdURL override the respective Cloud Code hosts in fixtures.
 	DailyURL, ProdURL string
 	// ClientVersion nil detects the installed Antigravity version.
 	ClientVersion func() string
@@ -100,14 +97,10 @@ func (c *QuotaClient) version() string {
 	return DefaultClientVersion()
 }
 
-// baseURL is the host for the account: BaseURL, else the environment, else
-// production for GCP-terms accounts with a real project, else daily.
+// baseURL selects the Cloud Code host for the account or an explicit fixture override.
 func (c *QuotaClient) baseURL(prod bool) string {
 	if c.BaseURL != "" {
 		return strings.TrimRight(c.BaseURL, "/")
-	}
-	if env := trimSpace(os.Getenv(CloudCodeURLEnv)); env != "" {
-		return strings.TrimRight(env, "/")
 	}
 	if prod {
 		return strings.TrimRight(firstNonEmpty(c.ProdURL, ProdCloudCodeURL), "/")

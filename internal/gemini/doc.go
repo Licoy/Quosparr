@@ -56,11 +56,11 @@
 //
 // A quota reading is loadCodeAssist (onboardUser with polling when no
 // project is assigned; the placeholder project "aicode-consumers" counts as
-// none), then retrieveUserQuotaSummary and fetchAvailableModels. Requests
-// go to the daily Cloud Code host unless the account uses the GCP terms of
-// service with a real project, which uses the production host; the
-// QUOSPARR_DEV_GEMINI_CLOUDCODE_URL environment variable overrides both. A
-// 401 is retried once after a forced token refresh; a 403 carrying
+// none), then retrieveUserQuotaSummary and fetchAvailableModels. The daily
+// Google Cloud Code host handles onboarding and most quota reads. Quota
+// reads for accounts using GCP terms with a real project use the production
+// Google host. The QUOSPARR_DEV_GEMINI_CLOUDCODE_URL hook is available to
+// test fixtures. A 401 is retried once after a forced token refresh; a 403 carrying
 // VALIDATION_REQUIRED, SUBSCRIPTION_REQUIRED or a validation_url is its own
 // error, and the link is kept in the cached snapshot; a 429 backs off per
 // account (Retry-After, else 5 minutes doubling to an hour). The tier is

@@ -7,11 +7,14 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"strings"
 	"sync"
 	"testing"
 	"time"
 )
+
+const cloudCodeFixtureEnv = "QUOSPARR_DEV_GEMINI_CLOUDCODE_URL"
 
 type cloudCall struct {
 	method, path, ua, apiClient, auth string
@@ -166,7 +169,6 @@ func TestQuotaFetchUsesProductionForGcpTermsAndEmptyBodyWithoutProject(t *testin
 	})
 	c := testQuotaClient("")
 	c.DailyURL, c.ProdURL = daily.URL, prod.URL
-	t.Setenv(CloudCodeURLEnv, "")
 	snap, err := c.Fetch(context.Background(), "tok")
 	if err != nil || snap.Tier.Kind != TierFree {
 		t.Fatalf("fetch: %+v %v", snap, err)
@@ -196,14 +198,25 @@ func TestQuotaFetchUsesProductionForGcpTermsAndEmptyBodyWithoutProject(t *testin
 	}
 }
 
-func TestQuotaFetchEnvironmentOverride(t *testing.T) {
+func TestQuotaDefaultEndpointsIgnoreFixtureEnvironment(t *testing.T) {
+	t.Setenv(cloudCodeFixtureEnv, "https://fixture.invalid")
+	c := &QuotaClient{}
+	if got := c.baseURL(false); got != DailyCloudCodeURL {
+		t.Errorf("daily quota requests should use the Google endpoint, got %q", got)
+	}
+	if got := c.baseURL(true); got != ProdCloudCodeURL {
+		t.Errorf("production quota requests should use the Google endpoint, got %q", got)
+	}
+}
+
+func TestQuotaFetchExplicitEnvironmentFixture(t *testing.T) {
 	server := newCloudServer(t, map[string]func(http.ResponseWriter, cloudCall){
 		"/v1internal:loadCodeAssist":           reply(`{"cloudaicompanionProject":"p","currentTier":{"id":"free-tier"}}`),
 		"/v1internal:retrieveUserQuotaSummary": reply(`{"groups":[]}`),
 		"/v1internal:fetchAvailableModels":     reply(`{"models":{}}`),
 	})
-	t.Setenv(CloudCodeURLEnv, server.URL)
-	c := testQuotaClient("")
+	t.Setenv(cloudCodeFixtureEnv, server.URL)
+	c := testQuotaClient(trimSpace(os.Getenv(cloudCodeFixtureEnv)))
 	c.DailyURL, c.ProdURL = "http://127.0.0.1:1", "http://127.0.0.1:1"
 	if _, err := c.Fetch(context.Background(), "tok"); err != nil {
 		t.Fatal(err)
