@@ -236,7 +236,7 @@ func newRuntime(opts BackgroundOptions) *liveApp {
 	bridge.reload(false)
 	cstore := claude.NewStore(claude.ResolveConfigDir(os.Getenv("CLAUDE_CONFIG_DIR"), home), platform.RunwayDir(home), home, os.Getenv("CLAUDE_CONFIG_DIR"), "")
 	cmod := claude.NewModule(cstore)
-	cmod.Usage = &claude.UsageClient{Version: claudeCLIVersion(cstore.ConfigDir())}
+	cmod.Usage = &claude.UsageClient{}
 	cmod.Tokens = claude.RefreshClient{}
 	cbridge := newClaudeBridge(cmod, prefs, langs)
 	if _, err := cmod.Load(context.Background()); err != nil {

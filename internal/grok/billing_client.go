@@ -30,8 +30,8 @@ type BillingClient struct {
 	BaseURL          string
 	ResetCreditsURL  string
 	SubscriptionsURL string
-	// Version returns the CLI version stamped on each request. Nil reads
-	// `grok --version` once.
+	// Version returns the CLI version stamped on each request. Nil uses the
+	// built-in fallback version.
 	Version func() string
 	// Now stamps the snapshot. Nil means time.Now.
 	Now func() time.Time

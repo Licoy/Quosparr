@@ -6,7 +6,6 @@ import (
 	"errors"
 	"math"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"sync"
 	"time"
@@ -16,7 +15,6 @@ import (
 	"github.com/licoy/quosparr/internal/export"
 	"github.com/licoy/quosparr/internal/export/swiftjson"
 	"github.com/licoy/quosparr/internal/l10n"
-	"github.com/licoy/quosparr/internal/platform"
 	"github.com/licoy/quosparr/internal/pricing"
 	"github.com/licoy/quosparr/internal/runway"
 	"github.com/licoy/quosparr/internal/speed"
@@ -478,23 +476,6 @@ func claudeWidgetAvailability(av runway.ClaudeAvailability) export.Availability 
 	default:
 		return export.Unavailable
 	}
-}
-
-func claudeCLIVersion(configDir string) string {
-	exe, err := claude.ClaudeExecutable()
-	if err != nil {
-		return ""
-	}
-	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
-	defer cancel()
-	cmd := exec.CommandContext(ctx, exe, "--version")
-	platform.HideConsoleWindow(cmd)
-	cmd.Env = append(os.Environ(), "CLAUDE_CONFIG_DIR="+configDir)
-	out, err := cmd.Output()
-	if err != nil {
-		return ""
-	}
-	return claude.ParseCLIVersion(string(out))
 }
 
 // claudeGatewayConfigured reports whether settings.json names a gateway env

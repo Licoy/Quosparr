@@ -1,14 +1,8 @@
 package grok
 
 import (
-	"context"
-	"os/exec"
 	"regexp"
 	"strings"
-	"sync"
-	"time"
-
-	"github.com/licoy/quosparr/internal/platform"
 )
 
 // Chat-proxy identity headers. The values match the local Grok CLI.
@@ -55,7 +49,7 @@ func firstSemanticVersion(text string) string {
 }
 
 // normalizedClientVersion prefers a parsed version, then the trimmed text,
-// then the fallback used when the CLI is missing.
+// then the fallback used when no version is supplied.
 func normalizedClientVersion(raw string) string {
 	if v := parseClientVersion(raw); v != "" {
 		return v
@@ -71,30 +65,7 @@ func userAgent(version string) string {
 	return userAgentPrefix + normalizedClientVersion(version)
 }
 
-var (
-	versionOnce sync.Once
-	versionText string
-)
-
-// defaultClientVersion runs `grok --version` once. A missing binary or an
-// unreadable answer uses the fallback. Tests inject their own version and
-// do not call this.
+// defaultClientVersion identifies billing requests without running the local CLI.
 func defaultClientVersion() string {
-	versionOnce.Do(func() { versionText = readGrokVersion() })
-	return versionText
-}
-
-func readGrokVersion() string {
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
-	cmd := exec.CommandContext(ctx, "grok", "--no-auto-update", "--version")
-	platform.HideConsoleWindow(cmd)
-	out, err := cmd.Output()
-	if err != nil {
-		return fallbackClientVersion
-	}
-	if v := parseClientVersion(string(out)); v != "" {
-		return v
-	}
 	return fallbackClientVersion
 }
