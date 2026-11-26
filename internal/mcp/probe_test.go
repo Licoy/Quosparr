@@ -2,6 +2,8 @@ package mcp
 
 import (
 	"context"
+	"crypto/tls"
+	"crypto/x509"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -20,6 +22,37 @@ import (
 func probeTestContext() context.Context {
 	return netx.WithContext(context.Background(), netx.SystemContext(netx.WithSystemProxy(func(*url.URL) (*url.URL, error) { return nil, nil })))
 }
+func probeTLSTestContext(server *httptest.Server) context.Context {
+	certs := x509.NewCertPool()
+	certs.AddCert(server.Certificate())
+	return netx.WithContext(context.Background(), netx.SystemContext(
+		netx.WithSystemProxy(func(*url.URL) (*url.URL, error) { return nil, nil }),
+		netx.WithTLSConfig(&tls.Config{RootCAs: certs}),
+	))
+}
+
+func TestProbeRejectsPlaintextCredentials(t *testing.T) {
+	var contacted atomic.Bool
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		contacted.Store(true)
+		w.WriteHeader(http.StatusBadRequest)
+	}))
+	defer srv.Close()
+	t.Setenv("MCP_TEST_AUTH", "synthetic-token")
+	for _, draft := range []Draft{
+		{Name: "literal", Transport: "http", URL: srv.URL, Headers: map[string]string{"X-Api-Key": "synthetic-token"}},
+		{Name: "header", Transport: "http", URL: srv.URL, EnvHeaders: map[string]string{"X-Api-Key": "MCP_TEST_AUTH"}},
+		{Name: "bearer", Transport: "http", URL: srv.URL, BearerTokenEnv: "MCP_TEST_AUTH"},
+		{Name: "query", Transport: "http", URL: srv.URL + "?token=synthetic-token"},
+	} {
+		_, err := Probe(probeTestContext(), draft)
+		assertProbeCode(t, err, "invalid_draft")
+	}
+	if contacted.Load() {
+		t.Fatal("plaintext request reached the fixture server")
+	}
+}
+
 func probeReply(w http.ResponseWriter, id any, result any, sse bool) {
 	raw, _ := json.Marshal(map[string]any{"jsonrpc": "2.0", "id": id, "result": result})
 	if sse {
@@ -54,7 +87,7 @@ func TestProbeHTTPModernAndLegacy(t *testing.T) {
 			t.Run(fmt.Sprint(legacy, sse), func(t *testing.T) {
 				t.Setenv("MCP_PROBE_TEST_SECRET", "very-private-token")
 				var calls atomic.Int32
-				srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				srv := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 					if r.Method == http.MethodDelete {
 						if r.Header.Get("Mcp-Session-Id") != "fake-session" {
 							t.Error("cleanup missing session")
@@ -107,7 +140,7 @@ func TestProbeHTTPModernAndLegacy(t *testing.T) {
 					}
 				}))
 				defer srv.Close()
-				result, err := Probe(probeTestContext(), Draft{Name: "fake", Transport: "http", URL: srv.URL, Headers: map[string]string{"Authorization": "Bearer ${MCP_PROBE_TEST_SECRET}"}})
+				result, err := Probe(probeTLSTestContext(srv), Draft{Name: "fake", Transport: "http", URL: srv.URL, Headers: map[string]string{"Authorization": "Bearer ${MCP_PROBE_TEST_SECRET}"}})
 				if err != nil {
 					t.Fatal(err)
 				}
@@ -182,15 +215,15 @@ func TestProbeRedirectAndMissingEnv(t *testing.T) {
 	var contacted atomic.Bool
 	target := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { contacted.Store(true) }))
 	defer target.Close()
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { http.Redirect(w, r, target.URL, 307) }))
+	srv := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { http.Redirect(w, r, target.URL, 307) }))
 	defer srv.Close()
-	_, err := Probe(probeTestContext(), Draft{Name: "fake", Transport: "http", URL: srv.URL, Headers: map[string]string{"Authorization": "Bearer private-token"}})
+	_, err := Probe(probeTLSTestContext(srv), Draft{Name: "fake", Transport: "http", URL: srv.URL, Headers: map[string]string{"Authorization": "Bearer private-token"}})
 	assertProbeCode(t, err, "http_status")
 	if contacted.Load() {
 		t.Fatal("followed redirect")
 	}
 	t.Setenv("MCP_PROBE_MISSING", "")
-	_, err = Probe(probeTestContext(), Draft{Name: "fake", Transport: "http", URL: srv.URL, BearerTokenEnv: "MCP_PROBE_MISSING"})
+	_, err = Probe(probeTLSTestContext(srv), Draft{Name: "fake", Transport: "http", URL: srv.URL, BearerTokenEnv: "MCP_PROBE_MISSING"})
 	assertProbeCode(t, err, "missing_env")
 }
 func TestProbeHTTPCancelAndTimeout(t *testing.T) {
@@ -297,12 +330,12 @@ func TestProbePaginationLimits(t *testing.T) {
 	}
 }
 func TestProbeLegacySSERejectsCrossOriginEndpoint(t *testing.T) {
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	srv := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "text/event-stream")
 		fmt.Fprint(w, "event: endpoint\ndata: http://127.0.0.1:1/should-not-be-contacted\n\n")
 	}))
 	defer srv.Close()
-	_, err := Probe(probeTestContext(), Draft{Name: "fake", Transport: "sse", URL: srv.URL, Headers: map[string]string{"Authorization": "Bearer private-token"}})
+	_, err := Probe(probeTLSTestContext(srv), Draft{Name: "fake", Transport: "sse", URL: srv.URL, Headers: map[string]string{"Authorization": "Bearer private-token"}})
 	assertProbeCode(t, err, "invalid_response")
 }
 func TestProbeSensitiveTextAndTemplates(t *testing.T) {
@@ -406,7 +439,7 @@ func TestProbeRedactionDoesNotExpandRepeatedSecrets(t *testing.T) {
 
 func TestProbeEnvAuthorizationTokenIsRedacted(t *testing.T) {
 	t.Setenv("MCP_PROBE_AUTH_HEADER", "Bearer  lone-secret")
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	srv := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		var req struct {
 			ID     any
 			Method string
@@ -419,7 +452,7 @@ func TestProbeEnvAuthorizationTokenIsRedacted(t *testing.T) {
 		}
 	}))
 	defer srv.Close()
-	result, err := Probe(probeTestContext(), Draft{Name: "fake", Transport: "http", URL: srv.URL, EnvHeaders: map[string]string{"authorization": "MCP_PROBE_AUTH_HEADER"}})
+	result, err := Probe(probeTLSTestContext(srv), Draft{Name: "fake", Transport: "http", URL: srv.URL, EnvHeaders: map[string]string{"authorization": "MCP_PROBE_AUTH_HEADER"}})
 	if err != nil {
 		t.Fatal(err)
 	}

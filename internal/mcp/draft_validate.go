@@ -35,6 +35,9 @@ func ValidateDraft(d Draft) error {
 		if err != nil || u == nil || u.Hostname() == "" || (u.Scheme != "http" && u.Scheme != "https") || u.User != nil || u.Fragment != "" || hasControl(d.URL) || strings.Contains(d.URL, "${") {
 			return draftError("invalid", "url")
 		}
+		if u.Scheme == "http" && (len(d.Headers) > 0 || len(d.EnvHeaders) > 0 || d.BearerTokenEnv != "" || u.RawQuery != "") {
+			return draftError("invalid", "url")
+		}
 		if d.Command != "" || len(d.Args) > 0 || len(d.Env) > 0 || d.Cwd != "" {
 			return draftError("conflict", "transport")
 		}
