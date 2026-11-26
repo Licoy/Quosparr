@@ -106,6 +106,10 @@ const (
 	xProxyTestURLInvalid          textKey = "networkProxyTestURLInvalid"
 	xSpeedTitle                   textKey = "speedAnalysis"
 	xSpeedModuleDescription       textKey = "speedAnalysisDescription"
+	xResetUpdatesModuleTitle      textKey = "resetUpdatesModuleTitle"
+	xResetUpdatesModuleDesc       textKey = "resetUpdatesModuleDescription"
+	xModuleAppliesCodexGemini     textKey = "moduleAppliesCodexGemini"
+	xResetUpdatesAlerts           textKey = "resetUpdatesAlerts"
 	xSpeedInfoTTFT                textKey = "speedAnalysisInfoTTFT"
 	xSpeedInfoNoTTFT              textKey = "speedAnalysisInfoNoTTFT"
 	xSpeedInfoOutput              textKey = "speedAnalysisInfoOutput"
@@ -406,6 +410,25 @@ var extraTexts = map[textKey][7]string{
 		"テストサイトには http または https のアドレスを入力してください。",
 		"Введите адрес тестового сайта с http или https.",
 		"Saisissez une adresse http ou https pour le site de test.",
+	},
+	xResetUpdatesModuleTitle: {
+		"Reset Updates", "重置动态", "重設動態", "초기화 업데이트", "リセット更新", "Обновления сбросов", "Actualités des réinitialisations",
+	},
+	xResetUpdatesModuleDesc: {
+		"Public status from Did Codex Reset for Codex and from Agy Reset for Gemini.",
+		"Codex 数据来自 Did Codex Reset，Gemini 数据来自 Agy Reset。",
+		"Codex 資料來自 Did Codex Reset，Gemini 資料來自 Agy Reset。",
+		"Codex는 Did Codex Reset, Gemini는 Agy Reset의 공개 상태입니다.",
+		"Codex は Did Codex Reset、Gemini は Agy Reset の公開ステータスです。",
+		"Публичный статус: Codex — с Did Codex Reset, Gemini — с Agy Reset.",
+		"Statut public depuis Did Codex Reset pour Codex et depuis Agy Reset pour Gemini.",
+	},
+	xResetUpdatesAlerts: {
+		"Codex & Gemini reset alerts", "Codex 与 Gemini 重置动态提醒", "Codex 與 Gemini 重設動態提醒", "Codex·Gemini 초기화 업데이트 알림",
+		"Codex・Gemini リセット更新の通知", "Оповещения о сбросах Codex и Gemini", "Alertes de réinitialisation Codex et Gemini",
+	},
+	xModuleAppliesCodexGemini: {
+		"Codex & Gemini", "Codex 与 Gemini", "Codex 與 Gemini", "Codex, Gemini", "Codex・Gemini", "Codex и Gemini", "Codex et Gemini",
 	},
 	xSpeedTitle: {
 		"Speed analysis", "速率分析", "速率分析", "속도 분석", "速度分析", "Анализ скорости", "Analyse de vitesse",

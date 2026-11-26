@@ -712,6 +712,76 @@ func TestTickRefreshesResetTodayOnItsOwnInterval(t *testing.T) {
 	}
 }
 
+// The Gemini feed polls while the Gemini panel shows its module or while the
+// shared reset alerts are on, and delivers its alerts like the Codex feed.
+func TestGeminiResetTodayPollsForItsPanelOrTheAlerts(t *testing.T) {
+	f := newFake(t)
+	codex := &fakeResetToday{now: f.clk.Now}
+	gem := &fakeResetToday{now: f.clk.Now, pending: []alerts.Alert{{ID: "rate-limit-reset:gemini:detected:1:2", Kind: alerts.KindRateLimitResetDetected}},
+		state: ResetTodayState{Text: "yes", HasData: true}}
+	s, r := newService(t, f, func(o *Options) {
+		o.ResetToday = codex
+		o.GeminiResetToday = gem
+		o.Preferences.RateLimitResetTodayRefreshIntervalSeconds = 600
+		o.Preferences.RateLimitResetTodayAlertsEnabled = false
+	})
+	s.Tick(f.clk.Now())
+	settle(t, s)
+	if gem.count() != 0 {
+		t.Fatalf("the Codex panel without alerts refreshed the Gemini feed %d times", gem.count())
+	}
+	p := s.Preferences()
+	p.SelectedProvider = store.ProviderGemini
+	s.SetPreferences(p)
+	s.Tick(f.clk.Advance(time.Second))
+	settle(t, s)
+	if gem.count() != 1 {
+		t.Fatalf("the Gemini panel refreshed its feed %d times", gem.count())
+	}
+	s.Tick(f.clk.Advance(599 * time.Second))
+	settle(t, s)
+	if gem.count() != 1 {
+		t.Error("refreshed before the interval")
+	}
+	s.Tick(f.clk.Advance(2 * time.Second))
+	settle(t, s)
+	if gem.count() != 2 {
+		t.Errorf("not refreshed after the interval: %d", gem.count())
+	}
+	s.RefreshGeminiResetToday(true)
+	settle(t, s)
+	if !gem.forced[len(gem.forced)-1] {
+		t.Error("force flag not passed on")
+	}
+	if r.alertCount() != 0 {
+		t.Errorf("alerts off, yet %d alerts", r.alertCount())
+	}
+	if got := s.Snapshot().GeminiResetToday; got.Text != "yes" || !got.HasData {
+		t.Errorf("snapshot = %+v", got)
+	}
+	// Alerts alone keep it polling on another provider, and deliver once.
+	p.SelectedProvider = store.ProviderCodex
+	p.RateLimitResetTodayAlertsEnabled = true
+	s.SetPreferences(p)
+	before := gem.count()
+	s.Tick(f.clk.Advance(time.Hour))
+	settle(t, s)
+	if gem.count() != before+1 {
+		t.Error("the shared alerts did not poll the Gemini feed")
+	}
+	if r.alertCount() != 1 {
+		t.Errorf("gemini alerts delivered %d times", r.alertCount())
+	}
+	p.RateLimitResetTodayAlertsEnabled = false
+	s.SetPreferences(p)
+	before = gem.count()
+	s.Tick(f.clk.Advance(time.Hour))
+	settle(t, s)
+	if gem.count() != before {
+		t.Error("an unused Gemini feed was refreshed")
+	}
+}
+
 // ---- export, alerts, widgets -------------------------------------------------------
 
 func TestStatusJSONExportHasNoCredentials(t *testing.T) {

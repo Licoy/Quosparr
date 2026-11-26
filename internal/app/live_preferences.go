@@ -134,8 +134,10 @@ func (rt *liveApp) drainPreferences() {
 			rt.svc.Refresh(usage.RefreshForce)
 			// The public reset feed has its own refresh cycle; a full account
 			// refresh must not consume a queued panel-open/manual feed request.
-			if sections[runway.SectionResetToday] {
-				refreshSection(rt.svc, runway.SectionResetToday)
+			for _, sec := range []runway.Section{runway.SectionResetToday, runway.SectionGeminiResetToday} {
+				if sections[sec] {
+					refreshSection(rt.svc, sec)
+				}
 			}
 		} else {
 			for section := range sections {
@@ -160,6 +162,9 @@ func (rt *liveApp) applyPreferences(p store.Preferences) {
 		rt.geminiB.setPreferences(p, rt.langs)
 	}
 	rt.reset.setPreferences(p, rt.langs)
+	if rt.geminiReset != nil {
+		rt.geminiReset.setPreferences(p, rt.langs)
+	}
 	rt.svc.SetPreferences(p)
 }
 

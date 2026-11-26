@@ -149,9 +149,18 @@ func (rt *liveApp) queryGeminiDetailCost(ctx context.Context, q CostQuery, now t
 func installDetailActions(rt *liveApp, a *PanelActions) {
 	a.QueryCost = rt.queryDetailCost
 	a.QueryCache = rt.queryCache
-	client := &resettoday.ReactionClient{Store: resettoday.DefaultReactionStore()}
-	a.QueryReaction = client.Fetch
-	a.React = client.Click
+	codexReactions := &resettoday.ReactionClient{Store: resettoday.DefaultReactionStore()}
+	geminiReactions := &resettoday.ReactionClient{Feed: resettoday.AntigravityFeed, Store: resettoday.AntigravityReactionStore()}
+	// The panel drops reaction state when the provider changes, so a request
+	// always belongs to the feed of the provider it was sent for.
+	reactions := func() *resettoday.ReactionClient {
+		if rt.svc.Preferences().SelectedProvider == store.ProviderGemini {
+			return geminiReactions
+		}
+		return codexReactions
+	}
+	a.QueryReaction = func(ctx context.Context) (resettoday.ReactionSnapshot, error) { return reactions().Fetch(ctx) }
+	a.React = func(ctx context.Context) (resettoday.ReactionPostResult, error) { return reactions().Click(ctx) }
 	a.RepairSessions = func() { rt.queuePreferences(livePreferenceRequest{repair: true}) }
 	installSkillActions(rt, &a.Skills)
 	installSessionActions(rt, &a.Sessions)

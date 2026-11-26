@@ -20,15 +20,17 @@ type Section string
 
 // Section values (Swift RunwayRefreshSection).
 const (
-	SectionQuota          Section = "quota"
-	SectionResetCredits   Section = "resetCredits"
-	SectionResetToday     Section = "rateLimitResetToday"
-	SectionQuotaEstimate  Section = "quotaEstimate"
-	SectionAPICost        Section = "apiCost"
-	SectionTokenHeatmap   Section = "tokenHeatmap"
-	SectionSpeed          Section = "speedAnalysis"
-	SectionSessionRepair  Section = "sessionRepair"
-	SectionRecentSessions Section = "recentSessions"
+	SectionQuota        Section = "quota"
+	SectionResetCredits Section = "resetCredits"
+	SectionResetToday   Section = "rateLimitResetToday"
+	// SectionGeminiResetToday is the reset-status card of the Gemini panel.
+	SectionGeminiResetToday Section = "geminiRateLimitResetToday"
+	SectionQuotaEstimate    Section = "quotaEstimate"
+	SectionAPICost          Section = "apiCost"
+	SectionTokenHeatmap     Section = "tokenHeatmap"
+	SectionSpeed            Section = "speedAnalysis"
+	SectionSessionRepair    Section = "sessionRepair"
+	SectionRecentSessions   Section = "recentSessions"
 )
 
 // Snapshot is an immutable view of the whole coordinator state. The Service
@@ -49,9 +51,11 @@ type Snapshot struct {
 	Claude     ClaudeState
 	Gemini     GeminiState
 	ResetToday ResetTodayState
-	Refresh    RefreshView
-	StatusBar  StatusBarView
-	Floating   FloatingView
+	// GeminiResetToday is the Gemini panel's reset-status card.
+	GeminiResetToday ResetTodayState
+	Refresh          RefreshView
+	StatusBar        StatusBarView
+	Floating         FloatingView
 }
 
 // AccountsView is the managed account list and the signed-in identity.

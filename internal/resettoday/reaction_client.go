@@ -5,6 +5,7 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"path/filepath"
 	"sync"
 
 	"github.com/licoy/quosparr/internal/export"
@@ -19,7 +20,9 @@ const maxReactionBytes = 1 << 20
 type ReactionClient struct {
 	// HTTP nil resolves the netx context without cookies for every request.
 	HTTP *http.Client
-	// URL overrides ReactionURL (tests).
+	// Feed is the monitor whose reactions to read (zero: CodexFeed).
+	Feed Feed
+	// URL overrides the feed's reaction URL (tests).
 	URL string
 	// Store persists the visitor ID; an empty Path keeps it in memory only for
 	// the process (nothing is loaded or saved).
@@ -40,11 +43,21 @@ func DefaultReactionStore() export.ReactionStore {
 	return export.ReactionStore{Path: export.DefaultReactionPath(home)}
 }
 
+// AntigravityReactionStore is ~/.quosparr/agy-reaction-visitor.json. The two
+// services mint their own visitor IDs, so each keeps its own file.
+func AntigravityReactionStore() export.ReactionStore {
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return export.ReactionStore{}
+	}
+	return export.ReactionStore{Path: filepath.Join(filepath.Dir(export.DefaultReactionPath(home)), "agy-reaction-visitor.json")}
+}
+
 func (c *ReactionClient) url() string {
 	if c.URL != "" {
 		return c.URL
 	}
-	return ReactionURL
+	return c.Feed.ReactionURL()
 }
 
 func (c *ReactionClient) nextMock(increment bool) int {
@@ -76,8 +89,8 @@ func (c *ReactionClient) newRequest(ctx context.Context, method string) (*http.R
 		req.Header.Set("Cookie", ReactionCookieName+"="+id)
 	}
 	if method == http.MethodPost {
-		req.Header.Set("Origin", ReactionOrigin)
-		req.Header.Set("Referer", ReactionReferer)
+		req.Header.Set("Origin", c.Feed.Origin())
+		req.Header.Set("Referer", c.Feed.Referer())
 	}
 	return req, nil
 }

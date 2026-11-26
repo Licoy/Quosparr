@@ -11,9 +11,8 @@ import (
 	"github.com/licoy/quosparr/internal/resettoday"
 	"github.com/licoy/quosparr/internal/resettoday/runwayfmt"
 	"github.com/licoy/quosparr/internal/runway"
+	"github.com/licoy/quosparr/internal/store"
 )
-
-const resetSiteURL = "https://didcodexreset.com/"
 
 // resetCard is the verdict card with everything it needs at one instant.
 type resetCard struct {
@@ -23,10 +22,24 @@ type resetCard struct {
 	loc    *time.Location
 	verdct resettoday.VerdictPresentation
 	busy   bool
+	// site is the home page of the monitor the card reads.
+	site string
+}
+
+// resetTodaySection is the reset-status section of a provider's panel;
+// false for providers without a monitor.
+func resetTodaySection(p store.Provider) (runway.Section, bool) {
+	switch p {
+	case store.ProviderCodex:
+		return runway.SectionResetToday, true
+	case store.ProviderGemini:
+		return runway.SectionGeminiResetToday, true
+	}
+	return "", false
 }
 
 func newResetCard(l l10n.Localizer, state runway.ResetTodayState, busy bool) resetCard {
-	rc := resetCard{l: l, now: time.Now(), loc: time.Local, busy: busy}
+	rc := resetCard{l: l, now: time.Now(), loc: time.Local, busy: busy, site: resettoday.SiteURL}
 	if s, ok := state.Detail.(*resettoday.Snapshot); ok && s != nil {
 		rc.snap = s
 		rc.verdct = s.VerdictPresentation(rc.now, rc.loc)
@@ -34,10 +47,19 @@ func newResetCard(l l10n.Localizer, state runway.ResetTodayState, busy bool) res
 	return rc
 }
 
-// panelResetToday is the "Did Codex reset today?" section.
+// panelResetToday is the "Did Codex reset today?" section; the Gemini panel
+// shows the Antigravity monitor with the Gemini copy.
 func panelResetToday(c *ui.Context, l l10n.Localizer, snap runway.Snapshot, acts PanelActions, first *bool, st *panelState) {
-	busy := snap.Refresh.Has(runway.SectionResetToday)
-	rc := newResetCard(l, snap.ResetToday, busy)
+	sec, state := runway.SectionResetToday, snap.ResetToday
+	if snap.Provider == store.ProviderGemini {
+		sec, state = runway.SectionGeminiResetToday, snap.GeminiResetToday
+		l = l.WithVariant(l10n.VariantGemini)
+	}
+	busy := snap.Refresh.Has(sec)
+	rc := newResetCard(l, state, busy)
+	if snap.Provider == store.ProviderGemini {
+		rc.site = resettoday.AntigravityFeed.SiteURL
+	}
 	if !st.reaction.initialized && st.startReaction != nil {
 		st.reaction.initialized = true
 		if acts.QueryReaction != nil {
@@ -46,8 +68,8 @@ func panelResetToday(c *ui.Context, l l10n.Localizer, snap runway.Snapshot, acts
 	}
 	sectionBlock(c, first, func() {
 		drawSectionHead(c, l, st, sectionSpec{
-			title: rc.sectionTitle(), refreshing: busy, refresh: sectionRefresh(acts, runway.SectionResetToday),
-			info: &sectionInfo{id: "reset-today", help: l.Text(l10n.KeyRateLimitResetTodaySourceTitle), body: resetSourceBody(c, l, st)},
+			title: rc.sectionTitle(), refreshing: busy, refresh: sectionRefresh(acts, sec),
+			info: &sectionInfo{id: "reset-today", help: l.Text(l10n.KeyRateLimitResetTodaySourceTitle), body: resetSourceBody(c, l, st, rc.site)},
 		})
 		cardColumn(c, surfaceRaisedKind, radiusCard).Padding(12).Children(func() {
 			rc.hero(c, acts, st)
@@ -66,7 +88,7 @@ func (rc resetCard) sectionTitle() string {
 	return rc.l.Text(l10n.KeyRateLimitResetQuestionUnavailable)
 }
 
-func resetSourceBody(c *ui.Context, l l10n.Localizer, st *panelState) func() {
+func resetSourceBody(c *ui.Context, l l10n.Localizer, st *panelState, site string) func() {
 	t := c.Theme()
 	return func() {
 		ui.Text(c, l.Text(l10n.KeyRateLimitResetTodaySourceTitle)).FontSize(fsTitle3).FontWeight(600)
@@ -85,7 +107,7 @@ func resetSourceBody(c *ui.Context, l l10n.Localizer, st *panelState) func() {
 		})
 		if link.Clicked() {
 			st.info = ""
-			c.OpenURL(resetSiteURL)
+			c.OpenURL(site)
 		}
 		ui.Row(c).Children(func() {
 			ui.Spacer(c).Grow(1)
@@ -366,7 +388,7 @@ func (rc resetCard) websiteLink(c *ui.Context) {
 		ui.Icon(c, icArrowUpRight).Size(11, 11).TextColor(link)
 	})
 	if b.Clicked() {
-		c.OpenURL(resetSiteURL)
+		c.OpenURL(rc.site)
 	}
 }
 

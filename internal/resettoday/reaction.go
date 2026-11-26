@@ -11,7 +11,7 @@ import (
 	"github.com/licoy/quosparr/internal/export"
 )
 
-// Reaction service constants.
+// Reaction service constants of CodexFeed.
 const (
 	ReactionCookieName = export.ReactionCookieName
 	ReactionOrigin     = "https://didcodexreset.com"

@@ -141,6 +141,9 @@ func moduleTexts(l l10n.Localizer, m store.Module) (title, subtitle string) {
 		return tx(l, xSkillsTitle), tx(l, xSkillsModuleDescription)
 	case store.ModuleCacheAnalysis:
 		return tx(l, xCacheTitle), tx(l, xCacheModuleDescription)
+	case store.ModuleRateLimitResetToday:
+		// The module shows in the Codex and the Gemini panel.
+		return tx(l, xResetUpdatesModuleTitle), tx(l, xResetUpdatesModuleDesc)
 	}
 	info := moduleInfoOf(m)
 	return l.Text(info.title), l.Text(info.subtitle)

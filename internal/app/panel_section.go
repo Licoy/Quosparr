@@ -43,7 +43,10 @@ func localProvider(p store.Provider) bool {
 }
 
 func panelModuleOn(m store.Module, p store.Preferences, grok bool) bool {
-	if grok && (m == store.ModuleQuotaEstimate || m == store.ModuleSessionRepair || m == store.ModuleRateLimitResetToday) {
+	if grok && (m == store.ModuleQuotaEstimate || m == store.ModuleSessionRepair) {
+		return false
+	}
+	if _, ok := resetTodaySection(p.SelectedProvider); m == store.ModuleRateLimitResetToday && !ok {
 		return false
 	}
 	switch m {

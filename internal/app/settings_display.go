@@ -197,6 +197,9 @@ func (u *settingsUI) moduleCard(c *ui.Context, p store.Preferences, m store.Modu
 	if info.both {
 		applies = l.Text(l10n.KeyModuleAppliesBoth)
 	}
+	if m == store.ModuleRateLimitResetToday {
+		applies = tx(l, xModuleAppliesCodexGemini)
+	}
 	ui.Column(c).Children(func() {
 		if index > 0 {
 			ui.Box(c).Height(1).Background(pal(t).Line)
@@ -323,8 +326,9 @@ func (u *settingsUI) notificationsGroup(c *ui.Context) {
 				s.SetResetCreditAlerts(v)
 			}
 		})
-		row(l.Text(l10n.KeyRateLimitResetTodayAlerts), l.Text(l10n.KeyRateLimitResetTodayAlertsDescription), func() {
-			if v, ok := toggle(c, "alert-reset-today", l.Text(l10n.KeyRateLimitResetTodayAlerts), p.RateLimitResetTodayAlertsEnabled, ro); ok {
+		// One switch covers the Codex and the Gemini reset feeds.
+		row(tx(l, xResetUpdatesAlerts), l.Text(l10n.KeyRateLimitResetTodayAlertsDescription), func() {
+			if v, ok := toggle(c, "alert-reset-today", tx(l, xResetUpdatesAlerts), p.RateLimitResetTodayAlertsEnabled, ro); ok {
 				s.SetRateLimitResetTodayAlerts(v)
 			}
 		})

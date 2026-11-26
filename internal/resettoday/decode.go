@@ -29,6 +29,13 @@ func invalid(format string, args ...any) error {
 // nulls where the Swift code rejects them, unknown enum values and timestamps
 // without a time zone offset are all errors.
 func Decode(data []byte, now time.Time, loc *time.Location) (*Snapshot, error) {
+	return CodexFeed.Decode(data, now, loc)
+}
+
+// Decode is the package Decode for the feed of f: sources and rationales are
+// checked against f, and the snapshot remembers f for its links.
+func (f Feed) Decode(data []byte, now time.Time, loc *time.Location) (*Snapshot, error) {
+	f = f.orCodex()
 	resp, err := decodeResponse(data)
 	if err != nil {
 		return nil, err
@@ -36,10 +43,12 @@ func Decode(data []byte, now time.Time, loc *time.Location) (*Snapshot, error) {
 	if resp.schemaVersion != 1 {
 		return nil, invalid("Unsupported reset-status schema version.")
 	}
-	if err := validateResponse(resp); err != nil {
+	if err := validateResponse(f, resp); err != nil {
 		return nil, err
 	}
-	return newSnapshot(resp, now, loc), nil
+	s := newSnapshot(resp, now, loc)
+	s.Feed = f
+	return s, nil
 }
 
 type response struct {
@@ -567,7 +576,7 @@ var monitorErrorCodes = map[string]bool{
 	"configuration_error": true, "request_failed": true, "invalid_response": true, "uncited_source": true,
 }
 
-func validateResponse(r response) error {
+func validateResponse(f Feed, r response) error {
 	switch r.monitor.Status {
 	case MonitorOK:
 		if r.monitor.ErrorCode != nil {
@@ -583,7 +592,7 @@ func validateResponse(r response) error {
 	}
 	byID := map[string]Event{}
 	for _, e := range r.events {
-		if err := validateEvent(e); err != nil {
+		if err := validateEvent(f, e); err != nil {
 			return err
 		}
 		if _, dup := byID[e.Source.PostID]; dup {
@@ -593,7 +602,7 @@ func validateResponse(r response) error {
 	}
 	graceIDs := map[string]bool{}
 	for _, e := range r.graceSchedules {
-		if err := validateEvent(e); err != nil {
+		if err := validateEvent(f, e); err != nil {
 			return err
 		}
 		if e.Kind != KindResetScheduled {
@@ -611,14 +620,14 @@ func validateResponse(r response) error {
 		}
 	}
 	if r.resetTimeline != nil {
-		return validateTimeline(*r.resetTimeline)
+		return validateTimeline(f, *r.resetTimeline)
 	}
 	return nil
 }
 
-func validateTimeline(t Timeline) error {
+func validateTimeline(f Feed, t Timeline) error {
 	if next := t.NextSchedule; next != nil {
-		if err := validateEvent(*next); err != nil {
+		if err := validateEvent(f, *next); err != nil {
 			return err
 		}
 		if next.Kind != KindResetScheduled {
@@ -634,45 +643,45 @@ func validateTimeline(t Timeline) error {
 		}
 	}
 	fulfilled := map[string]bool{}
-	for _, f := range t.FulfilledSchedules {
-		if err := validateEvent(f.Schedule); err != nil {
+	for _, fs := range t.FulfilledSchedules {
+		if err := validateEvent(f, fs.Schedule); err != nil {
 			return err
 		}
-		if f.Schedule.Kind != KindResetScheduled {
+		if fs.Schedule.Kind != KindResetScheduled {
 			return invalid("A fulfilled schedule must contain a scheduled event.")
 		}
-		if err := validateEventID(f.CompletionPostID, "completionPostId"); err != nil {
+		if err := validateEventID(fs.CompletionPostID, "completionPostId"); err != nil {
 			return err
 		}
-		if f.VisibleUntil.Before(f.CompletedAt) {
+		if fs.VisibleUntil.Before(fs.CompletedAt) {
 			return invalid("Fulfilled schedule visibility cannot end before completion.")
 		}
-		if err := validatePublishedWindow(f.Window); err != nil {
+		if err := validatePublishedWindow(fs.Window); err != nil {
 			return err
 		}
-		id := f.Schedule.Source.PostID
+		id := fs.Schedule.Source.PostID
 		if fulfilled[id] {
 			return invalid("Fulfilled schedules must have unique post IDs.")
 		}
 		fulfilled[id] = true
 	}
-	for _, f := range t.FulfilledBanked {
-		if err := validateEvent(f.Banked); err != nil {
+	for _, fb := range t.FulfilledBanked {
+		if err := validateEvent(f, fb.Banked); err != nil {
 			return err
 		}
-		if f.Banked.Kind != KindBankedReset {
+		if fb.Banked.Kind != KindBankedReset {
 			return invalid("A fulfilled banked origin must contain a banked reset event.")
 		}
-		if err := validateEventID(f.CompletionPostID, "completionPostId"); err != nil {
+		if err := validateEventID(fb.CompletionPostID, "completionPostId"); err != nil {
 			return err
 		}
-		if f.VisibleUntil.Before(f.CompletedAt) {
+		if fb.VisibleUntil.Before(fb.CompletedAt) {
 			return invalid("Fulfilled banked visibility cannot end before completion.")
 		}
 	}
 	manual := map[string]bool{}
 	for _, m := range t.ManualCompletions {
-		if err := validateManual(m); err != nil {
+		if err := validateManual(f, m); err != nil {
 			return err
 		}
 		if manual[m.ID] {
@@ -693,7 +702,7 @@ func validateTimeline(t Timeline) error {
 	return nil
 }
 
-func validateManual(m ManualCompletion) error {
+func validateManual(f Feed, m ManualCompletion) error {
 	if !strings.HasPrefix(m.ID, "manual:") {
 		return invalid("Manual completion IDs must start with manual:.")
 	}
@@ -730,7 +739,7 @@ func validateManual(m ManualCompletion) error {
 		}
 	}
 	for _, s := range m.Schedules {
-		if err := validateEvent(s); err != nil {
+		if err := validateEvent(f, s); err != nil {
 			return err
 		}
 		if s.Kind != KindResetScheduled {
@@ -754,17 +763,17 @@ func validatePublishedWindow(w PublishedWindow) error {
 	return nil
 }
 
-func validateEvent(e Event) error {
+func validateEvent(f Feed, e Event) error {
 	if math.IsNaN(e.Confidence) || math.IsInf(e.Confidence, 0) || e.Confidence < 0 || e.Confidence > 1 {
 		return invalid("Event confidence must be between zero and one.")
 	}
-	if err := validateSource(e.Source, e.Kind); err != nil {
+	if err := validateSource(f, e.Source, e.Kind); err != nil {
 		return err
 	}
 	if e.Text == "" {
 		return invalid("Event text must be a non-empty original post body.")
 	}
-	if !acceptsRationale(e) {
+	if !acceptsRationale(f, e) {
 		return invalid("Event rationale must be the derived explanation for its kind.")
 	}
 	if h := e.ScheduleGraceHours; h != nil {
@@ -811,7 +820,7 @@ func validateEvent(e Event) error {
 	return nil
 }
 
-func validateSource(s EventSource, kind EventKind) error {
+func validateSource(f Feed, s EventSource, kind EventKind) error {
 	if s.IsOperator() {
 		if kind != KindResetCompleted && kind != KindResetScheduled {
 			return invalid("Operator events must be completed or scheduled resets.")
@@ -821,8 +830,14 @@ func validateSource(s EventSource, kind EventKind) error {
 		}
 		return nil
 	}
-	bad := invalid("Event source must identify a valid @thsottiaux X post.")
-	if IsOperatorEventID(s.PostID) || !IsXPostID(s.PostID) || s.Handle == nil || *s.Handle != "thsottiaux" || s.URL == nil {
+	bad := invalid("Event source must identify a valid X post of a monitored account.")
+	if f.Handle != "" {
+		bad = invalid("Event source must identify a valid @%s X post.", f.Handle)
+	}
+	if IsOperatorEventID(s.PostID) || !IsXPostID(s.PostID) || s.Handle == nil || s.URL == nil {
+		return bad
+	}
+	if f.Handle != "" && *s.Handle != f.Handle || f.Handle == "" && !isXHandle(*s.Handle) {
 		return bad
 	}
 	u, err := parseURL(*s.URL)
@@ -836,7 +851,7 @@ func validateSource(s EventSource, kind EventKind) error {
 		}
 	}
 	if strings.ToLower(u.Scheme) != "https" || strings.ToLower(u.Hostname()) != "x.com" ||
-		len(path) != 3 || !strings.EqualFold(path[0], "thsottiaux") || path[1] != "status" || path[2] != s.PostID {
+		len(path) != 3 || !strings.EqualFold(path[0], *s.Handle) || path[1] != "status" || path[2] != s.PostID {
 		return bad
 	}
 	return nil
@@ -850,50 +865,52 @@ func validateEventID(id, label string) error {
 }
 
 // rationaleSubjects names the reset type in the derived explanation.
-func rationale(resetType ResetType, global, banked, both string) string {
+// The %s of each wording is the feed's product.
+func rationale(f Feed, resetType ResetType, global, banked, both string) string {
+	pick := global
 	switch resetType {
 	case ResetBanked:
-		return banked
+		pick = banked
 	case ResetGlobalAndBanked:
-		return both
+		pick = both
 	}
-	return global
+	return fmt.Sprintf(pick, f.Product)
 }
 
 // acceptsRationale: the schema enumerates one explanation per kind. The
 // uncertain kind also accepts one legacy wording for cached payloads.
-func acceptsRationale(e Event) bool {
+func acceptsRationale(f Feed, e Event) bool {
 	var want []string
 	switch e.Kind {
 	case KindResetCompleted:
 		if e.Source.IsOperator() {
-			want = []string{rationale(e.ResetType,
-				"Operator-confirmed Codex quota reset without an X announcement.",
-				"Operator-confirmed Codex reset-bank credit without an X announcement.",
-				"Operator-confirmed Codex global reset and reset-bank credit without an X announcement.")}
+			want = []string{rationale(f, e.ResetType,
+				"Operator-confirmed %s quota reset without an X announcement.",
+				"Operator-confirmed %s reset-bank credit without an X announcement.",
+				"Operator-confirmed %s global reset and reset-bank credit without an X announcement.")}
 		} else {
-			want = []string{rationale(e.ResetType,
-				"Explicit Codex quota reset announcement.",
-				"Explicit Codex reset-bank credit announcement.",
-				"Explicit Codex global reset and reset-bank credit announcement.")}
+			want = []string{rationale(f, e.ResetType,
+				"Explicit %s quota reset announcement.",
+				"Explicit %s reset-bank credit announcement.",
+				"Explicit %s global reset and reset-bank credit announcement.")}
 		}
 	case KindResetScheduled:
 		switch {
 		case e.Source.IsOperator():
-			want = []string{rationale(e.ResetType,
-				"Operator-confirmed Codex quota reset schedule without an X announcement.",
-				"Operator-confirmed Codex reset-bank credit schedule without an X announcement.",
-				"Operator-confirmed Codex global reset and reset-bank credit schedule without an X announcement.")}
+			want = []string{rationale(f, e.ResetType,
+				"Operator-confirmed %s quota reset schedule without an X announcement.",
+				"Operator-confirmed %s reset-bank credit schedule without an X announcement.",
+				"Operator-confirmed %s global reset and reset-bank credit schedule without an X announcement.")}
 		case e.ScheduleBasis == BasisContextualInference:
-			want = []string{rationale(e.ResetType,
-				"High-probability Codex quota reset preview inferred from context.",
-				"High-probability Codex reset-bank credit preview inferred from context.",
-				"High-probability Codex global reset and reset-bank credit preview inferred from context.")}
+			want = []string{rationale(f, e.ResetType,
+				"High-probability %s quota reset preview inferred from context.",
+				"High-probability %s reset-bank credit preview inferred from context.",
+				"High-probability %s global reset and reset-bank credit preview inferred from context.")}
 		default:
-			want = []string{rationale(e.ResetType,
-				"Explicit Codex quota reset schedule.",
-				"Explicit Codex reset-bank credit schedule.",
-				"Explicit Codex global reset and reset-bank credit schedule.")}
+			want = []string{rationale(f, e.ResetType,
+				"Explicit %s quota reset schedule.",
+				"Explicit %s reset-bank credit schedule.",
+				"Explicit %s global reset and reset-bank credit schedule.")}
 		}
 	case KindBankedReset:
 		want = []string{"Banked reset announcement; not a completed reset."}

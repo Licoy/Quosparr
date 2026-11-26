@@ -6,9 +6,24 @@ import "strings"
 // Swift releases; the typed constants live in tables.go.
 type Key string
 
-// Localizer looks up strings for one resolved language.
+// Localizer looks up strings for one resolved language, optionally through
+// the overrides of a product variant.
 type Localizer struct {
-	lang Language
+	lang    Language
+	variant Variant
+}
+
+// Variant names a product whose copy replaces some keys (see
+// variantTables). The zero Variant uses the base tables only.
+type Variant string
+
+// VariantGemini is the copy of the Gemini reset-status feed.
+const VariantGemini Variant = "gemini"
+
+// WithVariant returns l reading the overrides of v first.
+func (l Localizer) WithVariant(v Variant) Localizer {
+	l.variant = v
+	return l
 }
 
 // New returns a Localizer for lang. Unknown languages behave like English
@@ -27,8 +42,11 @@ func (l Localizer) Language() Language { return l.lang }
 // Text returns the translation of key. Like the Swift implementation, a key
 // absent from the language's table falls back to the English table, and a
 // key absent from both yields the key's raw value. A present-but-empty
-// translation is returned as is.
+// translation is returned as is. A variant override wins over both.
 func (l Localizer) Text(key Key) string {
+	if row, ok := variantTables[l.variant][key]; ok {
+		return row[languageIndex(l.lang)]
+	}
 	if s, ok := tables[l.lang][key]; ok {
 		return s
 	}

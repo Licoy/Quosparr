@@ -187,6 +187,7 @@ type liveApp struct {
 	codexCache     usage.CacheScanCache
 	grokCache      grok.CacheScanCache
 	reset          *resetBridge
+	geminiReset    *resetBridge
 	repo           *usage.Repository
 	widgets        *widgetCoordinator
 	dispatch       *snapshotDispatch
@@ -247,6 +248,7 @@ func newRuntime(opts BackgroundOptions) *liveApp {
 	gbridge := newGeminiBridge(gmod, home, prefs, langs)
 	gbridge.reload(false)
 	reset := newResetBridge(opts.Settings, prefs, langs)
+	geminiReset := newGeminiResetBridge(prefs, langs)
 	repo := openUsage(home, priceSource)
 	widgetRequirements := initialWidgetRequirements(opts.Settings)
 	widgets := newWidgetCoordinator(home, widgetRequirements != 0)
@@ -286,6 +288,7 @@ func newRuntime(opts BackgroundOptions) *liveApp {
 		Claude:              cbridge,
 		Gemini:              gbridge,
 		ResetToday:          reset,
+		GeminiResetToday:    geminiReset,
 		WidgetRequirements:  widgetRequirements,
 		WidgetSink:          widgets.publish,
 		OnSnapshot:          func(snap runway.Snapshot) { dispatch.publish(snap); widgetUI.publish(snap) },
@@ -298,7 +301,7 @@ func newRuntime(opts BackgroundOptions) *liveApp {
 		SystemLanguages: langs,
 	})
 	rt := &liveApp{
-		host: opts.Host, pricing: prices, svc: svc, codex: codexStore, grokMod: mod, grok: bridge, claudeMod: cmod, claudeB: cbridge, geminiMod: gmod, geminiB: gbridge, reset: reset,
+		host: opts.Host, pricing: prices, svc: svc, codex: codexStore, grokMod: mod, grok: bridge, claudeMod: cmod, claudeB: cbridge, geminiMod: gmod, geminiB: gbridge, reset: reset, geminiReset: geminiReset,
 		repo: repo, widgets: widgets, dispatch: dispatch, widgetDispatch: widgetUI, alertDispatch: alertUI, version: opts.Version, langs: langs,
 	}
 	rt.claudeDesktop = newClaudeDesktopManager(home, cmod)
@@ -441,6 +444,8 @@ func refreshSection(s *runway.Service, sec runway.Section) {
 		s.RefreshResetCredits()
 	case runway.SectionResetToday:
 		s.RefreshResetToday(true)
+	case runway.SectionGeminiResetToday:
+		s.RefreshGeminiResetToday(true)
 	case runway.SectionQuotaEstimate:
 		s.RefreshQuotaEstimate()
 	case runway.SectionAPICost:
@@ -505,7 +510,28 @@ func deliverEvent(opts BackgroundOptions, e runway.Event) {
 	})
 }
 
+// Reset alert IDs start with resetAlertPrefix. The Gemini feed's alerts move
+// under geminiAlertPrefix, so they dedupe apart from the Codex ones (post IDs
+// of the two monitors may coincide) and still sort after the quota IDs, the
+// bulk of the store, which leave its lexicographically-last window first.
+const (
+	resetAlertPrefix  = "rate-limit-reset:"
+	geminiAlertPrefix = resetAlertPrefix + "gemini:"
+)
+
+func geminiAlerts(list []alerts.Alert) []alerts.Alert {
+	out := make([]alerts.Alert, len(list))
+	for i, a := range list {
+		a.ID = geminiAlertPrefix + strings.TrimPrefix(a.ID, resetAlertPrefix)
+		out[i] = a
+	}
+	return out
+}
+
 func alertNotification(l l10n.Localizer, a alerts.Alert, now time.Time) Notification {
+	if strings.HasPrefix(a.ID, geminiAlertPrefix) {
+		l = l.WithVariant(l10n.VariantGemini)
+	}
 	return Notification{ID: a.ID, Title: alertTitle(l, a, now), Body: alertBody(l, a, now)}
 }
 
@@ -1072,11 +1098,24 @@ type resetBridge struct {
 	lc       l10n.Localizer
 	loc      *time.Location
 	prefs    store.Preferences
+	// gemini marks the Gemini panel's feed: Gemini copy, alert IDs under
+	// geminiAlertPrefix and no widget block.
+	gemini bool
 }
 
 func newResetBridge(s *Settings, prefs store.Preferences, langs []string) *resetBridge {
-	b := &resetBridge{prefs: prefs.Clone(), lc: l10n.ForPreference(string(prefs.Language), langs), loc: time.Local}
-	client := resettoday.Client{}
+	return newFeedResetBridge(prefs, langs, resettoday.CodexFeed, false)
+}
+
+// newGeminiResetBridge reads the Antigravity monitor for the Gemini panel.
+func newGeminiResetBridge(prefs store.Preferences, langs []string) *resetBridge {
+	return newFeedResetBridge(prefs, langs, resettoday.AntigravityFeed, true)
+}
+
+func newFeedResetBridge(prefs store.Preferences, langs []string, feed resettoday.Feed, gemini bool) *resetBridge {
+	b := &resetBridge{prefs: prefs.Clone(), loc: time.Local, gemini: gemini}
+	b.lc = b.localizer(prefs, langs)
+	client := resettoday.Client{Feed: feed}
 	b.ref = &resettoday.Refresher{
 		Fetch: client.FetchStatus,
 		Loc:   time.Local,
@@ -1115,12 +1154,23 @@ func (b *resetBridge) State(now time.Time) runway.ResetTodayState {
 	b.mu.Lock()
 	lc := b.lc
 	b.mu.Unlock()
-	src := resettoday.NewSource(st.Snapshot, b.loc)
-	w := src.Widget(now)
-	return runway.ResetTodayState{
+	state := runway.ResetTodayState{
 		Text: b.verdictText(st.Snapshot, now), Lines: resetDetailLines(lc, st.Snapshot, now, b.loc),
-		HasData: true, Widget: &w, Detail: st.Snapshot,
+		HasData: true, Detail: st.Snapshot,
 	}
+	if !b.gemini {
+		w := resettoday.NewSource(st.Snapshot, b.loc).Widget(now)
+		state.Widget = &w
+	}
+	return state
+}
+
+func (b *resetBridge) localizer(p store.Preferences, langs []string) l10n.Localizer {
+	lc := l10n.ForPreference(string(p.Language), langs)
+	if b.gemini {
+		lc = lc.WithVariant(l10n.VariantGemini)
+	}
+	return lc
 }
 
 func resetDetailLines(lc l10n.Localizer, snap *resettoday.Snapshot, now time.Time, loc *time.Location) []runway.DetailLine {
@@ -1163,13 +1213,16 @@ func (b *resetBridge) SetOnChange(fn func()) {
 func (b *resetBridge) setPreferences(p store.Preferences, langs []string) {
 	b.mu.Lock()
 	b.prefs = p.Clone()
-	b.lc = l10n.ForPreference(string(p.Language), langs)
+	b.lc = b.localizer(p, langs)
 	b.mu.Unlock()
 }
 
 func (b *resetBridge) stash(list []alerts.Alert) {
 	if len(list) == 0 {
 		return
+	}
+	if b.gemini {
+		list = geminiAlerts(list)
 	}
 	b.mu.Lock()
 	b.pending = append(b.pending, list...)

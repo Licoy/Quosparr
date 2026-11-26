@@ -39,7 +39,7 @@ func TestSettingsOtherControlEventLatency(t *testing.T) {
 		{"privacy", (*settingsUI).privacyGroup, text(l10n.KeyAccountPrivacyMode), nil},
 		{"quota alert", (*settingsUI).notificationsGroup, text(l10n.KeyQuotaAlerts), nil},
 		{"credits alert", (*settingsUI).notificationsGroup, text(l10n.KeyResetCreditAlerts), nil},
-		{"today alert", (*settingsUI).notificationsGroup, text(l10n.KeyRateLimitResetTodayAlerts), nil},
+		{"today alert", (*settingsUI).notificationsGroup, func(u *settingsUI) string { return tx(u.L(), xResetUpdatesAlerts) }, nil},
 		{"status export", (*settingsUI).advancedPage, text(l10n.KeyExportStatusJSON), nil},
 		{"refresh interval", (*settingsUI).generalPage, text(l10n.KeyRefreshInterval), func(u *settingsUI) string { return u.minutes(60) }},
 		{"widget interval", (*settingsUI).generalPage, text(l10n.KeyWidgetRefreshInterval), func(u *settingsUI) string { return u.widgetInterval(600) }},

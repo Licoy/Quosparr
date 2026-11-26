@@ -10,7 +10,7 @@ import (
 	"github.com/licoy/quosparr/internal/netx"
 )
 
-// Hosted endpoints.
+// Hosted endpoints of CodexFeed.
 const (
 	SiteURL   = "https://didcodexreset.com/"
 	StatusURL = "https://didcodexreset.com/api/status.json"
@@ -28,7 +28,9 @@ var ErrBadServerResponse = errors.New("reset-today: bad server response")
 // for every request, so it follows later proxy changes; tests set HTTP (and
 // StatusURL) to an httptest server.
 type Client struct {
-	HTTP      *http.Client
+	HTTP *http.Client
+	// Feed is the monitor to read (zero: CodexFeed).
+	Feed      Feed
 	StatusURL string
 	// DevMock, when set, returns a local fixture instead of calling the network.
 	DevMock *DevMockKind
@@ -38,7 +40,7 @@ func (c Client) statusURL() string {
 	if c.StatusURL != "" {
 		return c.StatusURL
 	}
-	return StatusURL
+	return c.Feed.StatusURL()
 }
 
 func httpClient(ctx context.Context, c *http.Client, policy netx.Policy) (*http.Client, error) {
@@ -81,5 +83,5 @@ func (c Client) FetchStatus(ctx context.Context, now time.Time, loc *time.Locati
 	if len(data) > maxResponseBytes {
 		return nil, ErrBadServerResponse
 	}
-	return Decode(data, now, loc)
+	return c.Feed.Decode(data, now, loc)
 }

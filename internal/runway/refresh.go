@@ -1189,22 +1189,39 @@ func (s *Service) resetTodayWantedLocked() bool {
 		s.widgetReqs.Has(export.RequireResetToday)
 }
 
+// geminiResetTodayWantedLocked reports whether the Gemini reset feed polls:
+// while the Gemini panel shows its module, or while the reset alerts (shared
+// with Codex) are on, whichever provider the panel shows.
+func (s *Service) geminiResetTodayWantedLocked() bool {
+	return s.prefs.ShowsRateLimitResetToday && s.prefs.SelectedProvider == store.ProviderGemini ||
+		s.prefs.RateLimitResetTodayAlertsEnabled
+}
+
 // RefreshResetToday refreshes the reset-today provider (a no-op without one
 // or when nothing shows or alerts it).
 func (s *Service) RefreshResetToday(force bool) <-chan struct{} {
-	rt := s.opts.ResetToday
+	return s.refreshResetFeed(s.opts.ResetToday, SectionResetToday, s.resetTodayWantedLocked, force)
+}
+
+// RefreshGeminiResetToday refreshes the Gemini reset feed (a no-op without
+// one or when nothing shows or alerts it).
+func (s *Service) RefreshGeminiResetToday(force bool) <-chan struct{} {
+	return s.refreshResetFeed(s.opts.GeminiResetToday, SectionGeminiResetToday, s.geminiResetTodayWantedLocked, force)
+}
+
+func (s *Service) refreshResetFeed(rt ResetTodayProvider, sec Section, wanted func() bool, force bool) <-chan struct{} {
 	s.mu.Lock()
-	skip := rt == nil || !s.resetTodayWantedLocked() || s.busy[SectionResetToday]
+	skip := rt == nil || !wanted() || s.busy[sec]
 	s.mu.Unlock()
 	if skip {
 		return closedChan()
 	}
 	return s.run(func() {
-		if !s.enter(SectionResetToday) {
+		if !s.enter(sec) {
 			return
 		}
 		err := rt.Refresh(s.root, force)
-		s.leave(SectionResetToday)
+		s.leave(sec)
 		if err != nil && s.root.Err() != nil {
 			return
 		}

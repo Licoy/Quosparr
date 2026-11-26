@@ -37,6 +37,12 @@ func (s *Service) Tick(now time.Time) {
 		last := s.opts.ResetToday.LastFetch()
 		resetTodayDue = last.IsZero() || now.Sub(last) >= interval
 	}
+	geminiResetDue := false
+	if s.opts.GeminiResetToday != nil && s.geminiResetTodayWantedLocked() {
+		interval := time.Duration(s.prefs.RateLimitResetTodayRefreshIntervalSeconds) * time.Second
+		last := s.opts.GeminiResetToday.LastFetch()
+		geminiResetDue = last.IsZero() || now.Sub(last) >= interval
+	}
 	s.mu.Unlock()
 
 	if start {
@@ -44,6 +50,9 @@ func (s *Service) Tick(now time.Time) {
 	}
 	if resetTodayDue {
 		s.RefreshResetToday(false)
+	}
+	if geminiResetDue {
+		s.RefreshGeminiResetToday(false)
 	}
 }
 
@@ -64,6 +73,8 @@ func tickKey(s Snapshot) string {
 	}
 	b.WriteByte(0)
 	b.WriteString(s.ResetToday.Text)
+	b.WriteByte(0)
+	b.WriteString(s.GeminiResetToday.Text)
 	return b.String()
 }
 

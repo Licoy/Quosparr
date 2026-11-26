@@ -17,6 +17,8 @@ type Snapshot struct {
 	ResetTimeline         *Timeline
 	// FetchedAt is the now the snapshot was decoded with.
 	FetchedAt time.Time
+	// Feed is the monitor that published the snapshot (zero: CodexFeed).
+	Feed Feed
 
 	state         State
 	stateOverride *State

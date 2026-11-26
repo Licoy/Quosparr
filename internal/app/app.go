@@ -353,10 +353,10 @@ func (a *App) panelOpened() {
 	if actions.PanelShown != nil {
 		actions.PanelShown(true)
 	}
-	if prefs.SelectedProvider == store.ProviderCodex && prefs.ShowsRateLimitResetToday && actions.RefreshSection != nil {
+	if sec, ok := resetTodaySection(prefs.SelectedProvider); ok && prefs.ShowsRateLimitResetToday && actions.RefreshSection != nil {
 		// The queued section refresh bypasses the timer interval and coalesces
 		// in-flight requests, keeping the last snapshot visible while fetching.
-		actions.RefreshSection(runway.SectionResetToday)
+		actions.RefreshSection(sec)
 	}
 }
 

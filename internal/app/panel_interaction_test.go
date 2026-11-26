@@ -322,3 +322,56 @@ func colorDistance(r, g, b uint8, c ui.Color) int {
 	}
 	return d(r, c.R) + d(g, c.G) + d(b, c.B)
 }
+
+// The Gemini panel shows the reset module from its own feed, with the Gemini
+// copy, its own refresh section and the Agy Reset site; Grok and Claude have
+// no monitor.
+func TestGeminiPanelShowsItsResetFeed(t *testing.T) {
+	prefs := store.DefaultPreferences()
+	prefs.ShowsRateLimitResetToday = true
+	for p, want := range map[store.Provider]bool{
+		store.ProviderCodex: true, store.ProviderGemini: true, store.ProviderGrok: false, store.ProviderClaude: false,
+	} {
+		prefs.SelectedProvider = p
+		if got := panelModuleOn(store.ModuleRateLimitResetToday, prefs, localProvider(p)); got != want {
+			t.Errorf("%s: module shown = %t", p, got)
+		}
+	}
+
+	l := l10n.New(l10n.English)
+	now := time.Now()
+	codexSnap := resettoday.NewStateSnapshot(resettoday.StateNo, now)
+	geminiSnap := resettoday.NewStateSnapshot(resettoday.StateYes, now)
+	geminiSnap.Feed = resettoday.AntigravityFeed
+	snap := runway.Snapshot{
+		Provider:         store.ProviderGemini,
+		ResetToday:       runway.ResetTodayState{HasData: true, Detail: codexSnap},
+		GeminiResetToday: runway.ResetTodayState{HasData: true, Detail: geminiSnap},
+	}
+	var refreshed []runway.Section
+	acts := PanelActions{RefreshSection: func(s runway.Section) { refreshed = append(refreshed, s) }}
+	state := &panelState{}
+	tt := ui.NewTester(func(c *ui.Context) {
+		applyTheme(c)
+		ui.Column(c).Fill().Children(func() {
+			first := true
+			panelResetToday(c, l, snap, acts, &first, state)
+		})
+	}, 368, 360)
+	gemini := l.WithVariant(l10n.VariantGemini)
+	if tt.HasText("Codex") || !tt.HasText(gemini.Text(l10n.KeyRateLimitResetQuestionCurrent)) {
+		t.Fatalf("Gemini card texts = %q", tt.Texts())
+	}
+	if err := tt.Click(l.Text(l10n.KeyRefresh)); err != nil {
+		t.Fatal(err)
+	}
+	if len(refreshed) != 1 || refreshed[0] != runway.SectionGeminiResetToday {
+		t.Errorf("refreshed %v", refreshed)
+	}
+	if err := tt.Click(gemini.Text(l10n.KeyRateLimitResetTodayOpenWebsite)); err != nil {
+		t.Fatal(err)
+	}
+	if got := tt.OpenedURLs(); len(got) != 1 || got[0] != resettoday.AntigravityFeed.SiteURL {
+		t.Errorf("opened %q", got)
+	}
+}

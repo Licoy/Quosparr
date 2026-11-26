@@ -208,8 +208,6 @@ func (s *Snapshot) EvidenceLine(l l10n.Localizer, now time.Time, loc *time.Locat
 	return ""
 }
 
-const siteURL = "https://didcodexreset.com/"
-
 // EvidenceURL is the hosted history page of the evidence event; "" when there
 // is none. Chinese languages get the /zh/ page.
 func (s *Snapshot) EvidenceURL(now time.Time, loc *time.Location, lang l10n.Language) string {
@@ -218,11 +216,12 @@ func (s *Snapshot) EvidenceURL(now time.Time, loc *time.Location, lang l10n.Lang
 		return ""
 	}
 	ms := e.AnnouncedAt.Unix()*1000 + int64((e.AnnouncedAt.Nanosecond()+500_000)/1_000_000)
-	prefix := siteURL
+	feed := s.Feed.orCodex()
+	prefix := feed.SiteURL
 	if lang == l10n.SimplifiedChinese || lang == l10n.TraditionalChinese {
 		prefix += "zh/"
 	}
-	return prefix + "history/" + strconv.FormatInt(ms, 10) + ".html"
+	return prefix + "history/" + strconv.FormatInt(ms, 10) + feed.HistoryExt
 }
 
 // ScopeSummary is "Plans: ... · Windows: ...", "" when the scope only says

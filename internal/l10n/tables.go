@@ -6113,3 +6113,130 @@ var tables = map[Language]map[Key]string{
 		KeyGeminiFolder:                                  "Ouvrir le dossier Antigravity",
 	},
 }
+
+// languageIndex is the column of lang in a variant row; unknown languages
+// read the English column.
+func languageIndex(lang Language) int {
+	for i, l := range Languages() {
+		if l == lang {
+			return i
+		}
+	}
+	return 0
+}
+
+// variantTables replace keys for a product variant, one column per language
+// in Languages() order: English, Simplified Chinese, Traditional Chinese,
+// Korean, Japanese, Russian, French.
+var variantTables = map[Variant]map[Key][7]string{
+	VariantGemini: {
+		KeyRateLimitResetDetectedAlertBody: {
+			"A Gemini quota reset was just detected for today.", "刚刚检测到今日 Gemini 配额已重置。", "剛剛檢測到今日 Gemini 配額已重置。",
+			"오늘 Gemini 할당량 리셋이 방금 감지되었습니다.", "本日の Gemini クォータ リセットが検出されました。",
+			"Только что обнаружен сброс квоты Gemini на сегодня.", "Une réinitialisation de quota Gemini vient d’être détectée pour aujourd’hui.",
+		},
+		KeyRateLimitResetDetectedAlertTitle: {
+			"Gemini reset detected", "检测到 Gemini 重置", "檢測到 Gemini 重置", "Gemini 리셋 감지됨", "Gemini リセットを検出",
+			"Обнаружен сброс Gemini", "Réinitialisation Gemini détectée",
+		},
+		KeyRateLimitResetDetectedTypedAlertTitle: {
+			"Gemini %@ confirmed", "Gemini %@已确认", "Gemini %@已確認", "Gemini %@ 확인됨", "Gemini %@を確認",
+			"Gemini: подтверждено — %@", "Gemini — confirmation\u00a0: %@",
+		},
+		KeyRateLimitResetPreviewAlertTitle: {
+			"Gemini reset preview", "Gemini 重置预告", "Gemini 重設預告", "Gemini 초기화 예고", "Gemini リセット予告",
+			"Предварительный прогноз сброса Gemini", "Aperçu de réinitialisation Gemini",
+		},
+		KeyRateLimitResetPreviewTypedAlertTitle: {
+			"Gemini %@ preview", "Gemini %@预告", "Gemini %@預告", "Gemini %@ 예고", "Gemini %@予告",
+			"Gemini: прогноз — %@", "Aperçu Gemini — %@",
+		},
+		KeyRateLimitResetSchedulePassedAlertTitle: {
+			"Gemini reset schedule passed", "Gemini 重置计划时间已过", "Gemini 重設計劃時間已過", "Gemini 초기화 예정 시각 경과",
+			"Gemini リセット予定時刻を超過", "Время сброса Gemini прошло", "Horaire de réinitialisation Gemini dépassé",
+		},
+		KeyRateLimitResetSchedulePassedTypedAlertTitle: {
+			"Gemini %@ schedule passed", "Gemini %@计划时间已过", "Gemini %@計劃時間已過", "Gemini %@ 예정 시각 경과",
+			"Gemini %@の予定時刻を超過", "Gemini: время %@ прошло", "Horaire Gemini dépassé — %@",
+		},
+		KeyRateLimitResetUpcomingAlertBody1h: {
+			"A scheduled Gemini reset is less than 1 hour away.", "计划中的 Gemini 重置将在 1 小时内到来。", "計劃中的 Gemini 重置將在 1 小時內到來。",
+			"예정된 Gemini 리셋까지 1시간도 남지 않았습니다.", "予定の Gemini リセットまで 1 時間を切っています。",
+			"До запланированного сброса Gemini меньше 1 часа.", "Une réinitialisation Gemini planifiée a lieu dans moins d’1 heure.",
+		},
+		KeyRateLimitResetUpcomingAlertBody30m: {
+			"A scheduled Gemini reset is less than 30 minutes away.", "计划中的 Gemini 重置将在 30 分钟内到来。", "計劃中的 Gemini 重置將在 30 分鐘內到來。",
+			"예정된 Gemini 리셋까지 30분도 남지 않았습니다.", "予定の Gemini リセットまで 30 分を切っています。",
+			"До запланированного сброса Gemini меньше 30 минут.", "Une réinitialisation Gemini planifiée a lieu dans moins de 30 minutes.",
+		},
+		KeyRateLimitResetUpcomingRangeAlertTitle: {
+			"Expected Gemini reset window", "预计 Gemini 重置时间范围", "預計 Gemini 重置時間範圍", "예상 Gemini 리셋 창",
+			"予想 Gemini リセットウィンドウ", "Ожидаемое окно сброса Gemini", "Fenêtre de réinit. Gemini prévue",
+		},
+		KeyRateLimitResetUpcomingAlertTitle: {
+			"Gemini reset approaching", "Gemini 即将重置", "Gemini 即將重置", "Gemini 리셋이 다가옵니다", "Gemini リセットが近づいています",
+			"Приближается сброс Gemini", "Réinitialisation Gemini imminente",
+		},
+		KeyRateLimitResetUpcomingTypedAlertTitle: {
+			"Gemini %@ approaching", "Gemini %@即将到来", "Gemini %@即將到來", "Gemini %@이(가) 다가옵니다", "Gemini %@が近づいています",
+			"Gemini: скоро %@", "Gemini — %@ imminente",
+		},
+		KeyRateLimitResetUpcomingTypedRangeAlertTitle: {
+			"Expected Gemini %@ window", "预计 Gemini %@时间范围", "預計 Gemini %@時間範圍", "예상 Gemini %@ 시간 범위",
+			"Gemini %@の予想時間帯", "Ожидаемое окно Gemini: %@", "Fenêtre Gemini prévue — %@",
+		},
+		KeyRateLimitResetQuestionCurrent: {
+			"Any new Gemini reset today?", "今天有新的 Gemini 重置吗？", "今天有新的 Gemini 重設嗎？", "오늘 새로운 Gemini 초기화가 있었나요?",
+			"今日、新しい Gemini リセットはあった？", "Был ли сегодня новый сброс Gemini?", "Une nouvelle réinitialisation Gemini aujourd’hui ?",
+		},
+		KeyRateLimitResetQuestionUpcoming: {
+			"Will there be a Gemini reset next?", "接下来会有 Gemini 重置吗？", "接下來會有 Gemini 重設嗎？", "다음 Gemini 초기화가 있나요?",
+			"次に Gemini リセットはある？", "Будет ли следующий сброс Gemini?", "Une réinitialisation Gemini est-elle prévue ensuite ?",
+		},
+		KeyRateLimitResetQuestionScheduledGrace: {
+			"Did Gemini reset as scheduled?", "Gemini 已按计划重置了吗？", "Gemini 已按計劃重設了嗎？", "Gemini가 예정대로 초기화되었나요?",
+			"Gemini は予定どおりリセットされた？", "Сбросился ли Gemini по расписанию?", "Gemini a-t-il été réinitialisé comme prévu ?",
+		},
+		KeyRateLimitResetQuestionUnavailable: {
+			"What's the Gemini reset status?", "Gemini 重置状态如何？", "Gemini 重設狀態如何？", "Gemini 초기화 상태는 어떤가요?",
+			"Gemini のリセット状況は？", "Каков статус сброса Gemini?", "Quel est l’état des réinitialisations Gemini ?",
+		},
+		KeyRateLimitResetToday: {
+			"Gemini Reset Updates", "Gemini 重置动态", "Gemini 重設動態", "Gemini 초기화 업데이트", "Gemini リセット更新",
+			"Обновления сбросов Gemini", "Actualités des réinitialisations Gemini",
+		},
+		KeyRateLimitResetTodayEvidenceResetCompleted: {
+			"An explicit Gemini quota reset was announced.", "发现明确的 Gemini 配额重置公告。", "發現明確的 Gemini 配額重置公告。",
+			"명시적인 Gemini 할당량 리셋이 발표되었습니다.", "明示的な Gemini クォータ リセットが発表されました。",
+			"Объявлен явный сброс квоты Gemini.", "Une réinitialisation explicite de quota Gemini a été annoncée.",
+		},
+		KeyRateLimitResetTodayEvidenceResetScheduled: {
+			"An explicit Gemini quota reset was scheduled.", "发现明确的 Gemini 配额重置安排。", "發現明確的 Gemini 配額重置安排。",
+			"명시적인 Gemini 할당량 리셋이 예정되었습니다.", "明示的な Gemini クォータ リセットが予定されました。",
+			"Запланирован явный сброс квоты Gemini.", "Une réinitialisation explicite de quota Gemini a été planifiée.",
+		},
+		KeyRateLimitResetTodayEvidenceResetPreview: {
+			"A high-probability Gemini quota reset was inferred from context.", "根据上下文推断出高概率的 Gemini 配额重置预告。",
+			"根據上下文推斷出高概率的 Gemini 配額重置預告。", "문맥에서 가능성이 높은 Gemini 할당량 리셋이 추론되었습니다.",
+			"文脈から高確率の Gemini クォータ リセットが推定されました。", "По контексту выведен высоковероятный сброс квоты Gemini.",
+			"Une réinitialisation de quota Gemini très probable a été déduite du contexte.",
+		},
+		KeyRateLimitResetTodayOpenWebsite: {
+			"View reset status and history on Agy Reset", "去 Agy Reset 查看重置信息和历史记录", "前往 Agy Reset 查看重置資訊與歷史紀錄",
+			"Agy Reset에서 리셋 상태와 기록을 보기", "Agy Reset でリセット状況と履歴を見る",
+			"Смотреть статус и историю сброса на Agy Reset", "Voir le statut et l’historique sur Agy Reset",
+		},
+		KeyRateLimitResetTodaySource: {
+			"Agy Reset", "Agy Reset", "Agy Reset", "Agy Reset", "Agy Reset", "Agy Reset", "Agy Reset",
+		},
+		KeyRateLimitResetTodaySourceInfo: {
+			"Agy Reset publishes this status from a hosted monitor that uses AI to analyze public X announcements about the Gemini quota of Google Antigravity. AI results may be incomplete or incorrect.",
+			"该状态由 Agy Reset 托管的监控任务生成，并使用 AI 分析有关 Google Antigravity Gemini 配额的公开 X 公告。AI 结果可能不完整或有误。",
+			"該狀態由 Agy Reset 托管的監控任務生成，並使用 AI 分析有關 Google Antigravity Gemini 配額的公開 X 公告。AI 結果可能不完整或有誤。",
+			"Agy Reset는 Google Antigravity의 Gemini 할당량에 관한 공개 X 발표를 AI로 분석하는 호스티드 모니터에서 이 상태를 게시합니다. AI 결과는 불완전하거나 틀릴 수 있습니다.",
+			"Agy Reset は、Google Antigravity の Gemini クォータに関する公開 X 発表を AI で分析するホスト型モニターからこのステータスを公開します。AI の結果は不完全または不正確な場合があります。",
+			"Agy Reset публикует этот статус с размещённого монитора, который с помощью ИИ анализирует публичные объявления в X о квоте Gemini в Google Antigravity. Результаты ИИ могут быть неполными или неверными.",
+			"Agy Reset publie cet état depuis un moniteur hébergé qui utilise l’IA pour analyser les annonces publiques sur X concernant le quota Gemini de Google Antigravity. Les résultats de l’IA peuvent être incomplets ou incorrects.",
+		},
+	},
+}
