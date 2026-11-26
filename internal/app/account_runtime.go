@@ -49,12 +49,16 @@ func (rt *liveApp) checkCodexRuntime(l l10n.Localizer) string {
 func codexRuntimeControls(c *ui.Context, l l10n.Localizer, view runway.AccountsView, open *bool, busy bool, check, apply func()) {
 	ui.Column(c.Key("codex-runtime-status")).Gap(6).Children(func() {
 		ui.Text(c, l.CodexRuntime("title")).FontSize(12)
+		if !codexRestartSupported {
+			ui.Text(c, l.CodexRuntime("windows_unavailable")).FontSize(11).TextColor(c.Theme().TextMuted)
+			return
+		}
 		ui.Text(c, codexRuntimeMessage(l, view.Runtime)).FontSize(11).TextColor(c.Theme().TextMuted)
 		ui.Row(c).Gap(8).Wrap().Children(func() {
 			if ghostButton(c, icRefresh, l.CodexRuntime("check"), false, busy || view.Switching || check == nil).Clicked() {
 				check()
 			}
-			button := ghostButton(c, icCheckCircle, l.CodexRuntime("apply"), false, !codexRestartSupported || busy || view.Switching || view.ActiveID == "" || apply == nil)
+			button := ghostButton(c, icCheckCircle, l.CodexRuntime("apply"), false, busy || view.Switching || view.ActiveID == "" || apply == nil)
 			if button.Clicked() {
 				*open = true
 			}
