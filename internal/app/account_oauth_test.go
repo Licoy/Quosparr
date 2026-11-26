@@ -77,7 +77,7 @@ func TestCodexOAuthImportsWithoutSwitchingOfficial(t *testing.T) {
 	if err := os.WriteFile(official, original, 0600); err != nil {
 		t.Fatal(err)
 	}
-	tokenServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	tokenServer := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if err := r.ParseForm(); err != nil {
 			t.Error(err)
 		}

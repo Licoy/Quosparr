@@ -29,7 +29,7 @@ type fakeSite struct {
 func newFakeSite(t *testing.T, routes map[string]reply) *fakeSite {
 	t.Helper()
 	f := &fakeSite{routes: routes}
-	f.srv = httptest.NewServer(f)
+	f.srv = httptest.NewTLSServer(f)
 	t.Cleanup(f.srv.Close)
 	return f
 }

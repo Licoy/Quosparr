@@ -22,7 +22,7 @@ import (
 // (see ApplyManagedProvider) and any other switch takes it out again.
 
 var (
-	// ErrRelayBaseURL: the relay base URL is not an http(s) URL.
+	// ErrRelayBaseURL: the relay base URL is not an HTTPS URL.
 	ErrRelayBaseURL = errors.New("codex: relay base URL is invalid")
 	// ErrInvalidRelayBaseURL is the older name of ErrRelayBaseURL.
 	ErrInvalidRelayBaseURL = ErrRelayBaseURL
@@ -51,11 +51,15 @@ type RelayProfile struct {
 // normalizeRelayProfile validates p and returns it with the base URL in its
 // OpenAI-compatible form (ending /v1).
 func normalizeRelayProfile(p RelayProfile) (RelayProfile, error) {
+	return parseRelayProfile(p, apiquota.NormalizeBaseURL)
+}
+
+func parseRelayProfile(p RelayProfile, normalize func(string) (apiquota.URLs, error)) (RelayProfile, error) {
 	raw := strings.TrimSpace(p.BaseURL)
 	if raw == "" {
 		return RelayProfile{}, nil
 	}
-	urls, err := apiquota.NormalizeBaseURL(raw)
+	urls, err := normalize(raw)
 	if err != nil {
 		return RelayProfile{}, fmt.Errorf("%w: %w", ErrInvalidRelayBaseURL, err)
 	}
@@ -379,7 +383,7 @@ func (s *Store) officialRelayProfile() (RelayProfile, bool) {
 		return RelayProfile{}, false
 	}
 	model, _ := config["model"].(string)
-	p, err := normalizeRelayProfile(RelayProfile{BaseURL: selectedProviderBaseURL(config), Model: model})
+	p, err := parseRelayProfile(RelayProfile{BaseURL: selectedProviderBaseURL(config), Model: model}, apiquota.NormalizeStoredBaseURL)
 	if err != nil || p.BaseURL == "" {
 		return RelayProfile{}, false
 	}

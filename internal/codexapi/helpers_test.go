@@ -45,7 +45,7 @@ type recorded struct {
 func newRecorder(t *testing.T, handler func(r recorded) (int, string)) *recorder {
 	t.Helper()
 	rec := &recorder{}
-	rec.Server = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	rec.Server = httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		body, _ := io.ReadAll(r.Body)
 		item := recorded{Method: r.Method, Path: r.URL.Path, Query: r.URL.Query(), Header: r.Header.Clone(), Body: string(body)}
 		item.Form, _ = url.ParseQuery(string(body))

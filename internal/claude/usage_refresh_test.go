@@ -72,7 +72,7 @@ func TestParseUsageLimitsAndFlat(t *testing.T) {
 
 func TestUsageClientHeadersAndStatus(t *testing.T) {
 	var sawQuery bool
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	srv := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.RawQuery != "cedar_ember=1" || strings.Contains(r.URL.RequestURI(), "skip_spend") {
 			sawQuery = true
 		}
@@ -148,7 +148,7 @@ func TestUsageClientHeadersAndStatus(t *testing.T) {
 
 func TestRefreshSavesBothTokensAndInvalidGrant(t *testing.T) {
 	var primary, fallback int
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	srv := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		var body map[string]string
 		if json.NewDecoder(r.Body).Decode(&body) != nil || body["grant_type"] != "refresh_token" || body["client_id"] != OAuthClientID {
 			t.Fatal("refresh body")
@@ -237,7 +237,7 @@ func TestRefreshSavesBothTokensAndInvalidGrant(t *testing.T) {
 
 func TestCurrentAccountIsNotTokenRefreshed(t *testing.T) {
 	tokenHits := 0
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	srv := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if strings.Contains(r.URL.Path, "token") {
 			tokenHits++
 			w.WriteHeader(http.StatusInternalServerError)
@@ -328,7 +328,7 @@ func osWrite(path string, data []byte) error {
 
 func TestSpacedUsageReadKeepsCacheWithoutError(t *testing.T) {
 	hits := 0
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	srv := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		hits++
 		_, _ = w.Write([]byte(`{"five_hour":{"utilization":4,"resets_at":null}}`))
 	}))

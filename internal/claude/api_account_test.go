@@ -41,7 +41,7 @@ type fakeRelay struct {
 func newFakeRelay(t *testing.T) *fakeRelay {
 	t.Helper()
 	r := &fakeRelay{status: http.StatusOK}
-	r.srv = httptest.NewServer(r)
+	r.srv = httptest.NewTLSServer(r)
 	t.Cleanup(r.srv.Close)
 	return r
 }
@@ -161,7 +161,7 @@ func TestAddAPIAccountKeepsTheKeyOutOfTheIndex(t *testing.T) {
 	if len(acc.API.KeyHint) != 4 || strings.Contains(keyX, acc.API.KeyHint) {
 		t.Fatalf("hint %q", acc.API.KeyHint)
 	}
-	host := strings.TrimPrefix(wantBase, "http://")
+	host := strings.TrimPrefix(wantBase, "https://")
 	if got := acc.ResolvedDisplayName(); got != host+" ···"+acc.API.KeyHint {
 		t.Fatalf("display name %q", got)
 	}
@@ -907,7 +907,7 @@ func TestAPIAccountRowRoundTripsThroughTheIndex(t *testing.T) {
 func TestListAPIModelsUsesTheModuleClientAndKey(t *testing.T) {
 	var mu sync.Mutex
 	var sawKey, sawVersion string
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+	srv := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 		mu.Lock()
 		sawKey, sawVersion = req.Header.Get("x-api-key"), req.Header.Get("anthropic-version")
 		mu.Unlock()

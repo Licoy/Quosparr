@@ -110,7 +110,7 @@ func TestBrowserCommitFailureStages(t *testing.T) {
 }
 func TestOAuthHTTPAndTransportReasons(t *testing.T) {
 	for _, status := range []int{401, 403, 429, 503} {
-		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			w.WriteHeader(status)
 			_, _ = w.Write([]byte("private-secret"))
 		}))
@@ -123,7 +123,7 @@ func TestOAuthHTTPAndTransportReasons(t *testing.T) {
 	}
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
-	_, err := loginRequest(ctx, http.DefaultClient, http.MethodGet, "http://example.invalid/?private-secret", nil, "")
+	_, err := loginRequest(ctx, http.DefaultClient, http.MethodGet, "https://example.invalid/?private-secret", nil, "")
 	requireOperation(t, err, StageOAuthExchange, KindCanceled)
 	if !errors.Is(err, context.Canceled) {
 		t.Fatal("cancel lost")
@@ -211,7 +211,7 @@ func TestBrowserInvalidSettingsAndIdentityStages(t *testing.T) {
 		t.Run("profile", func(t *testing.T) {
 			r := newSyncRig(t)
 			r.login(t, "test-access-token", "")
-			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) { _, _ = w.Write([]byte(payload)) }))
+			server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) { _, _ = w.Write([]byte(payload)) }))
 			defer server.Close()
 			r.mod.Usage = &UsageClient{HTTP: server.Client(), ProfileEndpoint: server.URL}
 			_, err := r.mod.browserOfficialProof(context.Background())
@@ -272,7 +272,7 @@ func TestKeychainRollbackSummaryPreservesReadTimeout(t *testing.T) {
 }
 
 func TestProfileHTTPFailureUsesIdentityStage(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+	server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusServiceUnavailable)
 		_, _ = w.Write([]byte("private-secret"))
 	}))

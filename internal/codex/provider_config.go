@@ -11,6 +11,7 @@ import (
 
 	"github.com/BurntSushi/toml"
 
+	"github.com/licoy/quosparr/internal/apiquota"
 	"github.com/licoy/quosparr/internal/platform"
 	"github.com/licoy/quosparr/internal/tomlstmt"
 )
@@ -60,6 +61,10 @@ func ApplyManagedProvider(data []byte, cfg ProviderConfig) ([]byte, error) {
 	}
 	if !utf8.ValidString(cfg.Name + cfg.BaseURL + cfg.Model) {
 		return nil, ErrProviderConfigInvalid
+	}
+
+	if _, err := apiquota.NormalizeBaseURL(cfg.BaseURL); err != nil {
+		return nil, ErrRelayBaseURL
 	}
 	before, err := decodeConfig(data)
 	if err != nil {
@@ -160,7 +165,7 @@ func selectsRelay(config map[string]any, relayBase string) bool {
 	if relayBase == "" || config["model_provider"] == ManagedProviderID {
 		return false
 	}
-	p, err := normalizeRelayProfile(RelayProfile{BaseURL: selectedProviderBaseURL(config)})
+	p, err := parseRelayProfile(RelayProfile{BaseURL: selectedProviderBaseURL(config)}, apiquota.NormalizeStoredBaseURL)
 	return err == nil && p.BaseURL != "" && p.BaseURL == relayBase
 }
 

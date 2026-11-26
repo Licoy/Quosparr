@@ -80,7 +80,7 @@ func TestSyncImportsAndFollowsTheOfficialLogin(t *testing.T) {
 func TestSyncAsksProfileWhenOAuthAccountIsMissing(t *testing.T) {
 	r := newSyncRig(t)
 	calls := 0
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+	srv := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 		calls++
 		_, _ = w.Write([]byte(`{"account":{"uuid":"acct-p","email":"p@example.com"},"organization":{"uuid":"org-p"}}`))
 	}))

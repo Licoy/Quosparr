@@ -19,7 +19,7 @@ func TestClaudeBrowserLoginManualCallback(t *testing.T) {
 		_ = e.s.Load()
 		u := newSettingsUI(e.s, SettingsOptions{})
 		f := accountFormOf(u)
-		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, "private-token-response", http.StatusBadGateway)
 		}))
 		flow := claudeLoginFlow{port: oauthTestPort(t), openBrowser: func(context.Context, string) error { return nil }, client: claude.OAuthClient{HTTP: server.Client(), TokenURL: server.URL}}

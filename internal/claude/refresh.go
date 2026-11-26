@@ -91,7 +91,7 @@ func (c RefreshClient) post(ctx context.Context, rawURL, refreshToken string) (s
 	}
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Accept", "application/json")
-	resp, err := client.Do(req)
+	resp, err := netx.DoAuthenticated(client, req)
 	if err != nil {
 		return "", "", 0, 0, operationError(StageRefresh, err)
 	}

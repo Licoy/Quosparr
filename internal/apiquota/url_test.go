@@ -31,8 +31,8 @@ func TestNormalizeBaseURL(t *testing.T) {
 			"https://api.example.com/v1", "https://api.example.com", "https://api.example.com/v1/models"},
 		{"case insensitive v1", "https://api.example.com/V1",
 			"https://api.example.com/V1", "https://api.example.com", "https://api.example.com/V1/models"},
-		{"outer whitespace", "  http://127.0.0.1:8080/api \n",
-			"http://127.0.0.1:8080/api/v1", "http://127.0.0.1:8080/api", "http://127.0.0.1:8080/api/v1/models"},
+		{"outer whitespace", "  https://127.0.0.1:8080/api \n",
+			"https://127.0.0.1:8080/api/v1", "https://127.0.0.1:8080/api", "https://127.0.0.1:8080/api/v1/models"},
 		{"path-mounted v1", "https://relay.example.com/claude/v1/",
 			"https://relay.example.com/claude/v1", "https://relay.example.com/claude", "https://relay.example.com/claude/v1/models"},
 		{"uppercase scheme", "HTTPS://api.example.com",
@@ -53,7 +53,7 @@ func TestNormalizeBaseURL(t *testing.T) {
 }
 
 func TestNormalizeBaseURLRejects(t *testing.T) {
-	for _, in := range []string{"", "   ", "api.example.com", "ftp://api.example.com", "https://",
+	for _, in := range []string{"", "   ", "api.example.com", "http://api.example.com", "http://127.0.0.1:8080", "ftp://api.example.com", "https://",
 		"https:///v1", "https://exa mple.com", "https://a.com/x y", "https://user:pass@a.com", "https://a.com:port",
 		"?https://a.com", "#https://a.com"} {
 		if _, err := NormalizeBaseURL(in); err == nil {
@@ -172,5 +172,12 @@ func TestDeepSeekBalanceURL(t *testing.T) {
 		if got != want || ok != (want != "") {
 			t.Fatalf("deepSeekBalanceURL(%q) = %q, %v; want %q", in, got, ok, want)
 		}
+	}
+}
+
+func TestNormalizeStoredBaseURLRecognizesLegacyHTTP(t *testing.T) {
+	got, err := NormalizeStoredBaseURL("http://relay.example.test/v1/messages")
+	if err != nil || got.AnthropicBase != "http://relay.example.test" {
+		t.Fatalf("NormalizeStoredBaseURL() = %v, %v", got, err)
 	}
 }

@@ -542,7 +542,7 @@ func oauthDo(
 	if body != nil {
 		req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	}
-	resp, err := client.Do(req)
+	resp, err := netx.DoAuthenticated(client, req)
 	if err != nil {
 		return 0, nil, err
 	}

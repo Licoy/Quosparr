@@ -201,7 +201,7 @@ func TestClaudeBrowserOAuthImportsAndReportsQuotaSeparately(t *testing.T) {
 			if err := os.WriteFile(filepath.Join(dir, ".claude.json"), global, 0600); err != nil {
 				t.Fatal(err)
 			}
-			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				switch r.URL.Path {
 				case "/token":
 					fmt.Fprint(w, `{"access_token":"new-test-token","refresh_token":"new-refresh","expires_in":3600}`)

@@ -60,6 +60,9 @@ func ApplyAPISettings(data []byte, env APIEnv, previous *APIEnv) ([]byte, error)
 	if env.BaseURL == "" || env.AuthToken == "" {
 		return nil, ErrAPISettingsIncomplete
 	}
+	if _, err := NormalizeAPIBaseURL(env.BaseURL); err != nil {
+		return nil, err
+	}
 	root, vars, err := parseSettings(data)
 	if err != nil {
 		return nil, err
@@ -184,8 +187,8 @@ func deleteBaseURL(vars map[string]json.RawMessage, base string) bool {
 	if deleteIfEquals(vars, envBaseURL, strings.TrimSpace(base)) {
 		return true
 	}
-	live, errLive := NormalizeAPIBaseURL(stringField(vars[envBaseURL]))
-	want, errWant := NormalizeAPIBaseURL(base)
+	live, errLive := normalizeStoredAPIBaseURL(stringField(vars[envBaseURL]))
+	want, errWant := normalizeStoredAPIBaseURL(base)
 	if errLive != nil || errWant != nil || live != want {
 		return false
 	}

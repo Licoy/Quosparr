@@ -37,7 +37,7 @@ var (
 	ErrAPIKeyInvalid = errors.New("claude: API key has invalid characters")
 	// ErrAPIKeyMissing means the managed key file is absent or unreadable.
 	ErrAPIKeyMissing = errors.New("claude: API key is missing from the account library")
-	// ErrAPIBaseURL means the base URL is empty or not an http(s) URL.
+	// ErrAPIBaseURL means the base URL is empty or not an HTTPS URL.
 	ErrAPIBaseURL = errors.New("claude: API base URL is invalid")
 	// ErrAPIDuplicate means another API account already has this base URL and key.
 	ErrAPIDuplicate = errors.New("claude: an API account with this base URL and key already exists")
@@ -131,7 +131,12 @@ func (a ManagedAccount) ApplyAPIQuota(q apiquota.Quota, at time.Time) ManagedAcc
 	return a
 }
 
-// NormalizeAPIBaseURL returns the base URL written to ANTHROPIC_BASE_URL.
+func normalizeStoredAPIBaseURL(raw string) (string, error) {
+	urls, err := apiquota.NormalizeStoredBaseURL(raw)
+	return urls.AnthropicBase, err
+}
+
+// NormalizeAPIBaseURL returns the HTTPS URL written to ANTHROPIC_BASE_URL.
 func NormalizeAPIBaseURL(raw string) (string, error) {
 	urls, err := apiquota.NormalizeBaseURL(raw)
 	if err != nil {

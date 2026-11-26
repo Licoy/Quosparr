@@ -148,7 +148,7 @@ func (c QuotaClient) get(ctx context.Context, rawURL string, auth Auth, timeout 
 	if accountID := auth.OAuthAccountID(); accountID != "" {
 		req.Header.Set("ChatGPT-Account-Id", accountID)
 	}
-	resp, err := client.Do(req)
+	resp, err := netx.DoAuthenticated(client, req)
 	if err != nil {
 		return nil, err
 	}

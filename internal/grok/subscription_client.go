@@ -169,7 +169,7 @@ func (c *BillingClient) subscriptionGET(ctx context.Context, rawURL, token, vers
 	}
 	applyIdentity(req.Header, token, version)
 	req.Header.Set("Accept", "application/json")
-	response, err := copy.Do(req)
+	response, err := netx.DoAuthenticated(&copy, req)
 	if err != nil {
 		return nil, subscriptionTransportError(err)
 	}

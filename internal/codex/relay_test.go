@@ -840,3 +840,16 @@ func TestEditRelayAccountRollsBackAnAppliedKey(t *testing.T) {
 		t.Fatal("a failed edit kept the new managed key")
 	}
 }
+
+func TestLegacyHTTPRelayCannotPrepareSwitch(t *testing.T) {
+	f := newRelaySwitchFixture(t, RelayProfile{BaseURL: "https://relay.example.test"}, userConfig)
+	legacy := f.relay.withRelayProfile("http://relay.example.test/v1", "")
+	noErr(t, f.store.UpdateMetadata(legacy))
+	before := f.officialBytes(t)
+	if _, err := f.switcher().PrepareSwitch(context.Background(), legacy.ID); !errors.Is(err, ErrRelayBaseURL) {
+		t.Fatalf("PrepareSwitch() error = %v, want ErrRelayBaseURL", err)
+	}
+	if !bytes.Equal(f.officialBytes(t), before) || readConfig(t, f.testEnv) != userConfig {
+		t.Fatal("rejected preparation changed the live account")
+	}
+}

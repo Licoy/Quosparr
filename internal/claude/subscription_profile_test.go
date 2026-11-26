@@ -14,7 +14,7 @@ import (
 
 func TestBrowserLoginProfileSubscriptionReachesManagedAccount(t *testing.T) {
 	r := newSyncRig(t)
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+	server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 		if req.URL.Path == "/token" {
 			fmt.Fprint(w, `{"access_token":"test-access","refresh_token":"test-refresh","expires_in":3600}`)
 			return
@@ -98,7 +98,7 @@ func TestRefreshCompletesSubscriptionWithoutChangingCredentials(t *testing.T) {
 				t.Fatal(err)
 			}
 			calls := 0
-			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+			server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 				if req.URL.Path == "/profile" {
 					calls++
 					fmt.Fprintf(w, `{"account":{"uuid":%q},"organization":{"uuid":"org","organization_type":"claude_max","rate_limit_tier":"default_claude_max_20x"}}`, account.Identity.AccountUUID)
@@ -142,7 +142,7 @@ func TestSubscriptionProfileFailureRetainsUsageAndReportsError(t *testing.T) {
 				t.Fatal(err)
 			}
 			hits := 0
-			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+			server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 				hits++
 				if req.URL.Path == "/usage" {
 					fmt.Fprint(w, `{"five_hour":{"utilization":4}}`)

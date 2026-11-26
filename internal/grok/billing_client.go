@@ -163,7 +163,7 @@ func (c *BillingClient) roundTrip(ctx context.Context, method, rawURL, token, ve
 		req.Header.Set("Content-Type", contentType)
 		req.Header.Set("X-Grpc-Web", "1")
 	}
-	resp, err := client.Do(req)
+	resp, err := netx.DoAuthenticated(client, req)
 	if err != nil {
 		return billingPart{err: transportErr(err)}
 	}

@@ -140,7 +140,7 @@ func loginRequest(ctx context.Context, client *http.Client, method, endpoint str
 		req.Header.Set("Content-Type", "application/json")
 		req.Header.Set("User-Agent", UserAgent(""))
 	}
-	resp, err := client.Do(req)
+	resp, err := netx.DoAuthenticated(client, req)
 	if err != nil {
 		return nil, operationError(StageOAuthExchange, errors.Join(ErrLoginExchange, err))
 	}

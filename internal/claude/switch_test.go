@@ -149,7 +149,7 @@ func TestSwitchRefreshesExpiredTarget(t *testing.T) {
 
 func tokenServer(t *testing.T) *httptest.Server {
 	t.Helper()
-	return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	return httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		var body map[string]string
 		if json.NewDecoder(r.Body).Decode(&body) != nil || body["grant_type"] != "refresh_token" || body["client_id"] != OAuthClientID {
 			t.Fatal("refresh body")

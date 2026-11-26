@@ -143,7 +143,7 @@ func TestSettingsProxyNetworkFailureShowsDNSReason(t *testing.T) {
 }
 
 func TestClaudeProfileHTTPFailureHasIdentityStageAndHTTPReason(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/token" {
 			fmt.Fprint(w, `{"access_token":"secret-test-value","refresh_token":"secret-test-value","expires_in":3600}`)
 			return

@@ -30,7 +30,7 @@ func TestBillingFetchSubscriptionMetadata(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			token := syntheticTierToken(1)
 			var subscriptionRequests atomic.Int32
-			srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			srv := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				assertIdentity(t, r, token, "9.9.9")
 				if (r.URL.Path == "/v1/user" || r.URL.Path == "/subscriptions") && r.Header.Get("Cookie") != "" {
 					t.Error("subscription request sent cookie")
@@ -86,9 +86,9 @@ func TestBillingFetchSubscriptionMetadata(t *testing.T) {
 
 func TestSubscriptionRequestsRejectRedirectsAndReportCancellation(t *testing.T) {
 	var redirected atomic.Int32
-	destination := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { redirected.Add(1) }))
+	destination := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { redirected.Add(1) }))
 	defer destination.Close()
-	source := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { http.Redirect(w, r, destination.URL, http.StatusFound) }))
+	source := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { http.Redirect(w, r, destination.URL, http.StatusFound) }))
 	defer source.Close()
 	client := &BillingClient{HTTP: source.Client()}
 	_, err := client.subscriptionGET(context.Background(), source.URL, "test-token", "9.9.9")
@@ -108,7 +108,7 @@ func TestSubscriptionRequestsRejectRedirectsAndReportCancellation(t *testing.T) 
 
 func TestBillingCancellationDuringMetadataIsNotSuccess(t *testing.T) {
 	started := make(chan struct{})
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	srv := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case "/v1/user":
 			close(started)
@@ -139,7 +139,7 @@ func TestBillingCancellationDuringMetadataIsNotSuccess(t *testing.T) {
 func TestBillingCancellationWhileOnlyResetRemainsIsNotSuccess(t *testing.T) {
 	completed := make(chan struct{}, 5)
 	resetStarted := make(chan struct{})
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	srv := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path != "/reset" {
 			defer func() { completed <- struct{}{} }()
 		}

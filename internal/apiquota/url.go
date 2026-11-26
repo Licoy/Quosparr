@@ -27,10 +27,21 @@ type URLs struct {
 }
 
 // NormalizeBaseURL turns user input into the URLs used by Probe and
-// FetchModels. Only http and https are accepted. A query, a fragment, trailing
+// FetchModels. HTTPS is required. A query, a fragment, trailing
 // slashes and a /messages or /v1/messages suffix are removed; the Anthropic
 // form also drops a trailing /v1.
 func NormalizeBaseURL(raw string) (URLs, error) {
+	return normalizeBaseURL(raw, false)
+}
+
+// NormalizeStoredBaseURL also recognizes legacy HTTP settings for local
+// account matching and cleanup. Use NormalizeBaseURL before applying settings
+// or sending a request.
+func NormalizeStoredBaseURL(raw string) (URLs, error) {
+	return normalizeBaseURL(raw, true)
+}
+
+func normalizeBaseURL(raw string, allowHTTP bool) (URLs, error) {
 	s := strings.TrimSpace(raw)
 	if s == "" {
 		return URLs{}, ErrEmptyBaseURL
@@ -41,7 +52,7 @@ func NormalizeBaseURL(raw string) (URLs, error) {
 	if i := strings.IndexAny(s, "#?"); i >= 0 {
 		s = s[:i]
 	}
-	if !validBaseURL(s) {
+	if !validBaseURL(s, allowHTTP) {
 		return URLs{}, ErrInvalidBaseURL
 	}
 	base := strings.TrimRight(s, "/")
@@ -60,11 +71,11 @@ func NormalizeBaseURL(raw string) (URLs, error) {
 	return URLs{OpenAIBase: base + "/v1", AnthropicBase: base, ModelsURL: base + "/v1/models"}, nil
 }
 
-// validBaseURL requires an http(s) URL with a host and no embedded
+// validBaseURL requires a supported URL scheme, a host and no embedded
 // credentials, so the key can never end up in a probed URL through userinfo.
-func validBaseURL(s string) bool {
+func validBaseURL(s string, allowHTTP bool) bool {
 	lower := asciiLower(s)
-	if !strings.HasPrefix(lower, "http://") && !strings.HasPrefix(lower, "https://") {
+	if !strings.HasPrefix(lower, "https://") && !(allowHTTP && strings.HasPrefix(lower, "http://")) {
 		return false
 	}
 	u, err := url.Parse(s)

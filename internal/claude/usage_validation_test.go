@@ -50,7 +50,7 @@ func TestParseUsageValidLimitsShapesRemainAuthoritative(t *testing.T) {
 }
 
 func TestRefreshUsageParseFailureKeepsCachedQuota(t *testing.T) {
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+	srv := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		_, _ = w.Write([]byte(`{"limits":[{"kind":"session","percent":"bad"}],"metadata":{"request_id":"x"}}`))
 	}))
 	defer srv.Close()

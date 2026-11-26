@@ -50,7 +50,7 @@ func TestBrowserOfficialImportProtectsExpiredCurrentRefresh(t *testing.T) {
 				}
 			}
 			var calls atomic.Int32
-			srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+			srv := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 				calls.Add(1)
 				_, _ = w.Write([]byte(`{"access_token":"unexpected","refresh_token":"unexpected"}`))
 			}))
@@ -108,5 +108,23 @@ func TestBrowserOfficialImportFollowsActualAPISettings(t *testing.T) {
 				t.Fatal("browser import wrote settings")
 			}
 		})
+	}
+}
+
+func TestBrowserImportWithLegacyHTTPRelayConfigured(t *testing.T) {
+	r := newSyncRig(t)
+	r.login(t, "official-access", "same")
+	settings := []byte(`{"env":{"ANTHROPIC_BASE_URL":"http://relay.invalid/v1","ANTHROPIC_API_KEY":"test-relay-key"}}`)
+	path := r.store.SettingsPath()
+	if err := platform.WriteFileAtomic(path, settings, 0600); err != nil {
+		t.Fatal(err)
+	}
+	result := browserResult("different-account", "browser-new")
+	if _, err := r.mod.ImportBrowserLogin(context.Background(), result); err != nil {
+		t.Fatal(err)
+	}
+	after, err := os.ReadFile(path)
+	if err != nil || !bytes.Equal(after, settings) {
+		t.Fatal("browser import changed existing Claude settings")
 	}
 }

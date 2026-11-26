@@ -177,7 +177,7 @@ func postForm(ctx context.Context, client *http.Client, rawURL string, form url.
 	}
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	req.Header.Set("Accept", "application/json")
-	resp, err := client.Do(req)
+	resp, err := netx.DoAuthenticated(client, req)
 	if err != nil {
 		return 0, nil, err
 	}

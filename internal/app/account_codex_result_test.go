@@ -88,7 +88,7 @@ func TestCodexLoginNoticeUsesSavedIdentityAndReloadOutcome(t *testing.T) {
 			t.Fatal(err)
 		}
 		jwt := "e30." + base64.RawURLEncoding.EncodeToString(payload) + ".synthetic"
-		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 			w.Header().Set("Content-Type", "application/json")
 			_ = json.NewEncoder(w).Encode(map[string]string{"id_token": jwt, "access_token": "synthetic-access", "refresh_token": "synthetic-refresh"})
 		}))

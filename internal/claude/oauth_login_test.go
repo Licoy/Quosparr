@@ -68,7 +68,7 @@ func TestOAuthLoginExchange(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			s := testLoginSession(t)
-			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				if r.Header.Get("Cookie") != "" {
 					t.Error("cookie leaked")
 				}
@@ -103,9 +103,9 @@ func TestOAuthLoginExchange(t *testing.T) {
 
 func TestOAuthLoginRedirectAndNetworkFailures(t *testing.T) {
 	leaked := false
-	destination := httptest.NewServer(http.HandlerFunc(func(http.ResponseWriter, *http.Request) { leaked = true }))
+	destination := httptest.NewTLSServer(http.HandlerFunc(func(http.ResponseWriter, *http.Request) { leaked = true }))
 	defer destination.Close()
-	redirect := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	redirect := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, destination.URL, http.StatusTemporaryRedirect)
 	}))
 	defer redirect.Close()

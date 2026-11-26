@@ -139,7 +139,7 @@ func TestBrowserImportProofRecheckedAndCancelledBeforeCommit(t *testing.T) {
 			r.login(t, "old", "")
 			ctx, cancel := context.WithCancel(context.Background())
 			defer cancel()
-			srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+			srv := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 				// Network verification must run without Module.mu or Store.mu held.
 				if _, err := r.mod.Load(context.Background()); err != nil {
 					t.Error(err)

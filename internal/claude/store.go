@@ -193,7 +193,7 @@ func ParseAccountIndex(data []byte) (AccountIndex, error) {
 func normalizeAPIRows(rows []ManagedAccount) {
 	for i := range rows {
 		if p := rows[i].API; p != nil {
-			if base, err := NormalizeAPIBaseURL(p.BaseURL); err == nil && base != p.BaseURL {
+			if base, err := normalizeStoredAPIBaseURL(p.BaseURL); err == nil && base != p.BaseURL {
 				fixed := *p
 				fixed.BaseURL = base
 				rows[i].API = &fixed

@@ -11,6 +11,8 @@ import (
 	"sync"
 	"time"
 	"unicode"
+
+	"github.com/licoy/quosparr/internal/netx"
 )
 
 const (
@@ -19,8 +21,8 @@ const (
 	maxErrorRune = 160
 )
 
-// Doer sends one HTTP request; *http.Client satisfies it. The caller owns
-// proxy, TLS and redirect policy.
+// Doer sends an HTTP request. A standard *http.Client is restricted to HTTPS
+// and same-origin redirects. Custom doers must enforce the same restrictions.
 type Doer interface {
 	Do(*http.Request) (*http.Response, error)
 }
@@ -135,7 +137,13 @@ func (p prober) fetch(ctx context.Context, rawURL string, exp expected, authenti
 
 // doRequest sends req and reads at most limit bytes of the body.
 func doRequest(client Doer, req *http.Request, limit int64) (int, []byte, error) {
-	resp, err := client.Do(req)
+	var resp *http.Response
+	var err error
+	if httpClient, ok := client.(*http.Client); ok {
+		resp, err = netx.DoAuthenticated(httpClient, req)
+	} else {
+		resp, err = client.Do(req)
+	}
 	if err != nil {
 		return 0, nil, err
 	}

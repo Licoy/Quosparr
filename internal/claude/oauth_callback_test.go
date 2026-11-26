@@ -101,7 +101,7 @@ func TestOAuthLoginCancelClosesAcceptedConnection(t *testing.T) {
 func TestOAuthLoginExchangeTimeout(t *testing.T) {
 	s := testLoginSession(t)
 	s.ExpiresAt = time.Now().Add(20 * time.Millisecond)
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { io.Copy(io.Discard, r.Body); <-r.Context().Done() }))
+	server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { io.Copy(io.Discard, r.Body); <-r.Context().Done() }))
 	defer server.Close()
 	_, err := (OAuthClient{HTTP: server.Client(), TokenURL: server.URL}).Exchange(context.Background(), "private-code", s, time.Now())
 	if !errors.Is(err, ErrLoginTimedOut) {

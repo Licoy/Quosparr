@@ -40,7 +40,7 @@ func TestBillingFetchMergesPlanMoneyAndReset(t *testing.T) {
 	token := syntheticTierToken(1)
 	var mu sync.Mutex
 	var seen []string
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	srv := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		mu.Lock()
 		seen = append(seen, r.Method+" "+r.URL.RequestURI())
 		mu.Unlock()
@@ -98,7 +98,7 @@ func TestBillingFetchMergesPlanMoneyAndReset(t *testing.T) {
 
 func TestBillingFetchUsesJWTWhenSettingsOmitPlan(t *testing.T) {
 	token := syntheticTierToken(1)
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	srv := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/v1/settings" || r.URL.Path == "/reset" {
 			w.WriteHeader(http.StatusNoContent)
 			return
@@ -128,7 +128,7 @@ func TestBillingFetchUsesJWTWhenSettingsOmitPlan(t *testing.T) {
 func TestBillingFetchAuthStatusOmitsBody(t *testing.T) {
 	token := syntheticTierToken(1)
 	const secret = "secret-body-must-not-leak"
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	srv := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusUnauthorized)
 		_, _ = w.Write([]byte(secret))
 	}))

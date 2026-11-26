@@ -214,7 +214,7 @@ func readBrowserAPISettings(path string) (*APIEnv, browserIdentitySource, error)
 	if env.BaseURL == "" || env.AuthToken == "" {
 		return nil, source, nil
 	}
-	env.BaseURL, err = NormalizeAPIBaseURL(env.BaseURL)
+	env.BaseURL, err = normalizeStoredAPIBaseURL(env.BaseURL)
 	if err != nil {
 		return nil, source, classifiedError(StageReadSettings, KindInvalidData, err)
 	}

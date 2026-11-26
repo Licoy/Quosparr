@@ -412,3 +412,10 @@ func TestStoreSettingsErrorsNeverLeakTokenAndLeaveFileAlone(t *testing.T) {
 		t.Fatalf("failed edits made %d backups", n)
 	}
 }
+
+func TestApplyAPISettingsRejectsLegacyHTTPRelay(t *testing.T) {
+	env := APIEnv{BaseURL: "http://relay.example.test", AuthToken: "test-token"}
+	if _, err := ApplyAPISettings(nil, env, nil); !errors.Is(err, ErrAPIBaseURL) {
+		t.Fatalf("ApplyAPISettings() error = %v, want ErrAPIBaseURL", err)
+	}
+}

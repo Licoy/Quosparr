@@ -84,6 +84,12 @@ func (sw *Switcher) prepareGuard(accountID string, auth Auth) (func() error, err
 	if !ok {
 		return nil, ErrSwitchFilesChanged
 	}
+	if target.IsRelay() {
+		if _, err := normalizeRelayProfile(RelayProfile{BaseURL: target.APIBaseURL, Model: target.APIModel}); err != nil {
+			return nil, err
+		}
+	}
+
 	previous, _ := idx.Account(idx.ActiveAccountID)
 	files, err := captureSwitchFiles(s.officialAuth, s.CredentialPath(accountID), s.ConfigPath())
 	if err != nil {

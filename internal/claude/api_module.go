@@ -281,7 +281,7 @@ func (m *Module) liveAPIAccount(idx AccountIndex) (ManagedAccount, string, bool)
 	if err != nil || token == "" {
 		return ManagedAccount{}, "", false
 	}
-	live, err := NormalizeAPIBaseURL(base)
+	live, err := normalizeStoredAPIBaseURL(base)
 	if err != nil {
 		return ManagedAccount{}, "", false
 	}
@@ -336,7 +336,7 @@ func (m *Module) importAPISettings(idx AccountIndex) (AccountIndex, error) {
 	if err != nil {
 		return idx, nil
 	}
-	base, err := NormalizeAPIBaseURL(env.BaseURL)
+	base, err := normalizeStoredAPIBaseURL(env.BaseURL)
 	if err != nil {
 		return idx, nil
 	}

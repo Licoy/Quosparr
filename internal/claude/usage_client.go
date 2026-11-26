@@ -95,7 +95,7 @@ func (c *UsageClient) get(ctx context.Context, rawURL, accessToken string) ([]by
 		return nil, time.Time{}, classifiedError(StageReadUsage, KindInvalidData, errors.Join(ErrUsageStatus, err))
 	}
 	applyUsageHeaders(req.Header, accessToken, c.version())
-	resp, err := client.Do(req)
+	resp, err := netx.DoAuthenticated(client, req)
 	if err != nil {
 		return nil, time.Time{}, operationError(StageReadUsage, err)
 	}
