@@ -79,7 +79,7 @@ func renderGeminiAccountRow(c *ui.Context, u *settingsUI, f *accountForm, rt *li
 
 func geminiRowActions(u *settingsUI, f *accountForm, rt *liveApp, acc codex.ManagedAccount, place rowPlace, name string, current bool) []rowAction {
 	l := u.L()
-	out := []rowAction{makeCurrentAction(l, l10n.KeyAccountsMakeCurrent, l10n.KeyAccountsCurrent, current, func() {
+	out := []rowAction{makeCurrentAction(l, l10n.KeyGeminiMakeCurrent, l10n.KeyAccountsCurrent, current, func() {
 		f.mode, f.editID, f.switchName = "gemini-switch", acc.ID, name
 		f.restartAfterSwitch = codexRestartDefault
 	})}

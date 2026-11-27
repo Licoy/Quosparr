@@ -83,7 +83,7 @@ func (a *App) geminiCardActions(c *ui.Context, l l10n.Localizer, acc codex.Manag
 	name := accountPrivate(priv, acc.ResolvedDisplayName())
 	id := acc.ID
 	ui.Row(c).Gap(2).AlignItems(ui.Center).Children(func() {
-		title, icon := l.Text(l10n.KeyAccountsMakeCurrent), icCheckCircle
+		title, icon := l.Text(l10n.KeyGeminiMakeCurrent), icCheckCircle
 		if current {
 			title, icon = l.Text(l10n.KeyAccountsCurrent), icCheckCircleFill
 		}
@@ -104,7 +104,7 @@ func (a *App) geminiSwitchConfirm(c *ui.Context, l l10n.Localizer, anchor ui.Ele
 	st := &a.panelState.accounts
 	open := st.switchID == id
 	confirmPopover(c, l, anchor, &open, l.Text(l10n.KeyAccountsSwitchConfirmTitle), name+"\n\n"+l.Text(l10n.KeyGeminiSwitchNote),
-		l.Text(l10n.KeyAccountsMakeCurrent), func() { geminiRestartChoice(c, l, &st.restart) }, func() { a.geminiSwitch(id, st.restart, false, ac) })
+		l.Text(l10n.KeyGeminiMakeCurrent), func() { geminiRestartChoice(c, l, &st.restart) }, func() { a.geminiSwitch(id, st.restart, false, ac) })
 	if !open && st.switchID == id {
 		st.switchID = ""
 	}

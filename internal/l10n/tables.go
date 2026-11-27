@@ -664,6 +664,7 @@ const (
 	KeyGeminiAccountsEmpty                                 Key = "geminiAccountsEmpty"
 	KeyGeminiImportCurrent                                 Key = "geminiImportCurrent"
 	KeyGeminiPasteHint                                     Key = "geminiPasteHint"
+	KeyGeminiMakeCurrent                                   Key = "geminiMakeCurrent"
 	KeyGeminiSwitchNote                                    Key = "geminiSwitchNote"
 	KeyGeminiRestartApp                                    Key = "geminiRestartApp"
 	KeyGeminiRestartHint                                   Key = "geminiRestartHint"
@@ -1344,6 +1345,7 @@ var allKeys = []Key{
 	KeyGeminiAccountsEmpty,
 	KeyGeminiImportCurrent,
 	KeyGeminiPasteHint,
+	KeyGeminiMakeCurrent,
 	KeyGeminiSwitchNote,
 	KeyGeminiRestartApp,
 	KeyGeminiRestartHint,
@@ -2025,6 +2027,7 @@ var tables = map[Language]map[Key]string{
 		KeyGeminiAccountsEmpty:                           "No Gemini accounts",
 		KeyGeminiImportCurrent:                           "Import current Antigravity login",
 		KeyGeminiPasteHint:                               "Paste an Antigravity OAuth credential JSON, or a JSON array of credentials",
+		KeyGeminiMakeCurrent:                             "Use in Antigravity",
 		KeyGeminiSwitchNote:                              "Antigravity and the agy CLI share this login; both use the selected account after the switch.",
 		KeyGeminiRestartApp:                              "Restart Antigravity after switching",
 		KeyGeminiRestartHint:                             "Quits the Antigravity app before the switch and reopens it afterwards; save your work in it first.",
@@ -2703,6 +2706,7 @@ var tables = map[Language]map[Key]string{
 		KeyGeminiAccountsEmpty:                           "没有 Gemini 账号",
 		KeyGeminiImportCurrent:                           "导入当前 Antigravity 登录",
 		KeyGeminiPasteHint:                               "粘贴 Antigravity OAuth 凭据 JSON，或凭据 JSON 数组",
+		KeyGeminiMakeCurrent:                             "在 Antigravity 中使用",
 		KeyGeminiSwitchNote:                              "Antigravity 与 agy CLI 共用此登录，切换后两者都会使用所选账号。",
 		KeyGeminiRestartApp:                              "切换后重启 Antigravity",
 		KeyGeminiRestartHint:                             "切换前退出 Antigravity 应用，切换后重新打开；请先保存其中的工作。",
@@ -3381,6 +3385,7 @@ var tables = map[Language]map[Key]string{
 		KeyGeminiAccountsEmpty:                           "沒有 Gemini 帳號",
 		KeyGeminiImportCurrent:                           "匯入目前 Antigravity 登入",
 		KeyGeminiPasteHint:                               "貼上 Antigravity OAuth 憑證 JSON，或憑證 JSON 陣列",
+		KeyGeminiMakeCurrent:                             "在 Antigravity 中使用",
 		KeyGeminiSwitchNote:                              "Antigravity 與 agy CLI 共用此登入，切換後兩者都會使用所選帳號。",
 		KeyGeminiRestartApp:                              "切換後重新啟動 Antigravity",
 		KeyGeminiRestartHint:                             "切換前結束 Antigravity 應用程式，切換後重新開啟；請先儲存其中的工作。",
@@ -4059,6 +4064,7 @@ var tables = map[Language]map[Key]string{
 		KeyGeminiAccountsEmpty:                           "Gemini 계정 없음",
 		KeyGeminiImportCurrent:                           "현재 Antigravity 로그인 가져오기",
 		KeyGeminiPasteHint:                               "Antigravity OAuth 자격 증명 JSON 또는 자격 증명 JSON 배열을 붙여넣으세요",
+		KeyGeminiMakeCurrent:                             "Antigravity에서 사용",
 		KeyGeminiSwitchNote:                              "Antigravity와 agy CLI는 이 로그인을 함께 사용하며, 전환 후 둘 다 선택한 계정을 사용합니다.",
 		KeyGeminiRestartApp:                              "전환 후 Antigravity 다시 시작",
 		KeyGeminiRestartHint:                             "전환 전에 Antigravity 앱을 종료하고 전환 후 다시 엽니다. 먼저 작업을 저장하세요.",
@@ -4737,6 +4743,7 @@ var tables = map[Language]map[Key]string{
 		KeyGeminiAccountsEmpty:                           "Gemini アカウントがありません",
 		KeyGeminiImportCurrent:                           "現在の Antigravity ログインを読み込む",
 		KeyGeminiPasteHint:                               "Antigravity の OAuth 認証情報 JSON、またはその JSON 配列を貼り付けてください",
+		KeyGeminiMakeCurrent:                             "Antigravity で使う",
 		KeyGeminiSwitchNote:                              "Antigravity と agy CLI はこのログインを共有し、切り替え後は両方が選択したアカウントを使います。",
 		KeyGeminiRestartApp:                              "切り替え後に Antigravity を再起動",
 		KeyGeminiRestartHint:                             "切り替え前に Antigravity アプリを終了し、切り替え後に再度開きます。先に作業を保存してください。",
@@ -5415,6 +5422,7 @@ var tables = map[Language]map[Key]string{
 		KeyGeminiAccountsEmpty:                           "Нет аккаунтов Gemini",
 		KeyGeminiImportCurrent:                           "Импортировать текущий вход Antigravity",
 		KeyGeminiPasteHint:                               "Вставьте JSON с данными OAuth Antigravity или JSON-массив таких данных",
+		KeyGeminiMakeCurrent:                             "Использовать в Antigravity",
 		KeyGeminiSwitchNote:                              "Antigravity и agy CLI используют общий вход; после переключения оба работают с выбранным аккаунтом.",
 		KeyGeminiRestartApp:                              "Перезапустить Antigravity после переключения",
 		KeyGeminiRestartHint:                             "Перед переключением приложение Antigravity закрывается, затем открывается снова; сначала сохраните работу.",
@@ -6093,6 +6101,7 @@ var tables = map[Language]map[Key]string{
 		KeyGeminiAccountsEmpty:                           "Aucun compte Gemini",
 		KeyGeminiImportCurrent:                           "Importer la connexion Antigravity actuelle",
 		KeyGeminiPasteHint:                               "Collez un identifiant OAuth Antigravity en JSON, ou un tableau JSON d’identifiants",
+		KeyGeminiMakeCurrent:                             "Utiliser dans Antigravity",
 		KeyGeminiSwitchNote:                              "Antigravity et la CLI agy partagent cette connexion ; après le changement, les deux utilisent le compte choisi.",
 		KeyGeminiRestartApp:                              "Redémarrer Antigravity après le changement",
 		KeyGeminiRestartHint:                             "Quitte l’application Antigravity avant le changement et la rouvre ensuite ; enregistrez d’abord votre travail.",

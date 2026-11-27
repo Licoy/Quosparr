@@ -57,8 +57,11 @@ func accountEditor(c *ui.Context, u *settingsUI, f *accountForm) {
 			}
 			empty := f.mode == "paste" && strings.TrimSpace(f.paste) == "" || apiEditorIncomplete(f)
 			confirm := l.Text(l10n.KeyOk)
-			if f.mode == "switch" || f.mode == "claude-switch" || f.mode == "gemini-switch" {
+			switch f.mode {
+			case "switch", "claude-switch":
 				confirm = l.Text(l10n.KeyAccountsMakeCurrent)
+			case "gemini-switch":
+				confirm = l.Text(l10n.KeyGeminiMakeCurrent)
 			}
 			if PillButton(c, nil, confirm, f.busy || empty || f.mode == "").Clicked() {
 				u.submitAccountEditor(f)
