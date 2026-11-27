@@ -167,7 +167,10 @@ func TestPanelCostQueryErrorIsVisibleAndLocalized(t *testing.T) {
 	}})
 	a.panelState.detail = store.ModuleAPICost
 	tt.Frame()
-	finishDetail(t, queue)
+	// Other main-thread posts may be queued ahead of the query's completion.
+	for a.panelState.cost.task.Running {
+		finishDetail(t, queue)
+	}
 	tt.Frame()
 	if !tt.HasText(tx(a.L(), xGrokCycleUnavailable)) {
 		t.Fatal("query error not localized")
