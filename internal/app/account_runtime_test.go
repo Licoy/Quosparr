@@ -56,7 +56,7 @@ func TestCodexRuntimeControlsVisibleAndWrap(t *testing.T) {
 						})
 					}, width, 640)
 					if !codexRestartSupported {
-						if !tt.HasText(l.CodexRuntime("windows_unavailable")) ||
+						if !tt.HasText(l.CodexRuntime("title")) || !tt.HasText(l.CodexRuntime("windows_unavailable")) ||
 							tt.HasText(l.CodexRuntime("check")) || tt.HasText(l.CodexRuntime("apply")) {
 							t.Fatal("Windows should explain the limitation without offering background actions")
 						}
