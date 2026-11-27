@@ -39,7 +39,7 @@ Quosparr 是面向 macOS、Windows、Linux 的原生菜单栏 / 系统托盘应�
 
 **Gemini**
 
-- 查看 Google Antigravity 客户端（新版桌面 App 与 `agy` CLI）的额度：Gemini 模型与 Claude 模型各自 5 小时与每周窗口、Argon 每周窗口的剩余比例与重置时间，以及订阅档位（Free / Pro / Ultra）。这个读数来自客户端使用的内部 Cloud Code 服务，不是公开接口，Google 可能标记以这种方式被第三方工具读取的账号；不接受此风险时，可到设置中“服务商账号”的 Gemini 标签页关闭，改在 Antigravity 中查看额度。读取只针对当前账号，只在手动刷新时读取，每 15 分钟最多一次，且需 App 或 `agy` 正在运行
+- 查看 Google Antigravity 客户端（新版桌面 App 与 `agy` CLI）的额度：Gemini 模型与 Claude 模型各自 5 小时与每周窗口、Argon 每周窗口的剩余比例与重置时间，以及订阅档位（Free / Pro / Ultra）。这个读数来自客户端使用的内部 Cloud Code 服务，不是公开接口，Google 可能标记以这种方式被第三方工具读取的账号；不接受此风险时，可到设置中“服务商账号”的 Gemini 标签页关闭，改在 Antigravity 中查看额度。只在手动刷新某个账号时读取它（全部刷新只读取当前账号），每个账号每 15 分钟最多一次，且需 App 或 `agy` 正在运行；关闭读取后仍显示上次读数及其时间
 - 账号：通过浏览器登录 Google、导入当前登录、粘贴凭据 JSON 或导入账号文件；当前登录会自动加入，支持别名、排序与导出。浏览器登录只加入账号库（账号库为空且本机尚未登录时的第一个账号除外）；确认切换后写入 App 与 `agy` 共用的系统凭据，macOS 上正在运行的 Antigravity 桌面 App 可在切换时重启，Windows 与 Linux 上的 App 以及正在运行的 `agy` 需自行重新启动
 - 从 App 与 `agy` 的本机会话统计 Token 用量、API 等价成本、热力图、最近会话和速率分析。成本按 models.dev 价格估算：Gemini 模型用 Google 价格，Antigravity 中的 Claude 模型用 Anthropic 价格；没有内置价格表，价格目录同步后才显示成本，未知模型不给精确费用
 

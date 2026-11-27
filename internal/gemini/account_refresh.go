@@ -50,7 +50,8 @@ func refreshAccountIDs(target RefreshTarget, state AccountState) []string {
 	case RefreshAccount:
 		return []string{target.ID}
 	}
-	// Only the current account is ever read, so "all" is the current one.
+	// "All" reads only the current account: reading every account in one
+	// burst is the pattern most likely to get them flagged.
 	if state.CurrentAccountID != "" {
 		return []string{state.CurrentAccountID}
 	}
@@ -85,11 +86,11 @@ func (m *Module) refreshAccount(ctx context.Context, id string) RefreshOutcome {
 		return RefreshOutcome{AccountID: id, Err: &AccountNotFoundError{ID: id}}
 	}
 	retained := len(account.CachedQuota) > 0
-	if err := m.quotaGate(ctx, account, id == index.CurrentAccountID); err != nil {
+	if err := m.quotaGate(ctx, account); err != nil {
 		return RefreshOutcome{AccountID: id, Err: err, RetainedStaleSnapshot: retained}
 	}
 	m.throttle.Attempted(id, m.now())
-	snapshot, err := m.readQuota(ctx, id)
+	snapshot, err := m.readQuota(ctx, id, id == index.CurrentAccountID)
 	if err != nil {
 		return m.refreshFailure(ctx, id, err, retained)
 	}
@@ -108,15 +109,12 @@ func (m *Module) refreshAccount(ctx context.Context, id string) RefreshOutcome {
 }
 
 // quotaGate is the read policy, checked before any request: reads are on,
-// the account is the current one, QuotaMinInterval has passed since its last
-// attempt and its last stored reading, no 429 backoff holds, and an
-// Antigravity client is running. A refused read stores no error.
-func (m *Module) quotaGate(ctx context.Context, account ManagedAccount, current bool) error {
+// QuotaMinInterval has passed since the account's last attempt and its last
+// stored reading, no 429 backoff holds, and an Antigravity client is
+// running. A refused read stores no error and keeps the cached reading.
+func (m *Module) quotaGate(ctx context.Context, account ManagedAccount) error {
 	if m.QuotaEnabled == nil || !m.QuotaEnabled() {
 		return ErrQuotaDisabled
-	}
-	if !current {
-		return ErrQuotaCurrentOnly
 	}
 	now := m.now()
 	if wait := m.throttle.Wait(account.ID, now); wait > 0 {
@@ -139,11 +137,10 @@ func (m *Module) quotaGate(ctx context.Context, account ManagedAccount, current 
 	return nil
 }
 
-// readQuota reads the current account with a fresh access token; a 401
-// forces one token refresh and one retry, and a second 401 means signing in
-// again.
-func (m *Module) readQuota(ctx context.Context, id string) (QuotaSnapshot, error) {
-	cred, err := m.freshCredential(ctx, id, true, false)
+// readQuota reads the account with a fresh access token; a 401 forces one
+// token refresh and one retry, and a second 401 means signing in again.
+func (m *Module) readQuota(ctx context.Context, id string, isCurrent bool) (QuotaSnapshot, error) {
+	cred, err := m.freshCredential(ctx, id, isCurrent, false)
 	if err != nil {
 		return QuotaSnapshot{}, err
 	}
@@ -151,7 +148,7 @@ func (m *Module) readQuota(ctx context.Context, id string) (QuotaSnapshot, error
 	if !errors.Is(err, ErrUnauthorized) {
 		return snapshot, err
 	}
-	if cred, err = m.freshCredential(ctx, id, true, true); err != nil {
+	if cred, err = m.freshCredential(ctx, id, isCurrent, true); err != nil {
 		return QuotaSnapshot{}, err
 	}
 	snapshot, err = m.quota()(ctx, cred.AccessToken)

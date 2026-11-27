@@ -61,8 +61,7 @@ func geminiKnownReason(l l10n.Localizer, err error) string {
 // refused before any request.
 func isGeminiRefusal(err error) bool {
 	var cool *gemini.QuotaCooldownError
-	return errors.Is(err, gemini.ErrQuotaDisabled) || errors.Is(err, gemini.ErrQuotaCurrentOnly) ||
-		errors.Is(err, gemini.ErrClientNotRunning) || errors.As(err, &cool)
+	return errors.Is(err, gemini.ErrQuotaDisabled) || errors.Is(err, gemini.ErrClientNotRunning) || errors.As(err, &cool)
 }
 
 // geminiRefusalText explains a refusal (see isGeminiRefusal); "" for any
@@ -72,8 +71,6 @@ func geminiRefusalText(l l10n.Localizer, err error) string {
 	switch {
 	case errors.Is(err, gemini.ErrQuotaDisabled):
 		return l.Text(l10n.KeyGeminiQuotaOff)
-	case errors.Is(err, gemini.ErrQuotaCurrentOnly):
-		return l.Text(l10n.KeyGeminiQuotaCurrentOnly)
 	case errors.Is(err, gemini.ErrClientNotRunning):
 		return l.Text(l10n.KeyGeminiQuotaClientNotRunning)
 	case errors.As(err, &cool):

@@ -101,8 +101,8 @@ func TestPlaceholdersConsistentAcrossLanguages(t *testing.T) {
 			}
 		}
 	}
-	if formatted != 41 {
-		t.Errorf("formatted keys = %d, want 41 (update if Swift strings change)", formatted)
+	if formatted != 42 {
+		t.Errorf("formatted keys = %d, want 42 (update if Swift strings change)", formatted)
 	}
 }
 

@@ -221,7 +221,7 @@ const (
 	GeminiRateLimited
 	GeminiQuotaParseFailed
 	GeminiFailed
-	// GeminiQuotaOff: the user has not turned the quota reads on.
+	// GeminiQuotaOff: quota reads are off and no reading is cached.
 	GeminiQuotaOff
 )
 

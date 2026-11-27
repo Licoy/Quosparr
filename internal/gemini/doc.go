@@ -56,12 +56,14 @@
 //
 // Cloud Code's quota endpoints are internal to the Antigravity clients, so
 // quota reads are switchable and sparse. Module.QuotaEnabled must report true
-// (nil is off); only the current account is read, and RefreshAll means the
-// current account; QuotaMinInterval (15 minutes) must have passed since the
+// (nil is off); QuotaMinInterval (15 minutes) must have passed since the
 // account's last attempt and since its stored reading; a 429 backoff must
 // have run out; and an Antigravity client (App or agy) must be running. A
-// read refused by this policy sends nothing and stores no error. Sync
-// follows the official login without reading quota.
+// read refused by this policy sends nothing, stores no error and keeps the
+// cached reading. Any account can be read on its own target, but RefreshAll
+// reads only the current account, never every account in one burst. A
+// non-current account is read with its managed copy and never touches the
+// official login. Sync follows the official login without reading quota.
 //
 // A quota reading is exactly two requests: loadCodeAssist, then
 // retrieveUserQuotaSummary. Accounts are never onboarded and the model list

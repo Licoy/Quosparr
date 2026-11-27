@@ -56,10 +56,8 @@ var (
 	ErrQuotaParse = errors.New("gemini: quota response could not be parsed")
 	// ErrQuotaSnapshotJSON: a cached snapshot is not valid snapshot JSON.
 	ErrQuotaSnapshotJSON = errors.New("gemini: quota snapshot is invalid")
-	// ErrQuotaDisabled: quota reads are off (the default).
+	// ErrQuotaDisabled: the user turned quota reads off.
 	ErrQuotaDisabled = errors.New("gemini: quota reads are disabled")
-	// ErrQuotaCurrentOnly: only the current account's quota is read.
-	ErrQuotaCurrentOnly = errors.New("gemini: only the current account's quota can be read")
 	// ErrClientNotRunning: quota is read only while an Antigravity client runs.
 	ErrClientNotRunning = errors.New("gemini: Antigravity is not running")
 )

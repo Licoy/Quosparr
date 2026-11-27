@@ -187,7 +187,7 @@ func (g *geminiBridge) reload(notify bool) {
 	lc, mod, installed, quotaOn, refusal := g.lc, g.mod, g.installed, g.prefs.GeminiQuotaEnabled, g.refusal
 	g.mu.Unlock()
 	next := buildGeminiState(mod, lc, installed, quotaOn)
-	if next.Availability != runway.GeminiQuotaOff {
+	if quotaOn && refusal != nil {
 		next.Notice = geminiRefusalText(lc, refusal)
 	}
 	g.mu.Lock()
@@ -201,8 +201,8 @@ func (g *geminiBridge) reload(notify bool) {
 	}
 }
 
-// buildGeminiState reads the accounts and, while quotaOn, their cached
-// quota; with reads off no stale reading is shown.
+// buildGeminiState reads the accounts and their cached quota. With reads
+// off the cached reading stays, with a notice naming its time.
 func buildGeminiState(mod *gemini.Module, lc l10n.Localizer, installed func() bool, quotaOn bool) runway.GeminiState {
 	st := runway.GeminiState{Availability: runway.GeminiNotLoggedIn}
 	if mod == nil || mod.Store == nil {
@@ -221,9 +221,7 @@ func buildGeminiState(mod *gemini.Module, lc l10n.Localizer, installed func() bo
 	for _, account := range ordered {
 		st.Accounts.Sidebar = append(st.Accounts.Sidebar, geminiSidebarAccount(lc, account))
 	}
-	if quotaOn {
-		st.AccountQuotas = geminiAccountQuotas(lc, ordered)
-	}
+	st.AccountQuotas = geminiAccountQuotas(lc, ordered)
 	acc, ok := idx.Account(idx.CurrentAccountID)
 	if !ok {
 		if len(ordered) == 0 && installed != nil && !installed() {
@@ -243,7 +241,7 @@ func buildGeminiState(mod *gemini.Module, lc l10n.Localizer, installed func() bo
 		}
 	}
 	st.Availability = geminiAvailability(acc, snap)
-	if !quotaOn && st.Availability != runway.GeminiReauthRequired {
+	if !quotaOn && snap == nil && st.Availability != runway.GeminiReauthRequired {
 		st.Availability = runway.GeminiQuotaOff
 	}
 	st.LastError = geminiErrorText(lc, st.Availability)
@@ -266,6 +264,9 @@ func buildGeminiState(mod *gemini.Module, lc l10n.Localizer, installed func() bo
 	st.Meters = geminiMeters(lc, *snap, st.UpdatedAt)
 	st.Details = geminiDetailLines(lc, *snap, st.UpdatedAt)
 	st.Detail = snap
+	if !quotaOn && !st.UpdatedAt.IsZero() {
+		st.Notice = lc.Textf(l10n.KeyGeminiQuotaOffStale, st.UpdatedAt.Local().Format("01-02 15:04"))
+	}
 	return st
 }
 

@@ -203,9 +203,9 @@ func TestGeminiRefreshUsesTheTemporaryHomeOnly(t *testing.T) {
 	}
 }
 
-// With reads off, a cached reading from before is not shown anywhere, but
-// a sign-in problem still is.
-func TestGeminiStateHidesQuotaWhileReadsAreOff(t *testing.T) {
+// With reads off the cached reading stays, with a notice naming its time;
+// only an account without one shows the off state.
+func TestGeminiStateKeepsCachedQuotaWhileReadsAreOff(t *testing.T) {
 	l := l10n.New("en")
 	mod := geminiTestModule(t)
 	now := time.Date(2026, 11, 13, 10, 0, 0, 0, time.UTC)
@@ -214,17 +214,27 @@ func TestGeminiStateHidesQuotaWhileReadsAreOff(t *testing.T) {
 	acc := gemini.ManagedAccount{ID: "a", Identity: gemini.Identity{Subject: "1"}, LastQuotaAt: &now, CachedQuota: geminiSnapshotJSON(t, snap)}
 	saveGeminiAccounts(t, mod, "a", acc)
 	st := buildGeminiState(mod, l, nil, false)
-	if st.Availability != runway.GeminiQuotaOff || len(st.Meters) != 0 || st.AccountQuotas != nil || st.Plan != "" {
-		t.Fatalf("off: %+v", st)
+	if st.Availability != runway.GeminiReady || len(st.Meters) != 1 || len(st.AccountQuotas["a"].Meters) != 1 || st.Plan == "" {
+		t.Fatalf("off keeps the reading: %+v", st)
 	}
-	if st.LastError != l.Text(l10n.KeyGeminiQuotaOff) || geminiWidget(st).Availability != export.Unavailable {
-		t.Fatalf("off text/widget: %q", st.LastError)
+	if want := l.Textf(l10n.KeyGeminiQuotaOffStale, now.Local().Format("01-02 15:04")); st.Notice != want {
+		t.Fatalf("notice = %q, want %q", st.Notice, want)
+	}
+	if on := buildGeminiState(mod, l, nil, true); on.Availability != runway.GeminiReady || len(on.Meters) != 1 || on.Notice != "" {
+		t.Fatalf("on: %+v", on)
+	}
+
+	acc.CachedQuota, acc.LastQuotaAt = nil, nil
+	saveGeminiAccounts(t, mod, "a", acc)
+	st = buildGeminiState(mod, l, nil, false)
+	if st.Availability != runway.GeminiQuotaOff || len(st.Meters) != 0 || st.LastError != l.Text(l10n.KeyGeminiQuotaOff) {
+		t.Fatalf("off without a reading: %+v", st)
+	}
+	if geminiWidget(st).Availability != export.Unavailable {
+		t.Fatal("widget without a reading")
 	}
 	if st.Accounts.ActiveID != "a" || len(st.Accounts.Sidebar) != 1 {
 		t.Fatal("accounts stay visible while reads are off")
-	}
-	if on := buildGeminiState(mod, l, nil, true); on.Availability != runway.GeminiReady || len(on.Meters) != 1 {
-		t.Fatalf("on: %+v", on)
 	}
 	acc.RequiresReauth = true
 	saveGeminiAccounts(t, mod, "a", acc)
@@ -288,7 +298,6 @@ func TestGeminiRefusalsAreExplained(t *testing.T) {
 		want string
 	}{
 		{gemini.ErrQuotaDisabled, l.Text(l10n.KeyGeminiQuotaOff)},
-		{gemini.ErrQuotaCurrentOnly, l.Text(l10n.KeyGeminiQuotaCurrentOnly)},
 		{gemini.ErrClientNotRunning, l.Text(l10n.KeyGeminiQuotaClientNotRunning)},
 		{&gemini.QuotaCooldownError{RetryAfter: 14*time.Minute + time.Second}, l.Textf(l10n.KeyGeminiQuotaCooldown, 15)},
 		{&gemini.QuotaCooldownError{RetryAfter: time.Second}, l.Textf(l10n.KeyGeminiQuotaCooldown, 1)},

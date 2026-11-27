@@ -50,8 +50,8 @@ func renderGeminiAccounts(c *ui.Context, u *settingsUI, f *accountForm, rt *live
 	})
 }
 
-// geminiQuotaToggle is the opt-in to the Gemini quota reads. They use
-// Antigravity's internal API, so turning them on asks first.
+// geminiQuotaToggle switches the Gemini quota reads. They use Antigravity's
+// internal API, so turning them on asks first.
 func geminiQuotaToggle(c *ui.Context, u *settingsUI, f *accountForm) {
 	s, l := u.s, u.L()
 	settingsGroup(c, "", "", nil, func(row rowFunc) {
@@ -94,8 +94,8 @@ func renderGeminiAccountRow(c *ui.Context, u *settingsUI, f *accountForm, rt *li
 			quota = &q
 		}
 	}
-	// Only the current account's quota is read, and only once reads are on.
-	noRead := rt == nil || acc.ID != current || !u.s.Prefs().GeminiQuotaEnabled
+	// With reads off the cached reading stays but nothing is read.
+	noRead := rt == nil || !u.s.Prefs().GeminiQuotaEnabled
 	accountSettingsRow(c, l, accountIdentityView{account: acc, current: acc.ID == current, privacy: priv, provider: store.ProviderGemini, geminiQuota: quota, quota: quotaOptionsFor(u.s.Prefs(), false)}, func() {
 		if accountRefreshButton(c, l, f, acc.ID, noRead).Clicked() {
 			id := acc.ID

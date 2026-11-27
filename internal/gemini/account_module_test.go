@@ -237,9 +237,9 @@ func TestRefreshCurrentRetriesAfter401AndSyncsOfficial(t *testing.T) {
 	}
 }
 
-// Only the current account is read: another account is refused without a
-// token refresh or request, and "all" is the current account alone.
-func TestRefreshReadsOnlyTheCurrentAccount(t *testing.T) {
+// Any account can be read on its own; a non-current account refreshes only
+// its managed copy, and "all" is the current account alone.
+func TestRefreshReadsAnyAccountButAllIsCurrent(t *testing.T) {
 	e := newModuleEnv(t)
 	ctx := context.Background()
 	e.ctl.running = true
@@ -256,26 +256,25 @@ func TestRefreshReadsOnlyTheCurrentAccount(t *testing.T) {
 	}
 	saves := e.keychain.saves
 	report := e.module.Refresh(ctx, RefreshTarget{Kind: RefreshAccount, ID: acc.ID})
-	if !errors.Is(report.Outcomes[0].Err, ErrQuotaCurrentOnly) {
-		t.Fatalf("non-current: %v", report.Outcomes[0].Err)
+	if report.Outcomes[0].Err != nil {
+		t.Fatal(report.Outcomes[0].Err)
 	}
-	if e.keychain.saves != saves || e.oauth.refreshCalls != 0 || len(e.quota.tokens) != 0 {
-		t.Fatal("a refused read must not touch tokens or Cloud Code")
+	if e.keychain.saves != saves {
+		t.Fatal("non-current refresh wrote the official login")
 	}
-	if data, _ := e.store.LoadCredentialData(acc.ID); mustCred(t, data).AccessToken != "old" {
-		t.Fatal("managed copy must stay untouched")
+	if data, _ := e.store.LoadCredentialData(acc.ID); mustCred(t, data).AccessToken != "fresh-1" {
+		t.Fatal("managed copy not refreshed")
 	}
-	idx, _ := e.store.LoadIndex()
-	if a, _ := idx.Account(acc.ID); a.LastError != "" || a.RequiresReauth {
-		t.Fatalf("a refused read stores no error: %+v", a)
+	if len(e.quota.tokens) != 1 || e.quota.tokens[0] != "fresh-1" {
+		t.Fatalf("read with %v", e.quota.tokens)
 	}
 
 	report = e.module.Refresh(ctx, RefreshTarget{Kind: RefreshAll})
 	if len(report.Outcomes) != 1 || report.Outcomes[0].AccountID != state.CurrentAccountID || report.Outcomes[0].Err != nil {
 		t.Fatalf("all = %+v", report.Outcomes)
 	}
-	if len(e.quota.tokens) != 1 {
-		t.Fatalf("all read %d accounts", len(e.quota.tokens))
+	if len(e.quota.tokens) != 2 {
+		t.Fatalf("all read %d accounts", len(e.quota.tokens)-1)
 	}
 }
 
