@@ -55,6 +55,13 @@ func TestCodexRuntimeControlsVisibleAndWrap(t *testing.T) {
 							}
 						})
 					}, width, 640)
+					if !codexRestartSupported {
+						if !tt.HasText(l.CodexRuntime("windows_unavailable")) ||
+							tt.HasText(l.CodexRuntime("check")) || tt.HasText(l.CodexRuntime("apply")) {
+							t.Fatal("Windows should explain the limitation without offering background actions")
+						}
+						return
+					}
 					for _, label := range []string{l.CodexRuntime("title"), l.CodexRuntime("check"), l.CodexRuntime("apply")} {
 						box, ok := tt.Find(label)
 						if !ok {
@@ -66,12 +73,6 @@ func TestCodexRuntimeControlsVisibleAndWrap(t *testing.T) {
 					}
 					if err := tt.Click(l.CodexRuntime("apply")); err != nil {
 						t.Fatal(err)
-					}
-					if !codexRestartSupported {
-						if tt.HasText(l.CodexRuntime("restart_hint")) || applies != 0 {
-							t.Fatal("unsupported restart opened confirmation or applied")
-						}
-						return
 					}
 					if !tt.HasText(l.CodexRuntime("restart_hint")) {
 						t.Fatal("restart risk confirmation absent")
