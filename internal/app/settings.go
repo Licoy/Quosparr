@@ -433,6 +433,11 @@ func (s *Settings) SetShareCodexDesktopProjects(on bool) bool {
 	return s.Update(func(p *store.Preferences) { p.ShareCodexDesktopProjects = on })
 }
 
+// SetGeminiQuotaEnabled turns the Gemini quota reads on or off.
+func (s *Settings) SetGeminiQuotaEnabled(on bool) bool {
+	return s.Update(func(p *store.Preferences) { p.GeminiQuotaEnabled = on })
+}
+
 // SetDisableMainPanelAnimation skips or restores the native panel animation.
 func (s *Settings) SetDisableMainPanelAnimation(on bool) bool {
 	return s.Update(func(p *store.Preferences) { p.DisableMainPanelAnimation = on })

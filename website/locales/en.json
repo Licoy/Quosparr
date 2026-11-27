@@ -40,7 +40,7 @@
       "Import and switch subscription accounts; MCP tokens are kept when you switch"
     ],
     "gemini": [
-      "Antigravity desktop App and agy CLI quota: 5-hour and weekly windows for Gemini and Claude models and the weekly Argon window, with reset times, Free / Pro / Ultra tier and per-model details",
+      "Antigravity desktop App and agy CLI quota, which you can turn off: 5-hour and weekly windows for Gemini and Claude models and the weekly Argon window, with reset times and Free / Pro / Ultra tier",
       "Add accounts with Google sign-in in the browser or import the current login; switching writes the login the App and agy share, and on macOS can restart the desktop App",
       "Token usage, API-equivalent cost, heatmap, recent sessions and speed from local App and agy sessions"
     ],

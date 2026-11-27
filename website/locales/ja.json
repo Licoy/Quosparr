@@ -40,7 +40,7 @@
       "サブスクリプションアカウントの読み込みと切り替え。切り替え時も MCP トークンは保持"
     ],
     "gemini": [
-      "Antigravity デスクトップ App と agy CLI のクォータ：Gemini・Claude モデルの 5 時間と週次ウィンドウ、Argon の週次ウィンドウ、リセット時刻、Free / Pro / Ultra のティア、モデル別の詳細",
+      "Antigravity デスクトップ App と agy CLI のクォータ（オフにできます）：Gemini・Claude モデルの 5 時間と週次ウィンドウ、Argon の週次ウィンドウ、リセット時刻、Free / Pro / Ultra のティア",
       "ブラウザでの Google ログインか現在のログインの取り込みでアカウントを追加。切り替えると App と agy が共有するログインに書き込み、macOS ではデスクトップ App も再起動可能",
       "App と agy のローカルセッションから集計したトークン使用量、API 換算コスト、ヒートマップ、最近のセッション、速度"
     ],

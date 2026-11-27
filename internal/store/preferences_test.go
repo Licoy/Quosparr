@@ -90,6 +90,7 @@ func allNonDefault() Preferences {
 		ShowsCacheAnalysis:  true,
 		ShowsCreditsBalance: true,
 		ShowsSkills:         true,
+		GeminiQuotaEnabled:  true,
 	}
 }
 
@@ -98,7 +99,7 @@ func TestThirtyFourFieldsAllDifferFromDefaults(t *testing.T) {
 	typ := d.Type()
 	count := 0
 	for i := 0; i < typ.NumField(); i++ {
-		if typ.Field(i).Tag.Get("json") == "" || typ.Field(i).Name == "ModelPricing" || typ.Field(i).Name == "ThemeColor" || typ.Field(i).Name == "FontFamily" || typ.Field(i).Name == "QuotaResetTimeFormat" || typ.Field(i).Name == "ProxyTestURL" || typ.Field(i).Name == "ShowsSpeedAnalysis" || typ.Field(i).Name == "ShowsCacheAnalysis" || typ.Field(i).Name == "ShowsCreditsBalance" || typ.Field(i).Name == "ShowsSkills" || typ.Field(i).Name == "StatusBarProviders" || typ.Field(i).Name == "FloatingWindow" || typ.Field(i).Name == "StatusBar" || typ.Field(i).Name == "PanelProviders" || typ.Field(i).Name == "DisableMainPanelAnimation" || typ.Field(i).Name == "ShareCodexDesktopProjects" || typ.Field(i).Name == "QuotaAlertThresholds" {
+		if typ.Field(i).Tag.Get("json") == "" || typ.Field(i).Name == "ModelPricing" || typ.Field(i).Name == "ThemeColor" || typ.Field(i).Name == "FontFamily" || typ.Field(i).Name == "QuotaResetTimeFormat" || typ.Field(i).Name == "ProxyTestURL" || typ.Field(i).Name == "ShowsSpeedAnalysis" || typ.Field(i).Name == "ShowsCacheAnalysis" || typ.Field(i).Name == "ShowsCreditsBalance" || typ.Field(i).Name == "ShowsSkills" || typ.Field(i).Name == "StatusBarProviders" || typ.Field(i).Name == "FloatingWindow" || typ.Field(i).Name == "StatusBar" || typ.Field(i).Name == "PanelProviders" || typ.Field(i).Name == "DisableMainPanelAnimation" || typ.Field(i).Name == "ShareCodexDesktopProjects" || typ.Field(i).Name == "GeminiQuotaEnabled" || typ.Field(i).Name == "QuotaAlertThresholds" {
 			continue // the unexported extra map, and the keys only Go writes
 		}
 		count++
@@ -217,6 +218,26 @@ func TestShareCodexDesktopProjectsPreference(t *testing.T) {
 		t.Fatalf("false was not omitted: %s %v", enc, err)
 	}
 	if _, err := DecodePreferences([]byte(`{"shareCodexDesktopProjects":"true"}`)); !errors.Is(err, ErrCorrupt) {
+		t.Fatalf("err = %v, want ErrCorrupt", err)
+	}
+}
+
+func TestGeminiQuotaEnabledIsWrittenOnlyWhenOff(t *testing.T) {
+	if !mustDecode(t, `{}`).GeminiQuotaEnabled || !DefaultPreferences().GeminiQuotaEnabled {
+		t.Fatal("Gemini quota reads must default to on")
+	}
+	p := mustDecode(t, `{"geminiQuotaEnabled":false}`)
+	if p.GeminiQuotaEnabled {
+		t.Fatal("explicit false was not decoded")
+	}
+	if enc, err := EncodePreferences(p); err != nil || !strings.Contains(string(enc), `"geminiQuotaEnabled":false`) {
+		t.Fatalf("off was not encoded: %s %v", enc, err)
+	}
+	p.GeminiQuotaEnabled = true
+	if enc, err := EncodePreferences(p); err != nil || strings.Contains(string(enc), "geminiQuotaEnabled") {
+		t.Fatalf("on (the default) was written: %s %v", enc, err)
+	}
+	if _, err := DecodePreferences([]byte(`{"geminiQuotaEnabled":"true"}`)); !errors.Is(err, ErrCorrupt) {
 		t.Fatalf("err = %v, want ErrCorrupt", err)
 	}
 }

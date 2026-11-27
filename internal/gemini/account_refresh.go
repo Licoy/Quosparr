@@ -6,8 +6,9 @@ import (
 	"time"
 )
 
-// Refresh keeps tokens fresh and reads the quota of the targeted accounts.
-// Per-account failures are in the outcomes.
+// Refresh follows the official login and reads the quota of the targeted
+// accounts under the read policy (see quotaGate). Per-account failures are
+// in the outcomes.
 func (m *Module) Refresh(ctx context.Context, target RefreshTarget) RefreshReport {
 	started := m.now()
 	if err := m.acquire(ctx); err != nil {
@@ -29,6 +30,16 @@ func (m *Module) Refresh(ctx context.Context, target RefreshTarget) RefreshRepor
 	return RefreshReport{Target: target, Outcomes: outcomes, StartedAt: started, FinishedAt: m.now()}
 }
 
+// Sync follows the official login without reading any quota.
+func (m *Module) Sync(ctx context.Context) error {
+	if err := m.acquire(ctx); err != nil {
+		return err
+	}
+	defer m.release()
+	_, err := m.reconcileOfficialIdentity(ctx, false)
+	return err
+}
+
 func refreshAccountIDs(target RefreshTarget, state AccountState) []string {
 	switch target.Kind {
 	case RefreshCurrent:
@@ -39,16 +50,11 @@ func refreshAccountIDs(target RefreshTarget, state AccountState) []string {
 	case RefreshAccount:
 		return []string{target.ID}
 	}
-	ids := make([]string, 0, len(state.Accounts))
+	// Only the current account is ever read, so "all" is the current one.
 	if state.CurrentAccountID != "" {
-		ids = append(ids, state.CurrentAccountID)
+		return []string{state.CurrentAccountID}
 	}
-	for _, a := range state.Accounts {
-		if a.ID != state.CurrentAccountID {
-			ids = append(ids, a.ID)
-		}
-	}
-	return ids
+	return nil
 }
 
 func refreshFailureAccountID(target RefreshTarget) string {
@@ -79,11 +85,11 @@ func (m *Module) refreshAccount(ctx context.Context, id string) RefreshOutcome {
 		return RefreshOutcome{AccountID: id, Err: &AccountNotFoundError{ID: id}}
 	}
 	retained := len(account.CachedQuota) > 0
-	if wait := m.throttle.Wait(id, m.now()); wait > 0 {
-		return RefreshOutcome{AccountID: id, Err: &RateLimitedError{RetryAfter: wait, HasRetryAfter: true}, RetainedStaleSnapshot: retained}
+	if err := m.quotaGate(ctx, account, id == index.CurrentAccountID); err != nil {
+		return RefreshOutcome{AccountID: id, Err: err, RetainedStaleSnapshot: retained}
 	}
-	isCurrent := id == index.CurrentAccountID
-	snapshot, err := m.readQuota(ctx, id, isCurrent)
+	m.throttle.Attempted(id, m.now())
+	snapshot, err := m.readQuota(ctx, id)
 	if err != nil {
 		return m.refreshFailure(ctx, id, err, retained)
 	}
@@ -101,10 +107,43 @@ func (m *Module) refreshAccount(ctx context.Context, id string) RefreshOutcome {
 	return RefreshOutcome{AccountID: id, Snapshot: raw}
 }
 
-// readQuota reads with a fresh access token; a 401 forces one token refresh
-// and one retry, and a second 401 means signing in again.
-func (m *Module) readQuota(ctx context.Context, id string, isCurrent bool) (QuotaSnapshot, error) {
-	cred, err := m.freshCredential(ctx, id, isCurrent, false)
+// quotaGate is the read policy, checked before any request: reads are on,
+// the account is the current one, QuotaMinInterval has passed since its last
+// attempt and its last stored reading, no 429 backoff holds, and an
+// Antigravity client is running. A refused read stores no error.
+func (m *Module) quotaGate(ctx context.Context, account ManagedAccount, current bool) error {
+	if m.QuotaEnabled == nil || !m.QuotaEnabled() {
+		return ErrQuotaDisabled
+	}
+	if !current {
+		return ErrQuotaCurrentOnly
+	}
+	now := m.now()
+	if wait := m.throttle.Wait(account.ID, now); wait > 0 {
+		return &RateLimitedError{RetryAfter: wait, HasRetryAfter: true}
+	}
+	wait := m.throttle.Cooldown(account.ID, now)
+	if account.LastQuotaAt != nil {
+		wait = max(wait, account.LastQuotaAt.Add(QuotaMinInterval).Sub(now))
+	}
+	if wait = min(wait, QuotaMinInterval); wait > 0 {
+		return &QuotaCooldownError{RetryAfter: wait}
+	}
+	pids, err := m.runningPIDs(ctx)
+	if err != nil {
+		return err
+	}
+	if len(pids) == 0 {
+		return ErrClientNotRunning
+	}
+	return nil
+}
+
+// readQuota reads the current account with a fresh access token; a 401
+// forces one token refresh and one retry, and a second 401 means signing in
+// again.
+func (m *Module) readQuota(ctx context.Context, id string) (QuotaSnapshot, error) {
+	cred, err := m.freshCredential(ctx, id, true, false)
 	if err != nil {
 		return QuotaSnapshot{}, err
 	}
@@ -112,7 +151,7 @@ func (m *Module) readQuota(ctx context.Context, id string, isCurrent bool) (Quot
 	if !errors.Is(err, ErrUnauthorized) {
 		return snapshot, err
 	}
-	if cred, err = m.freshCredential(ctx, id, isCurrent, true); err != nil {
+	if cred, err = m.freshCredential(ctx, id, true, true); err != nil {
 		return QuotaSnapshot{}, err
 	}
 	snapshot, err = m.quota()(ctx, cred.AccessToken)

@@ -4,12 +4,10 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"errors"
 	"net/http"
 	"net/url"
 	"os"
 	"runtime"
-	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -25,11 +23,7 @@ const (
 	placeholderProject         = "aicode-consumers"
 	reasonValidationRequired   = "VALIDATION_REQUIRED"
 	reasonSubscriptionRequired = "SUBSCRIPTION_REQUIRED"
-	defaultOnboardTier         = "LEGACY"
 	quotaTimeout               = 20 * time.Second
-	defaultPollInterval        = 500 * time.Millisecond
-	defaultMaxPolls            = 20
-	defaultModelRetries        = 2
 	nodeClientUA               = "google-api-nodejs-client/10.3.0"
 	nodeAPIClient              = "gl-node/22.21.1"
 )
@@ -47,12 +41,6 @@ type QuotaClient struct {
 	ClientVersion func() string
 	// GOOS and GOARCH default to the running platform.
 	GOOS, GOARCH string
-	// PollInterval spaces onboarding polls and model retries (500ms).
-	PollInterval time.Duration
-	// MaxPolls bounds onboarding polls (20).
-	MaxPolls int
-	// ModelRetries is how often fetchAvailableModels is retried (2).
-	ModelRetries int
 	// Now stamps the snapshot; nil means time.Now.
 	Now func() time.Time
 }
@@ -60,7 +48,6 @@ type QuotaClient struct {
 type cloudTier struct {
 	ID               string `json:"id"`
 	Name             string `json:"name"`
-	IsDefault        bool   `json:"isDefault"`
 	UsesGcpTos       bool   `json:"usesGcpTos"`
 	AvailableCredits []struct {
 		CreditType                  string          `json:"creditType"`
@@ -115,9 +102,9 @@ func (c *QuotaClient) baseURL(prod bool) string {
 	return strings.TrimRight(firstNonEmpty(c.DailyURL, DailyCloudCodeURL), "/")
 }
 
-// Fetch reads one snapshot: loadCodeAssist (onboarding when no project is
-// assigned), the quota summary and the model list. The model list fills in
-// when the summary cannot be read; 401, 403 validation and 429 stop at once.
+// Fetch reads one snapshot with two requests: loadCodeAssist for the plan
+// and project, then the quota summary. It never onboards an account and never
+// retries; every failure is returned as is.
 func (c *QuotaClient) Fetch(ctx context.Context, accessToken string) (QuotaSnapshot, error) {
 	version := c.version()
 	info, err := c.loadCodeAssist(ctx, accessToken, version)
@@ -129,37 +116,14 @@ func (c *QuotaClient) Fetch(ctx context.Context, accessToken string) (QuotaSnaps
 	if info.project != "" {
 		body["project"] = info.project
 	}
-	snap := QuotaSnapshot{Tier: info.tier, Project: info.project, Credits: info.credits, UpdatedAt: c.now()}
-	buckets, summaryErr := c.quotaSummary(ctx, base, accessToken, version, body)
-	if isFatal(summaryErr) {
-		return QuotaSnapshot{}, summaryErr
+	buckets, err := c.quotaSummary(ctx, base, accessToken, version, body)
+	if err != nil {
+		return QuotaSnapshot{}, err
 	}
-	models, modelsErr := c.availableModels(ctx, base, accessToken, version, body)
-	if isFatal(modelsErr) && summaryErr != nil {
-		return QuotaSnapshot{}, modelsErr
-	}
-	switch {
-	case summaryErr == nil:
-		snap.Source, snap.Buckets = SourceSummary, buckets
-	case modelsErr == nil:
-		snap.Source = SourceModels
-	default:
-		return QuotaSnapshot{}, summaryErr
-	}
-	if modelsErr == nil {
-		snap.Models = models
-	}
-	return snap, nil
-}
-
-// isFatal: errors that the model list cannot work around.
-func isFatal(err error) bool {
-	var (
-		validation *ValidationRequiredError
-		limited    *RateLimitedError
-	)
-	return err != nil && (errors.Is(err, ErrUnauthorized) || errors.As(err, &validation) ||
-		errors.As(err, &limited) || errors.Is(err, context.Canceled))
+	return QuotaSnapshot{
+		Tier: info.tier, Project: info.project, Credits: info.credits,
+		Source: SourceSummary, Buckets: buckets, UpdatedAt: c.now(),
+	}, nil
 }
 
 func (c *QuotaClient) metadata(version string) map[string]any {
@@ -177,7 +141,7 @@ func (c *QuotaClient) assistHeaders(version string) http.Header {
 }
 
 // quotaHeaders identifies the desktop hub subclient: Cloud Code filters
-// model visibility and quota pools by this identity.
+// the quota pools by this identity.
 func (c *QuotaClient) quotaHeaders(version string) http.Header {
 	h := http.Header{}
 	h.Set("User-Agent", "antigravity/hub/"+version+" (aidev_client; os_type="+clientOS(c.goos())+"; arch="+clientArch(c.goarch())+")")
@@ -205,13 +169,6 @@ func (c *QuotaClient) loadCodeAssist(ctx context.Context, token, version string)
 		currentID, currentName = resp.CurrentTier.ID, resp.CurrentTier.Name
 	}
 	info.tier = ResolveTier(paidID, paidName, currentID, currentName)
-	if info.project == "" {
-		project, err := c.onboard(ctx, base, token, version, onboardTier(resp.AllowedTiers))
-		if isFatal(err) || errors.Is(err, context.DeadlineExceeded) {
-			return assist{}, err
-		}
-		info.project = project
-	}
 	return info, nil
 }
 
@@ -228,18 +185,6 @@ func usesGcpTos(resp loadCodeAssistResponse) bool {
 		}
 	}
 	return false
-}
-
-func onboardTier(allowed []cloudTier) string {
-	for _, t := range allowed {
-		if t.IsDefault && trimSpace(t.ID) != "" {
-			return t.ID
-		}
-	}
-	if len(allowed) > 0 && trimSpace(allowed[0].ID) != "" {
-		return allowed[0].ID
-	}
-	return defaultOnboardTier
 }
 
 // projectID reads a project given as a string or as {"id": …}; the
@@ -286,53 +231,6 @@ func flexibleNumber(raw json.RawMessage) float64 {
 	return 0
 }
 
-type operation struct {
-	Name     string `json:"name"`
-	Done     bool   `json:"done"`
-	Response struct {
-		Project json.RawMessage `json:"cloudaicompanionProject"`
-	} `json:"response"`
-}
-
-// onboard runs onboardUser and polls the long-running operation every
-// PollInterval, at most MaxPolls times. An empty project is not an error:
-// personal accounts may stay without one.
-func (c *QuotaClient) onboard(ctx context.Context, base, token, version, tierID string) (string, error) {
-	headers := c.assistHeaders(version)
-	body := map[string]any{"tierId": tierID, "metadata": c.metadata(version)}
-	raw, err := c.call(ctx, http.MethodPost, base+"/v1internal:onboardUser", "onboardUser", token, headers, body)
-	if err != nil {
-		return "", err
-	}
-	interval := c.PollInterval
-	if interval <= 0 {
-		interval = defaultPollInterval
-	}
-	polls := c.MaxPolls
-	if polls <= 0 {
-		polls = defaultMaxPolls
-	}
-	for i := 0; ; i++ {
-		var op operation
-		if json.Unmarshal(raw, &op) != nil {
-			return "", ErrQuotaParse
-		}
-		if op.Done || op.Name == "" {
-			return projectID(op.Response.Project), nil
-		}
-		if i >= polls {
-			return "", &TimeoutError{Operation: "onboardUser"}
-		}
-		if err := sleepContext(ctx, interval); err != nil {
-			return "", err
-		}
-		raw, err = c.call(ctx, http.MethodGet, base+"/v1internal/"+strings.TrimLeft(op.Name, "/"), "onboardUser", token, headers, nil)
-		if err != nil {
-			return "", err
-		}
-	}
-}
-
 type summaryResponse struct {
 	Groups []struct {
 		DisplayName string `json:"displayName"`
@@ -374,78 +272,6 @@ func parseQuotaSummary(raw []byte) ([]QuotaBucket, error) {
 			out = append(out, bucketFrom(id, group, trimSpace(b.DisplayName), fraction, parseResetTime(b.ResetTime)))
 		}
 	}
-	return out, nil
-}
-
-type modelsResponse struct {
-	Models map[string]struct {
-		DisplayName string `json:"displayName"`
-		Model       string `json:"model"`
-		Recommended bool   `json:"recommended"`
-		QuotaInfo   *struct {
-			RemainingFraction *float64 `json:"remainingFraction"`
-			ResetTime         string   `json:"resetTime"`
-		} `json:"quotaInfo"`
-	} `json:"models"`
-}
-
-// availableModels calls fetchAvailableModels, retrying transient failures
-// (transport errors and 5xx) up to ModelRetries times.
-func (c *QuotaClient) availableModels(ctx context.Context, base, token, version string, body map[string]any) ([]ModelQuota, error) {
-	retries := c.ModelRetries
-	if retries <= 0 {
-		retries = defaultModelRetries
-	}
-	interval := c.PollInterval
-	if interval <= 0 {
-		interval = defaultPollInterval
-	}
-	var lastErr error
-	for attempt := 0; attempt <= retries; attempt++ {
-		if attempt > 0 {
-			if err := sleepContext(ctx, interval); err != nil {
-				return nil, err
-			}
-		}
-		raw, err := c.call(ctx, http.MethodPost, base+"/v1internal:fetchAvailableModels", "fetchAvailableModels", token, c.quotaHeaders(version), body)
-		if err == nil {
-			return parseAvailableModels(raw)
-		}
-		lastErr = err
-		if !transient(err) {
-			return nil, err
-		}
-	}
-	return nil, lastErr
-}
-
-func transient(err error) bool {
-	var status *StatusError
-	if errors.As(err, &status) {
-		return status.StatusCode >= 500
-	}
-	return !isFatal(err) && !errors.Is(err, ErrQuotaParse)
-}
-
-func parseAvailableModels(raw []byte) ([]ModelQuota, error) {
-	var resp modelsResponse
-	if json.Unmarshal(raw, &resp) != nil {
-		return nil, ErrQuotaParse
-	}
-	out := make([]ModelQuota, 0, len(resp.Models))
-	for id, m := range resp.Models {
-		mq := ModelQuota{ID: id, DisplayName: trimSpace(m.DisplayName), Model: trimSpace(m.Model), Recommended: m.Recommended}
-		if m.QuotaInfo != nil {
-			fraction := 0.0
-			if m.QuotaInfo.RemainingFraction != nil {
-				fraction = clampFraction(*m.QuotaInfo.RemainingFraction)
-			}
-			mq.RemainingFraction = &fraction
-			mq.ResetAt = parseResetTime(m.QuotaInfo.ResetTime)
-		}
-		out = append(out, mq)
-	}
-	sort.Slice(out, func(i, j int) bool { return out[i].ID < out[j].ID })
 	return out, nil
 }
 
@@ -571,15 +397,4 @@ func retryAfter(value string, now time.Time) (time.Duration, bool) {
 		return max(t.Sub(now), 0), true
 	}
 	return 0, false
-}
-
-func sleepContext(ctx context.Context, d time.Duration) error {
-	timer := time.NewTimer(d)
-	defer timer.Stop()
-	select {
-	case <-ctx.Done():
-		return ctx.Err()
-	case <-timer.C:
-		return nil
-	}
 }

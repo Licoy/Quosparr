@@ -32,11 +32,18 @@ func (q *quotaFake) fetch(_ context.Context, token string) (QuotaSnapshot, error
 		Buckets: []QuotaBucket{{ID: "gemini:5h", Family: FamilyGemini, Window: WindowFiveHour, RemainingFraction: 0.5}}, UpdatedAt: testNow}, nil
 }
 
+// moduleCtl drives the module's clock, quota switch and running clients.
+type moduleCtl struct {
+	now              time.Time
+	quotaOn, running bool
+}
+
 type moduleEnv struct {
 	testEnv
 	module *Module
 	oauth  *oauthServer
 	quota  *quotaFake
+	ctl    *moduleCtl
 }
 
 func newModuleEnv(t *testing.T) moduleEnv {
@@ -44,13 +51,23 @@ func newModuleEnv(t *testing.T) moduleEnv {
 	env := newTestEnv(t)
 	o := newOAuthServer(t)
 	q := &quotaFake{}
+	ctl := &moduleCtl{now: testNow, quotaOn: true}
 	m := &Module{
 		Store: env.store, OAuth: o.client(), Quota: q.fetch,
-		RunningProcessIDs: func(context.Context) ([]int, error) { return nil, nil },
-		Now:               func() time.Time { return testNow },
+		QuotaEnabled: func() bool { return ctl.quotaOn },
+		RunningProcessIDs: func(context.Context) ([]int, error) {
+			if ctl.running {
+				return []int{4242}, nil
+			}
+			return nil, nil
+		},
+		Now: func() time.Time { return ctl.now },
 	}
-	return moduleEnv{testEnv: env, module: m, oauth: o, quota: q}
+	return moduleEnv{testEnv: env, module: m, oauth: o, quota: q, ctl: ctl}
 }
+
+// pass moves the clock past the quota cooldown.
+func (e moduleEnv) pass() { e.ctl.now = e.ctl.now.Add(QuotaMinInterval) }
 
 func (e moduleEnv) setOfficial(data []byte) { e.keychain.data, e.keychain.has = data, true }
 
@@ -186,6 +203,7 @@ func TestRefreshCurrentRetriesAfter401AndSyncsOfficial(t *testing.T) {
 	official := credJSON(t, "a0", "r0", idToken("s0", "zero@example.com"), testNow.Add(time.Hour))
 	e.setOfficial(official)
 	writeFile(t, files[0], official)
+	e.ctl.running = true
 	e.quota.errs = []error{ErrUnauthorized, nil}
 	report := e.module.Refresh(ctx, RefreshTarget{Kind: RefreshCurrent})
 	if len(report.Outcomes) != 1 || report.Outcomes[0].Err != nil || report.Outcomes[0].Snapshot == nil {
@@ -207,6 +225,7 @@ func TestRefreshCurrentRetriesAfter401AndSyncsOfficial(t *testing.T) {
 		t.Fatalf("cached quota: %v", err)
 	}
 
+	e.pass()
 	e.quota.errs = []error{ErrUnauthorized, ErrUnauthorized}
 	report = e.module.Refresh(ctx, RefreshTarget{Kind: RefreshCurrent})
 	if err := report.Outcomes[0].Err; !errors.Is(err, ErrAuthenticationRequired) || !report.Outcomes[0].RetainedStaleSnapshot {
@@ -218,12 +237,16 @@ func TestRefreshCurrentRetriesAfter401AndSyncsOfficial(t *testing.T) {
 	}
 }
 
-func TestRefreshNonCurrentTouchesOnlyManagedCopy(t *testing.T) {
+// Only the current account is read: another account is refused without a
+// token refresh or request, and "all" is the current account alone.
+func TestRefreshReadsOnlyTheCurrentAccount(t *testing.T) {
 	e := newModuleEnv(t)
 	ctx := context.Background()
+	e.ctl.running = true
 	official := credJSON(t, "a0", "r0", idToken("s0", "zero@example.com"), testNow.Add(time.Hour))
 	e.setOfficial(official)
-	if _, err := e.module.Load(ctx); err != nil {
+	state, err := e.module.Load(ctx)
+	if err != nil {
 		t.Fatal(err)
 	}
 	expired := credJSON(t, "old", "r1", idToken("s1", "one@example.com"), testNow.Add(5*time.Minute))
@@ -233,28 +256,94 @@ func TestRefreshNonCurrentTouchesOnlyManagedCopy(t *testing.T) {
 	}
 	saves := e.keychain.saves
 	report := e.module.Refresh(ctx, RefreshTarget{Kind: RefreshAccount, ID: acc.ID})
-	if report.Outcomes[0].Err != nil {
-		t.Fatal(report.Outcomes[0].Err)
+	if !errors.Is(report.Outcomes[0].Err, ErrQuotaCurrentOnly) {
+		t.Fatalf("non-current: %v", report.Outcomes[0].Err)
 	}
-	if e.keychain.saves != saves {
-		t.Fatal("non-current refresh wrote the official login")
+	if e.keychain.saves != saves || e.oauth.refreshCalls != 0 || len(e.quota.tokens) != 0 {
+		t.Fatal("a refused read must not touch tokens or Cloud Code")
 	}
-	if data, _ := e.store.LoadCredentialData(acc.ID); mustCred(t, data).AccessToken != "fresh-1" {
-		t.Fatal("managed copy not refreshed")
-	}
-
-	e.oauth.tokenStatus, e.oauth.tokenBody = 400, `{"error":"invalid_grant"}`
-	writeExpired := credJSON(t, "old", "r1", idToken("s1", "one@example.com"), testNow.Add(-time.Minute))
-	if err := e.store.SaveCredentialData(acc.ID, writeExpired); err != nil {
-		t.Fatal(err)
-	}
-	report = e.module.Refresh(ctx, RefreshTarget{Kind: RefreshAccount, ID: acc.ID})
-	if !errors.Is(report.Outcomes[0].Err, ErrAuthenticationRequired) {
-		t.Fatalf("invalid_grant: %v", report.Outcomes[0].Err)
+	if data, _ := e.store.LoadCredentialData(acc.ID); mustCred(t, data).AccessToken != "old" {
+		t.Fatal("managed copy must stay untouched")
 	}
 	idx, _ := e.store.LoadIndex()
-	if a, _ := idx.Account(acc.ID); !a.RequiresReauth || a.LastError != ErrorCodeAuthenticationNeeded {
-		t.Fatalf("flags = %+v", a)
+	if a, _ := idx.Account(acc.ID); a.LastError != "" || a.RequiresReauth {
+		t.Fatalf("a refused read stores no error: %+v", a)
+	}
+
+	report = e.module.Refresh(ctx, RefreshTarget{Kind: RefreshAll})
+	if len(report.Outcomes) != 1 || report.Outcomes[0].AccountID != state.CurrentAccountID || report.Outcomes[0].Err != nil {
+		t.Fatalf("all = %+v", report.Outcomes)
+	}
+	if len(e.quota.tokens) != 1 {
+		t.Fatalf("all read %d accounts", len(e.quota.tokens))
+	}
+}
+
+// The read policy refuses before any request and stores no error: reads
+// off, no running client, and the cooldown after any attempt.
+func TestRefreshPolicyRefusesWithoutRequests(t *testing.T) {
+	e := newModuleEnv(t)
+	ctx := context.Background()
+	e.setOfficial(credJSON(t, "a0", "r0", idToken("s0", "zero@example.com"), testNow.Add(time.Hour)))
+	refresh := func() RefreshOutcome {
+		t.Helper()
+		report := e.module.Refresh(ctx, RefreshTarget{Kind: RefreshCurrent})
+		if len(report.Outcomes) != 1 {
+			t.Fatalf("outcomes = %+v", report.Outcomes)
+		}
+		return report.Outcomes[0]
+	}
+
+	e.ctl.quotaOn, e.ctl.running = false, true
+	if err := refresh().Err; !errors.Is(err, ErrQuotaDisabled) {
+		t.Fatalf("off: %v", err)
+	}
+	e.module.QuotaEnabled = nil
+	if err := refresh().Err; !errors.Is(err, ErrQuotaDisabled) {
+		t.Fatalf("nil switch: %v", err)
+	}
+	e.module.QuotaEnabled = func() bool { return e.ctl.quotaOn }
+	e.ctl.quotaOn, e.ctl.running = true, false
+	if err := refresh().Err; !errors.Is(err, ErrClientNotRunning) {
+		t.Fatalf("not running: %v", err)
+	}
+	if len(e.quota.tokens) != 0 || e.oauth.refreshCalls != 0 {
+		t.Fatal("refused reads must not send anything")
+	}
+
+	// A failed attempt starts the cooldown too.
+	e.ctl.running = true
+	e.quota.errs = []error{&StatusError{Method: "retrieveUserQuotaSummary", StatusCode: 503}}
+	if err := refresh().Err; !isErr[*StatusError](err) {
+		t.Fatalf("503: %v", err)
+	}
+	e.ctl.now = e.ctl.now.Add(time.Minute)
+	var cool *QuotaCooldownError
+	if err := refresh().Err; !errors.As(err, &cool) || cool.RetryAfter != QuotaMinInterval-time.Minute {
+		t.Fatalf("cooldown after failure: %v", err)
+	}
+	e.pass()
+	if out := refresh(); out.Err != nil || out.Snapshot == nil {
+		t.Fatalf("after cooldown: %+v", out)
+	}
+	if err := refresh().Err; !errors.As(err, &cool) || cool.RetryAfter != QuotaMinInterval {
+		t.Fatalf("cooldown after success: %v", err)
+	}
+	if len(e.quota.tokens) != 2 {
+		t.Fatalf("requests = %d", len(e.quota.tokens))
+	}
+
+	// The stored reading holds a fresh module back as well, and a clock
+	// that went backwards waits at most one interval.
+	idx, _ := e.store.LoadIndex()
+	acc, _ := idx.Account(idx.CurrentAccountID)
+	if acc.LastError != "" {
+		t.Fatalf("refusals stored an error: %q", acc.LastError)
+	}
+	e.module.throttle = QuotaThrottle{}
+	e.ctl.now = e.ctl.now.Add(-time.Hour)
+	if err := refresh().Err; !errors.As(err, &cool) || cool.RetryAfter != QuotaMinInterval {
+		t.Fatalf("stored reading cooldown: %v", err)
 	}
 }
 
@@ -262,6 +351,7 @@ func TestRefreshRateLimitAndValidation(t *testing.T) {
 	e := newModuleEnv(t)
 	ctx := context.Background()
 	e.setOfficial(credJSON(t, "a0", "r0", idToken("s0", "zero@example.com"), testNow.Add(time.Hour)))
+	e.ctl.running = true
 	e.quota.errs = []error{&RateLimitedError{}}
 	report := e.module.Refresh(ctx, RefreshTarget{Kind: RefreshCurrent})
 	if !isErr[*RateLimitedError](report.Outcomes[0].Err) {
@@ -275,8 +365,10 @@ func TestRefreshRateLimitAndValidation(t *testing.T) {
 	}
 
 	e.module.throttle.Succeeded(report.Outcomes[0].AccountID)
+	e.pass()
 	e.quota.errs = []error{nil, &ValidationRequiredError{Reason: reasonValidationRequired, URL: "https://accounts.google.com/v"}}
 	_ = e.module.Refresh(ctx, RefreshTarget{Kind: RefreshCurrent})
+	e.pass()
 	report = e.module.Refresh(ctx, RefreshTarget{Kind: RefreshCurrent})
 	if !isErr[*ValidationRequiredError](report.Outcomes[0].Err) || !report.Outcomes[0].RetainedStaleSnapshot {
 		t.Fatalf("validation: %+v", report.Outcomes[0])

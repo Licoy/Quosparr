@@ -158,7 +158,7 @@ func GeminiStatusText(lc l10n.Localizer, g GeminiState, now time.Time) string {
 			return lc.Text(l10n.KeyStatusLogin)
 		case GeminiLoading:
 			return lc.Text(l10n.KeyStatusWait)
-		case GeminiReady:
+		case GeminiReady, GeminiQuotaOff:
 			return lc.Text(l10n.KeyStatusUnknown)
 		}
 		return lc.Text(l10n.KeyStatusError)

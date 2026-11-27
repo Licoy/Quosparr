@@ -40,7 +40,7 @@
       "Import et changement de comptes d’abonnement ; les jetons MCP sont conservés lors du changement"
     ],
     "gemini": [
-      "Quotas de l’app de bureau Antigravity et de la CLI agy : fenêtres de 5 heures et hebdomadaire pour les modèles Gemini et Claude, fenêtre hebdomadaire Argon, heures de réinitialisation, formule Free / Pro / Ultra et détail par modèle",
+      "Quotas de l’app de bureau Antigravity et de la CLI agy, désactivables : fenêtres de 5 heures et hebdomadaire pour les modèles Gemini et Claude, fenêtre hebdomadaire Argon, heures de réinitialisation et formule Free / Pro / Ultra",
       "Ajout de comptes par connexion Google dans le navigateur ou import de la connexion actuelle ; le changement écrit la connexion partagée par l’app et agy et peut redémarrer l’app de bureau sur macOS",
       "Tokens consommés, coût équivalent API, carte de chaleur, sessions récentes et vitesse d’après les sessions locales de l’app et d’agy"
     ],

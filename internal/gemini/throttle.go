@@ -10,9 +10,13 @@ const (
 	RateLimitBackoffStart = 5 * time.Minute
 	// RateLimitBackoffMax caps the exponential backoff.
 	RateLimitBackoffMax = time.Hour
+	// QuotaMinInterval is the least time between two quota reads of one
+	// account, successful or not.
+	QuotaMinInterval = 15 * time.Minute
 )
 
-// QuotaThrottle holds accounts back after a 429. Keys are account ids; a
+// QuotaThrottle spaces the quota reads of each account: QuotaMinInterval
+// after every attempt and a backoff after a 429. Keys are account ids; a
 // 429 is a wait, never a reason to rotate tokens.
 type QuotaThrottle struct {
 	mu    sync.Mutex
@@ -22,9 +26,33 @@ type QuotaThrottle struct {
 type throttleState struct {
 	backoff      time.Duration
 	blockedUntil time.Time
+	lastAttempt  time.Time
 }
 
-// Wait reports how long id must still wait; zero means a request may start.
+// Attempted records that a quota read of id starts at now.
+func (t *QuotaThrottle) Attempted(id string, now time.Time) {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	if t.state == nil {
+		t.state = map[string]throttleState{}
+	}
+	st := t.state[id]
+	st.lastAttempt = now
+	t.state[id] = st
+}
+
+// Cooldown reports how long id must still wait after its last attempt.
+func (t *QuotaThrottle) Cooldown(id string, now time.Time) time.Duration {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	last := t.state[id].lastAttempt
+	if last.IsZero() {
+		return 0
+	}
+	return max(last.Add(QuotaMinInterval).Sub(now), 0)
+}
+
+// Wait reports how long a 429 still holds id back; zero means none does.
 func (t *QuotaThrottle) Wait(id string, now time.Time) time.Duration {
 	t.mu.Lock()
 	defer t.mu.Unlock()
@@ -58,9 +86,11 @@ func (t *QuotaThrottle) ObserveRateLimit(id string, now time.Time, e *RateLimite
 	return wait
 }
 
-// Succeeded clears the backoff of id.
+// Succeeded clears the 429 backoff of id; the cooldown stays.
 func (t *QuotaThrottle) Succeeded(id string) {
 	t.mu.Lock()
 	defer t.mu.Unlock()
-	delete(t.state, id)
+	if st, ok := t.state[id]; ok {
+		t.state[id] = throttleState{lastAttempt: st.lastAttempt}
+	}
 }

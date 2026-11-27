@@ -31,48 +31,24 @@ func TestQuotaFetchUsesHubIdentityForArgon(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, tc := range []struct {
-		name, tier         string
-		summaryUnavailable bool
-	}{
+	for _, tc := range []struct{ name, tier string }{
 		{name: "pro", tier: "g1-pro-tier"},
 		{name: "ultra shared pool", tier: "g1-ultra-tier"},
-		{name: "pro model fallback", tier: "g1-pro-tier", summaryUnavailable: true},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			server := newCloudServer(t, map[string]func(http.ResponseWriter, cloudCall){
 				"/v1internal:loadCodeAssist": reply(`{"cloudaicompanionProject":"project","paidTier":{"id":"` + tc.tier + `"}}`),
 				"/v1internal:retrieveUserQuotaSummary": func(w http.ResponseWriter, call cloudCall) {
-					if tc.summaryUnavailable {
-						http.Error(w, "unavailable", http.StatusNotFound)
-						return
-					}
 					if tc.tier == "g1-pro-tier" && strings.HasPrefix(call.ua, "antigravity/hub/") {
 						_, _ = w.Write(raw)
 					} else {
 						_, _ = w.Write(sharedRaw)
 					}
 				},
-				"/v1internal:fetchAvailableModels": func(w http.ResponseWriter, call cloudCall) {
-					if strings.HasPrefix(call.ua, "antigravity/hub/") {
-						_, _ = w.Write([]byte(`{"models":{"gemini-4-argon-high":{"displayName":"Gemini 4 Argon (High)","quotaInfo":{"remainingFraction":0.47933266,"resetTime":"2026-11-23T07:59:09Z"}}}}`))
-					} else {
-						_, _ = w.Write([]byte(`{"models":{}}`))
-					}
-				},
 			})
 			snap, err := testQuotaClient(server.URL).Fetch(context.Background(), "fixture-token")
 			if err != nil {
 				t.Fatal(err)
-			}
-			if len(snap.Models) != 1 || snap.Models[0].ID != "gemini-4-argon-high" || snap.Models[0].RemainingFraction == nil || *snap.Models[0].RemainingFraction != 0.47933266 {
-				t.Fatalf("hub model quota missing: %+v", snap.Models)
-			}
-			if tc.summaryUnavailable {
-				if snap.Source != SourceModels || len(snap.Buckets) != 0 {
-					t.Fatalf("model fallback: %+v", snap)
-				}
-				return
 			}
 			wantBuckets := 4
 			if tc.tier == "g1-pro-tier" {

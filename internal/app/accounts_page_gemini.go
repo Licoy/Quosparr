@@ -16,6 +16,7 @@ func renderGeminiAccounts(c *ui.Context, u *settingsUI, f *accountForm, rt *live
 	l := u.L()
 	view := rt.svc.Snapshot().Gemini.Accounts
 	panelAccountStatus(c, l, view)
+	geminiQuotaToggle(c, u, f)
 	rows := view.Sidebar
 	folder := accountFolder{l.Text(l10n.KeyGeminiFolder), rt.geminiFolder()}
 	accountToolbar(c, u, f, accountCountTitle(l, len(rows)), folder, func(m *ui.Menu) {
@@ -49,6 +50,33 @@ func renderGeminiAccounts(c *ui.Context, u *settingsUI, f *accountForm, rt *live
 	})
 }
 
+// geminiQuotaToggle is the opt-in to the Gemini quota reads. They use
+// Antigravity's internal API, so turning them on asks first.
+func geminiQuotaToggle(c *ui.Context, u *settingsUI, f *accountForm) {
+	s, l := u.s, u.L()
+	settingsGroup(c, "", "", nil, func(row rowFunc) {
+		row(l.Text(l10n.KeyGeminiQuotaReads), l.Text(l10n.KeyGeminiQuotaReadsHint), func() {
+			on, changed := toggle(c, "gemini-quota-reads", l.Text(l10n.KeyGeminiQuotaReads), s.Prefs().GeminiQuotaEnabled, s.ReadOnly() || f.busy)
+			switch {
+			case !changed:
+			case !on:
+				s.SetGeminiQuotaEnabled(false)
+			default:
+				u.accountAct(f, "", func() string {
+					confirmed, err := confirmDialog(l, l.Text(l10n.KeyGeminiQuotaReadsConfirmTitle), l.Text(l10n.KeyGeminiQuotaReadsConfirmMessage), "", l.Text(l10n.KeyGeminiQuotaReadsConfirm))
+					if err != nil {
+						return accountFailure(l, l.Text(l10n.KeyStatusError), err)
+					}
+					if confirmed {
+						u.post(func() { s.SetGeminiQuotaEnabled(true) })
+					}
+					return ""
+				})
+			}
+		})
+	})
+}
+
 // geminiFolder holds the official Antigravity login files; "" without a store.
 func (rt *liveApp) geminiFolder() string {
 	if !rt.geminiReady() || rt.geminiMod.Store.Official == nil || len(rt.geminiMod.Store.Official.Files) == 0 {
@@ -66,8 +94,10 @@ func renderGeminiAccountRow(c *ui.Context, u *settingsUI, f *accountForm, rt *li
 			quota = &q
 		}
 	}
+	// Only the current account's quota is read, and only once reads are on.
+	noRead := rt == nil || acc.ID != current || !u.s.Prefs().GeminiQuotaEnabled
 	accountSettingsRow(c, l, accountIdentityView{account: acc, current: acc.ID == current, privacy: priv, provider: store.ProviderGemini, geminiQuota: quota, quota: quotaOptionsFor(u.s.Prefs(), false)}, func() {
-		if accountRefreshButton(c, l, f, acc.ID, rt == nil).Clicked() {
+		if accountRefreshButton(c, l, f, acc.ID, noRead).Clicked() {
 			id := acc.ID
 			u.accountRefresh(f, id, func() string {
 				return rt.geminiRefresh(l, gemini.RefreshTarget{Kind: gemini.RefreshAccount, ID: id})

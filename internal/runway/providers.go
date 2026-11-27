@@ -221,6 +221,8 @@ const (
 	GeminiRateLimited
 	GeminiQuotaParseFailed
 	GeminiFailed
+	// GeminiQuotaOff: the user has not turned the quota reads on.
+	GeminiQuotaOff
 )
 
 // GeminiState is the Gemini view used by the status bar, widget and panel.
@@ -242,9 +244,12 @@ type GeminiState struct {
 	// GeminiSubscriptionRequired, "" when the service named none.
 	ValidationURL string
 	LastError     string
-	Refreshing    bool
-	Widget        *export.ProviderSnapshot
-	Detail        any
+	// Notice is why the last manual quota read was refused before any
+	// request (cooldown, client not running), "" when none was.
+	Notice     string
+	Refreshing bool
+	Widget     *export.ProviderSnapshot
+	Detail     any
 	// Cost, Heatmap, RecentSessions and Speed come from the local
 	// Antigravity conversations; LocalError is the error of their last
 	// scan, kept apart from the quota state of LastError.
@@ -274,8 +279,8 @@ type GeminiAccountQuota struct {
 // must run without holding any lock State takes.
 type GeminiProvider interface {
 	State(now time.Time) GeminiState
-	// Refresh refetches the Gemini quota and accounts. force is a manual
-	// refresh, which may skip the automatic spacing.
+	// Refresh follows the Gemini accounts. Only force, a manual refresh,
+	// reads the quota.
 	Refresh(ctx context.Context, force bool) error
 	// RefreshLocal rescans the local sessions, like GrokProvider.RefreshLocal.
 	RefreshLocal(ctx context.Context) error

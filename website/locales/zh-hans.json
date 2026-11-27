@@ -40,7 +40,7 @@
       "导入并切换订阅账号，切号时保留 MCP 令牌"
     ],
     "gemini": [
-      "Antigravity 桌面 App 与 agy CLI 的额度：Gemini 与 Claude 模型的 5 小时和每周窗口、Argon 每周窗口，含重置时间、Free / Pro / Ultra 档位与按模型明细",
+      "Antigravity 桌面 App 与 agy CLI 的额度（可手动关闭）：Gemini 与 Claude 模型的 5 小时和每周窗口、Argon 每周窗口，含重置时间与 Free / Pro / Ultra 档位",
       "通过浏览器登录 Google 或导入当前登录来添加账号，切号时写入 App 与 agy 共用的登录，macOS 上可同时重启桌面 App",
       "从 App 与 agy 的本机会话统计 Token 用量、API 等价成本、热力图、最近会话和速率"
     ],

@@ -93,6 +93,7 @@ func readPreferences(r *reader) Preferences {
 	p.PanelProviders = readPanelProviders(r, "panelProviders")
 	p.DisableMainPanelAnimation = r.bool("disableMainPanelAnimation", p.DisableMainPanelAnimation)
 	p.ShareCodexDesktopProjects = r.bool("shareCodexDesktopProjects", p.ShareCodexDesktopProjects)
+	p.GeminiQuotaEnabled = r.bool("geminiQuotaEnabled", p.GeminiQuotaEnabled)
 	return p
 }
 
@@ -163,6 +164,9 @@ func (p Preferences) omitGoOnlyDefaults(m fields) {
 	}
 	if p.ShowsSkills {
 		delete(m, "showsSkills")
+	}
+	if p.GeminiQuotaEnabled {
+		delete(m, "geminiQuotaEnabled")
 	}
 	order := wireModuleOrder(p.MainPanelModuleOrder)
 	if len(order) == len(p.MainPanelModuleOrder) {

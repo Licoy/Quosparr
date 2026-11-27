@@ -81,8 +81,9 @@ type QuotaBucket struct {
 	ResetAt           *time.Time `json:"resetAt,omitempty"`
 }
 
-// ModelQuota is one model of fetchAvailableModels. RemainingFraction is nil
-// when the model reports no quota.
+// ModelQuota is one model of the model list that earlier versions also
+// read; it only appears in snapshots cached by them. RemainingFraction is
+// nil when the model reports no quota.
 type ModelQuota struct {
 	ID                string     `json:"id"`
 	DisplayName       string     `json:"displayName,omitempty"`
@@ -105,7 +106,8 @@ type Validation struct {
 	URL    string `json:"url,omitempty"`
 }
 
-// Quota snapshot sources.
+// Quota snapshot sources. SourceModels only appears in snapshots cached by
+// earlier versions.
 const (
 	SourceSummary = "summary"
 	SourceModels  = "models"

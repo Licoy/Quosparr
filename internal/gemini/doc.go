@@ -54,11 +54,21 @@
 // new refresh token or id_token keeps the old ones. invalid_grant means the
 // user has to sign in again.
 //
-// A quota reading is loadCodeAssist (onboardUser with polling when no
-// project is assigned; the placeholder project "aicode-consumers" counts as
-// none), then retrieveUserQuotaSummary and fetchAvailableModels. Requests
-// go to the daily Cloud Code host unless the account uses the GCP terms of
-// service with a real project, which uses the production host; the
+// Cloud Code's quota endpoints are internal to the Antigravity clients, so
+// quota reads are switchable and sparse. Module.QuotaEnabled must report true
+// (nil is off); only the current account is read, and RefreshAll means the
+// current account; QuotaMinInterval (15 minutes) must have passed since the
+// account's last attempt and since its stored reading; a 429 backoff must
+// have run out; and an Antigravity client (App or agy) must be running. A
+// read refused by this policy sends nothing and stores no error. Sync
+// follows the official login without reading quota.
+//
+// A quota reading is exactly two requests: loadCodeAssist, then
+// retrieveUserQuotaSummary. Accounts are never onboarded and the model list
+// is never requested; snapshots cached by earlier versions may still carry
+// models. Requests go to the daily Cloud Code host unless the account uses
+// the GCP terms of service with a real project (the placeholder project
+// "aicode-consumers" counts as none), which uses the production host; the
 // QUOSPARR_DEV_GEMINI_CLOUDCODE_URL environment variable overrides both. A
 // 401 is retried once after a forced token refresh; a 403 carrying
 // VALIDATION_REQUIRED, SUBSCRIPTION_REQUIRED or a validation_url is its own
@@ -67,11 +77,11 @@
 // paidTier.id, else currentTier.id: "ultra" in it is Ultra, "pro" is Pro,
 // anything else Free, nothing Unknown.
 //
-// Quota summary and model-list requests identify the desktop subclient as
+// Quota summary requests identify the desktop subclient as
 // "antigravity/hub/<version>". Cloud Code filters the returned quota pools
-// and models by this identity; omitting "hub" can hide the independent
-// Gemini 4 Argon pool of Pro accounts. Pools follow the service response;
-// accounts with a shared Gemini pool do not get a synthetic Argon bucket.
+// by this identity; omitting "hub" can hide the independent Gemini 4 Argon
+// pool of Pro accounts. Pools follow the service response; accounts with a
+// shared Gemini pool do not get a synthetic Argon bucket.
 //
 // # Local sessions
 //

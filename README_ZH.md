@@ -39,8 +39,8 @@ Quosparr 是面向 macOS、Windows、Linux 的原生菜单栏 / 系统托盘应�
 
 **Gemini**
 
-- 查看 Google Antigravity 客户端（新版桌面 App 与 `agy` CLI）的额度：Gemini 模型与 Claude 模型各自 5 小时与每周窗口、Argon 每周窗口的剩余比例与重置时间，以及订阅档位（Free / Pro / Ultra）和按模型的额度明细。这个读数来自客户端使用的 Cloud Code 服务，不是公开的计费接口
-- 账号：通过浏览器登录 Google、导入当前登录、粘贴凭据 JSON 或导入账号文件；当前登录会自动加入，支持别名、排序、导出与刷新非当前账号。浏览器登录只加入账号库（账号库为空且本机尚未登录时的第一个账号除外）；确认切换后写入 App 与 `agy` 共用的系统凭据，macOS 上正在运行的 Antigravity 桌面 App 可在切换时重启，Windows 与 Linux 上的 App 以及正在运行的 `agy` 需自行重新启动
+- 查看 Google Antigravity 客户端（新版桌面 App 与 `agy` CLI）的额度：Gemini 模型与 Claude 模型各自 5 小时与每周窗口、Argon 每周窗口的剩余比例与重置时间，以及订阅档位（Free / Pro / Ultra）。这个读数来自客户端使用的内部 Cloud Code 服务，不是公开接口，Google 可能标记以这种方式被第三方工具读取的账号；不接受此风险时，可到设置中“服务商账号”的 Gemini 标签页关闭，改在 Antigravity 中查看额度。读取只针对当前账号，只在手动刷新时读取，每 15 分钟最多一次，且需 App 或 `agy` 正在运行
+- 账号：通过浏览器登录 Google、导入当前登录、粘贴凭据 JSON 或导入账号文件；当前登录会自动加入，支持别名、排序与导出。浏览器登录只加入账号库（账号库为空且本机尚未登录时的第一个账号除外）；确认切换后写入 App 与 `agy` 共用的系统凭据，macOS 上正在运行的 Antigravity 桌面 App 可在切换时重启，Windows 与 Linux 上的 App 以及正在运行的 `agy` 需自行重新启动
 - 从 App 与 `agy` 的本机会话统计 Token 用量、API 等价成本、热力图、最近会话和速率分析。成本按 models.dev 价格估算：Gemini 模型用 Google 价格，Antigravity 中的 Claude 模型用 Anthropic 价格；没有内置价格表，价格目录同步后才显示成本，未知模型不给精确费用
 
 **Grok**
@@ -173,7 +173,7 @@ Linux 需要 GTK3、AppIndicator、支持托盘的桌面，以及可用的 Secre
 - **Codex API 等价成本**：基于本机会话日志，使用内置价格表 `openai-builtin-2026-09-27`，支持的当前费率来自 models.dev，并保留已核实的内置规则；未知模型不报告精确费用
 - **Claude 订阅用量**：来自未公开的 OAuth usage 端点，只表示当前 Claude 订阅，不写成官方计费接口。不读取浏览器 Cookie 或 Console API 账单，Desktop 配置档仅由上述独立且明确确认的功能管理
 - **Claude API 等价成本**：基于 Claude Code 本机会话日志和价格表 `anthropic-builtin-2026-10-14`。同一条回复按消息 ID 只计一次。缓存写入分为 5 分钟和 1 小时，Fast 档单独计价。未知模型不报告精确费用。按日统计使用本地时区
-- **Gemini 额度**：Antigravity 客户端使用的未公开 Cloud Code 接口（`cloudcode-pa.googleapis.com` / `daily-cloudcode-pa.googleapis.com`），token 经 Google OAuth（`oauth2.googleapis.com`）续期，身份取自 ID token 或 Google userinfo，不写成官方计费接口。订阅档位取付费档位，没有时取当前档位。Google 要求验证或订阅时保留上一次读数
+- **Gemini 额度**：默认开启，可手动关闭。使用 Antigravity 客户端的未公开 Cloud Code 接口（`cloudcode-pa.googleapis.com` / `daily-cloudcode-pa.googleapis.com`），每次读取只发两个请求（`loadCodeAssist` 与 `retrieveUserQuotaSummary`），不为账号执行开通（onboarding），token 经 Google OAuth（`oauth2.googleapis.com`）续期，身份取自 ID token 或 Google userinfo，不写成官方计费接口。订阅档位取付费档位，没有时取当前档位。Google 要求验证或订阅时保留上一次读数
 - **Gemini API 等价成本**：从 App（`~/.gemini/antigravity`）与 `agy`（`~/.gemini/antigravity-cli`）的本机会话数据库读取 Token 用量，始终读取私有临时副本；只按已同步的 models.dev 目录计价（Gemini 模型用 Google 价格，Claude 模型用 Anthropic 价格），Anthropic 缓存写入与未知模型不报告精确费用。加密会话计为无法读取
 - **Grok 额度**：只使用官方 CLI chat-proxy `/v1/billing?format=credits` 接口；不读取浏览器 Cookie、不从本地日志伪造额度，也不混入 API 账单
 - **Grok API 等价成本**：基于本地 `turn_completed` 用量和价格表 `xai-builtin-2026-09-27`，区分输入、缓存、输出及长上下文价格；`costUsdTicks` 属于订阅额度记账，不作为 API 等价成本

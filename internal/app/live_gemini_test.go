@@ -62,11 +62,11 @@ func geminiSnapshotJSON(t *testing.T, snap gemini.QuotaSnapshot) json.RawMessage
 func TestGeminiStateWithoutAccounts(t *testing.T) {
 	l := l10n.New("en")
 	mod := geminiTestModule(t)
-	st := buildGeminiState(mod, l, func() bool { return false })
+	st := buildGeminiState(mod, l, func() bool { return false }, true)
 	if st.Availability != runway.GeminiNotInstalled || st.LastError != l.Text(l10n.KeyGeminiNotInstalled) {
 		t.Fatalf("not installed: %+v", st)
 	}
-	st = buildGeminiState(mod, l, func() bool { return true })
+	st = buildGeminiState(mod, l, func() bool { return true }, true)
 	if st.Availability != runway.GeminiNotLoggedIn {
 		t.Fatalf("installed without login: %v", st.Availability)
 	}
@@ -98,7 +98,7 @@ func TestGeminiStateOrdersQuotaWindowsAndKeepsCredits(t *testing.T) {
 		ID: "a", Identity: gemini.Identity{Subject: "1", Email: "a@example.com"}, LastQuotaAt: &now,
 		CachedQuota: geminiSnapshotJSON(t, snap),
 	})
-	st := buildGeminiState(mod, l, nil)
+	st := buildGeminiState(mod, l, nil, true)
 	if st.Availability != runway.GeminiReady || st.TierKind != string(gemini.TierPro) || st.Plan != "Pro" {
 		t.Fatalf("state: %v %q %q", st.Availability, st.TierKind, st.Plan)
 	}
@@ -138,7 +138,7 @@ func TestGeminiStateFallsBackToModelFractions(t *testing.T) {
 		{ID: "none", DisplayName: "No quota"},
 	}}
 	saveGeminiAccounts(t, mod, "a", gemini.ManagedAccount{ID: "a", Identity: gemini.Identity{Subject: "1"}, CachedQuota: geminiSnapshotJSON(t, snap)})
-	st := buildGeminiState(mod, l, nil)
+	st := buildGeminiState(mod, l, nil, true)
 	if len(st.Meters) != 2 || st.Meters[0].Title != "Pro" || st.Meters[0].Source != runway.SourceStandard || st.Meters[1].Source != runway.SourceModelSpecific {
 		t.Fatalf("meters: %+v", st.Meters)
 	}
@@ -175,7 +175,7 @@ func TestGeminiValidationKeepsItsPage(t *testing.T) {
 	mod := geminiTestModule(t)
 	snap := gemini.QuotaSnapshot{Validation: &gemini.Validation{Reason: "verify", URL: "https://accounts.example.test/verify"}}
 	saveGeminiAccounts(t, mod, "a", gemini.ManagedAccount{ID: "a", Identity: gemini.Identity{Subject: "1"}, LastError: gemini.ErrorCodeValidationRequired, CachedQuota: geminiSnapshotJSON(t, snap)})
-	st := buildGeminiState(mod, l, nil)
+	st := buildGeminiState(mod, l, nil, true)
 	if st.Availability != runway.GeminiValidationRequired || st.ValidationURL != snap.Validation.URL {
 		t.Fatalf("state: %v %q", st.Availability, st.ValidationURL)
 	}
@@ -200,6 +200,105 @@ func TestGeminiRefreshUsesTheTemporaryHomeOnly(t *testing.T) {
 	}
 	if err := b.RefreshLocal(context.Background()); err != nil {
 		t.Fatal(err)
+	}
+}
+
+// With reads off, a cached reading from before is not shown anywhere, but
+// a sign-in problem still is.
+func TestGeminiStateHidesQuotaWhileReadsAreOff(t *testing.T) {
+	l := l10n.New("en")
+	mod := geminiTestModule(t)
+	now := time.Date(2026, 11, 13, 10, 0, 0, 0, time.UTC)
+	snap := gemini.QuotaSnapshot{Tier: gemini.Tier{Kind: gemini.TierPro}, UpdatedAt: now,
+		Buckets: []gemini.QuotaBucket{{ID: "g5", Family: gemini.FamilyGemini, Window: gemini.WindowFiveHour, RemainingFraction: 0.5}}}
+	acc := gemini.ManagedAccount{ID: "a", Identity: gemini.Identity{Subject: "1"}, LastQuotaAt: &now, CachedQuota: geminiSnapshotJSON(t, snap)}
+	saveGeminiAccounts(t, mod, "a", acc)
+	st := buildGeminiState(mod, l, nil, false)
+	if st.Availability != runway.GeminiQuotaOff || len(st.Meters) != 0 || st.AccountQuotas != nil || st.Plan != "" {
+		t.Fatalf("off: %+v", st)
+	}
+	if st.LastError != l.Text(l10n.KeyGeminiQuotaOff) || geminiWidget(st).Availability != export.Unavailable {
+		t.Fatalf("off text/widget: %q", st.LastError)
+	}
+	if st.Accounts.ActiveID != "a" || len(st.Accounts.Sidebar) != 1 {
+		t.Fatal("accounts stay visible while reads are off")
+	}
+	if on := buildGeminiState(mod, l, nil, true); on.Availability != runway.GeminiReady || len(on.Meters) != 1 {
+		t.Fatalf("on: %+v", on)
+	}
+	acc.RequiresReauth = true
+	saveGeminiAccounts(t, mod, "a", acc)
+	if st := buildGeminiState(mod, l, nil, false); st.Availability != runway.GeminiReauthRequired {
+		t.Fatalf("reauth while off: %v", st.Availability)
+	}
+}
+
+// An automatic refresh never reads quota, and with reads off a manual one
+// does not either;
+// a refusal shows as the notice until the next automatic refresh.
+func TestGeminiBridgeReadsQuotaOnlyOnManualRefresh(t *testing.T) {
+	mod := geminiTestModule(t)
+	mod.Quota = func(context.Context, string) (gemini.QuotaSnapshot, error) {
+		t.Error("quota was read")
+		return gemini.QuotaSnapshot{}, errors.New("unexpected")
+	}
+	mod.RunningProcessIDs = func(context.Context) ([]int, error) { return []int{1}, nil }
+	if b := newGeminiBridge(mod, filepath.Dir(mod.Store.Root()), store.DefaultPreferences(), nil); mod.QuotaEnabled == nil || !mod.QuotaEnabled() || b == nil {
+		t.Fatal("the bridge must wire the switch, on by default")
+	}
+	off := store.DefaultPreferences()
+	off.GeminiQuotaEnabled = false
+	b := newGeminiBridge(mod, filepath.Dir(mod.Store.Root()), off, nil)
+	if mod.QuotaEnabled() {
+		t.Fatal("turning reads off must reach the module")
+	}
+	if err := b.Refresh(context.Background(), false); err != nil {
+		t.Fatal(err)
+	}
+	if err := b.Refresh(context.Background(), true); err != nil {
+		t.Fatal(err)
+	}
+
+	prefs := store.DefaultPreferences()
+	prefs.GeminiQuotaEnabled = true
+	b.setPreferences(prefs, nil)
+	if !mod.QuotaEnabled() {
+		t.Fatal("turning reads on must reach the module")
+	}
+	b.mu.Lock()
+	b.refusal = &gemini.QuotaCooldownError{RetryAfter: 90 * time.Second}
+	b.mu.Unlock()
+	b.reload(false)
+	l := l10n.New("en")
+	if got := b.State(time.Now()).Notice; got != l.Textf(l10n.KeyGeminiQuotaCooldown, 2) {
+		t.Fatalf("notice = %q", got)
+	}
+	if err := b.Refresh(context.Background(), false); err != nil {
+		t.Fatal(err)
+	}
+	if got := b.State(time.Now()).Notice; got != "" {
+		t.Fatalf("an automatic refresh must clear the notice: %q", got)
+	}
+}
+
+func TestGeminiRefusalsAreExplained(t *testing.T) {
+	l := l10n.New("en")
+	for _, tc := range []struct {
+		err  error
+		want string
+	}{
+		{gemini.ErrQuotaDisabled, l.Text(l10n.KeyGeminiQuotaOff)},
+		{gemini.ErrQuotaCurrentOnly, l.Text(l10n.KeyGeminiQuotaCurrentOnly)},
+		{gemini.ErrClientNotRunning, l.Text(l10n.KeyGeminiQuotaClientNotRunning)},
+		{&gemini.QuotaCooldownError{RetryAfter: 14*time.Minute + time.Second}, l.Textf(l10n.KeyGeminiQuotaCooldown, 15)},
+		{&gemini.QuotaCooldownError{RetryAfter: time.Second}, l.Textf(l10n.KeyGeminiQuotaCooldown, 1)},
+	} {
+		if !isGeminiRefusal(tc.err) || geminiRefusalText(l, tc.err) != tc.want || geminiKnownReason(l, tc.err) != tc.want {
+			t.Errorf("%v: %q", tc.err, geminiRefusalText(l, tc.err))
+		}
+	}
+	if isGeminiRefusal(&gemini.RateLimitedError{}) || geminiRefusal(gemini.RefreshReport{Outcomes: []gemini.RefreshOutcome{{Err: gemini.ErrQuotaParse}}}) != nil {
+		t.Fatal("a sent read is not a refusal")
 	}
 }
 

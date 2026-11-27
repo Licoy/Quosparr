@@ -40,6 +40,9 @@ func panelGeminiQuota(c *ui.Context, l l10n.Localizer, snap runway.Snapshot, act
 				grokMeterRow(c, l, m, i == 0, now, rs)
 			}
 		})
+		if g.Notice != "" {
+			dimText(c, g.Notice)
+		}
 	})
 }
 
@@ -55,6 +58,9 @@ func geminiEmptyState(c *ui.Context, l l10n.Localizer, g runway.GeminiState) {
 		})
 		if detail != "" {
 			dimText(c, detail)
+		}
+		if g.Notice != "" {
+			dimText(c, g.Notice)
 		}
 		switch {
 		case g.Availability == runway.GeminiNotInstalled:
@@ -74,7 +80,10 @@ func geminiEmptyCopy(l l10n.Localizer, g runway.GeminiState) (title, detail stri
 	warn := func(t *ui.Theme) ui.Color { return sys(t, sysOrange) }
 	switch g.Availability {
 	case runway.GeminiLoading:
-		return l.Text(l10n.KeyGeminiRefreshing), "", icRefresh, secondary
+		// Only a manual refresh reads the quota, so no reading may be due.
+		return l.Text(l10n.KeyGeminiQuotaNotRead), l.Text(l10n.KeyGeminiQuotaManualHint), icRefresh, secondary
+	case runway.GeminiQuotaOff:
+		return l.Text(l10n.KeyGeminiQuotaOff), l.Text(l10n.KeyGeminiQuotaOffHint), icAlert, secondary
 	case runway.GeminiReady:
 		return l.Text(l10n.KeyGeminiNoQuotaData), "", icUsers, secondary
 	case runway.GeminiNotInstalled:

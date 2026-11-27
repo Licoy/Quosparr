@@ -39,8 +39,8 @@ Quosparr는 macOS, Windows, Linux용 네이티브 메뉴 막대 / 시스템 트�
 
 **Gemini**
 
-- Google Antigravity 클라이언트(새 데스크톱 App과 `agy` CLI)의 할당량: Gemini 모델과 Claude 모델 각각의 5시간·주간 창, Argon 주간 창의 남은 비율과 초기화 시간, 구독 등급(Free / Pro / Ultra), 모델별 할당량 세부 정보를 보여 줍니다. 이 값은 클라이언트가 쓰는 Cloud Code 서비스에서 읽으며 공개 결제 API가 아닙니다.
-- 계정: 브라우저로 Google에 로그인하거나 현재 로그인 가져오기, 자격 증명 JSON 붙여넣기, 계정 파일 가져오기를 지원합니다. 현재 로그인은 자동으로 추가되며 별칭, 정렬, 내보내기, 현재가 아닌 계정 새로고침도 됩니다. 브라우저 로그인은 계정 라이브러리에만 추가합니다(라이브러리가 비어 있고 로그인도 없을 때의 첫 계정은 예외). 확인 후 전환하면 App과 `agy`가 함께 쓰는 시스템 자격 증명에 기록하며, macOS에서는 실행 중인 Antigravity 데스크톱 App을 전환할 때 다시 시작할 수 있고, Windows와 Linux의 App과 실행 중인 `agy`는 직접 다시 시작해야 합니다.
+- Google Antigravity 클라이언트(새 데스크톱 App과 `agy` CLI)의 할당량: Gemini 모델과 Claude 모델 각각의 5시간·주간 창, Argon 주간 창의 남은 비율과 초기화 시간, 구독 등급(Free / Pro / Ultra)을 보여 줍니다. 이 값은 클라이언트가 쓰는 내부 Cloud Code 서비스에서 읽으며 공개 API가 아니고, Google은 타사 도구가 이런 방식으로 읽는 계정을 플래그할 수 있습니다. 이 위험을 감수하지 않으려면 설정의 “공급자 계정” Gemini 탭에서 끄고 Antigravity에서 할당량을 확인하세요. 읽을 때는 현재 계정만, 수동 새로고침할 때만, 최대 15분에 한 번, App이나 `agy`가 실행 중일 때만 읽습니다.
+- 계정: 브라우저로 Google에 로그인하거나 현재 로그인 가져오기, 자격 증명 JSON 붙여넣기, 계정 파일 가져오기를 지원합니다. 현재 로그인은 자동으로 추가되며 별칭, 정렬, 내보내기도 됩니다. 브라우저 로그인은 계정 라이브러리에만 추가합니다(라이브러리가 비어 있고 로그인도 없을 때의 첫 계정은 예외). 확인 후 전환하면 App과 `agy`가 함께 쓰는 시스템 자격 증명에 기록하며, macOS에서는 실행 중인 Antigravity 데스크톱 App을 전환할 때 다시 시작할 수 있고, Windows와 Linux의 App과 실행 중인 `agy`는 직접 다시 시작해야 합니다.
 - App과 `agy`의 로컬 세션에서 토큰 사용량, API 환산 비용, 히트맵, 최근 세션, 속도 분석을 보여 줍니다. 비용은 models.dev 가격으로 추정하며 Gemini 모델은 Google 가격, Antigravity의 Claude 모델은 Anthropic 가격을 씁니다. 내장 가격표가 없어 가격 카탈로그를 동기화한 뒤에 비용이 표시되며, 알 수 없는 모델은 정확한 비용을 주지 않습니다.
 
 **Grok**
@@ -173,7 +173,7 @@ Linux에는 GTK3, AppIndicator, 트레이를 지원하는 데스크톱, 프록�
 - **Codex API 환산 비용**: 내장 가격표 `openai-builtin-2026-09-27`로 계산한 로컬 세션 로그 기반 비용이며, 지원되는 현재 요금은 models.dev에서 가져오고 검증된 내장 규칙을 유지합니다. 알 수 없는 모델은 정확한 비용으로 보고하지 않습니다.
 - **Claude 구독 사용량**: 문서화되지 않은 OAuth usage 엔드포인트이며, 현재 Claude 구독만 나타냅니다. 공식 결제 API로 쓰지 않습니다. 브라우저 쿠키나 Console API 청구서는 읽지 않습니다. Desktop 프로필은 위의 별도로 명시적 확인을 받은 기능에서만 관리합니다.
 - **Claude API 환산 비용**: Claude Code 로컬 세션 로그와 가격표 `anthropic-builtin-2026-10-14`로 계산합니다. 같은 답변은 메시지 ID로 한 번만 셉니다. 캐시 쓰기는 5분과 1시간으로 나누고 Fast 요금은 따로 둡니다. 알 수 없는 모델은 정확한 비용을 보고하지 않습니다. 일 경계는 로컬 시간대입니다.
-- **Gemini 할당량**: Antigravity 클라이언트가 쓰는 문서화되지 않은 Cloud Code 엔드포인트(`cloudcode-pa.googleapis.com` / `daily-cloudcode-pa.googleapis.com`)입니다. 토큰은 Google OAuth(`oauth2.googleapis.com`)로 갱신하고, 계정 정보는 ID 토큰이나 Google userinfo에서 얻습니다. 공식 결제 API로 쓰지 않습니다. 구독 등급은 유료 등급, 없으면 현재 등급을 씁니다. Google이 인증이나 구독을 요구하면 이전 값을 유지합니다.
+- **Gemini 할당량**: 기본값은 켜짐이며 직접 끌 수 있습니다. Antigravity 클라이언트가 쓰는 문서화되지 않은 Cloud Code 엔드포인트(`cloudcode-pa.googleapis.com` / `daily-cloudcode-pa.googleapis.com`)를 사용하며, 한 번 읽을 때 요청은 두 개(`loadCodeAssist`, `retrieveUserQuotaSummary`)뿐이고 계정 온보딩은 하지 않습니다. 토큰은 Google OAuth(`oauth2.googleapis.com`)로 갱신하고, 계정 정보는 ID 토큰이나 Google userinfo에서 얻습니다. 공식 결제 API로 쓰지 않습니다. 구독 등급은 유료 등급, 없으면 현재 등급을 씁니다. Google이 인증이나 구독을 요구하면 이전 값을 유지합니다.
 - **Gemini API 환산 비용**: App(`~/.gemini/antigravity`)과 `agy`(`~/.gemini/antigravity-cli`)의 로컬 대화 데이터베이스에서 토큰 사용량을 읽으며 항상 비공개 임시 사본을 씁니다. 동기화된 models.dev 카탈로그로만 계산하고(Gemini 모델은 Google 가격, Claude 모델은 Anthropic 가격), Anthropic 캐시 쓰기와 알 수 없는 모델은 정확한 비용을 보고하지 않습니다. 암호화된 대화는 읽을 수 없는 것으로 셉니다.
 - **Grok 할당량**: 공식 CLI chat-proxy `/v1/billing?format=credits` 엔드포인트만 사용합니다. 브라우저 쿠키, 로컬 로그에서 추정한 할당량, API 결제는 섞지 않습니다.
 - **Grok API 환산 비용**: 로컬 `turn_completed` 사용량을 `xai-builtin-2026-09-27`로 계산하며 입력, 캐시, 출력, 긴 컨텍스트 요금을 포함합니다. `costUsdTicks`는 구독 회계이므로 API 환산 비용으로 쓰지 않습니다.

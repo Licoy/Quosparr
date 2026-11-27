@@ -34,7 +34,7 @@ func geminiQuotaFixture(t *testing.T, l l10n.Localizer, now time.Time) (codex.Ma
 		ID: "one", Identity: gemini.Identity{Subject: "1", Email: "personal@example.com", Name: "Personal"}, LastQuotaAt: &now,
 		CachedQuota: geminiSnapshotJSON(t, snap),
 	})
-	st := buildGeminiState(mod, l, nil)
+	st := buildGeminiState(mod, l, nil, true)
 	if len(st.Accounts.Sidebar) != 1 {
 		t.Fatalf("sidebar: %+v", st.Accounts.Sidebar)
 	}

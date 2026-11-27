@@ -39,8 +39,8 @@ Quosparr 是適用於 macOS、Windows、Linux 的原生選單列 / 系統匣應�
 
 **Gemini**
 
-- 查看 Google Antigravity 用戶端（新版桌面 App 與 `agy` CLI）的額度：Gemini 模型與 Claude 模型各自 5 小時與每週視窗、Argon 每週視窗的剩餘比例與重設時間，以及訂閱方案（Free / Pro / Ultra）和依模型的額度明細。這個讀數來自用戶端使用的 Cloud Code 服務，不是公開的計費介面。
-- 帳號：透過瀏覽器登入 Google、匯入目前登入、貼上憑證 JSON 或匯入帳號檔案；目前登入會自動加入，支援別名、排序、匯出與重新整理非目前帳號。瀏覽器登入只加入帳號庫（帳號庫為空且本機尚未登入時的第一個帳號除外）；確認切換後寫入 App 與 `agy` 共用的系統憑證，macOS 上正在執行的 Antigravity 桌面 App 可在切換時重新啟動，Windows 與 Linux 上的 App 以及正在執行的 `agy` 需自行重新啟動。
+- 查看 Google Antigravity 用戶端（新版桌面 App 與 `agy` CLI）的額度：Gemini 模型與 Claude 模型各自 5 小時與每週視窗、Argon 每週視窗的剩餘比例與重設時間，以及訂閱方案（Free / Pro / Ultra）。這個讀數來自用戶端使用的內部 Cloud Code 服務，不是公開介面，Google 可能標記以這種方式被第三方工具讀取的帳號；不接受此風險時，可到設定中「服務商帳號」的 Gemini 分頁關閉，改在 Antigravity 中查看額度。讀取只針對目前帳號，只在手動重新整理時讀取，每 15 分鐘最多一次，且需 App 或 `agy` 正在執行。
+- 帳號：透過瀏覽器登入 Google、匯入目前登入、貼上憑證 JSON 或匯入帳號檔案；目前登入會自動加入，支援別名、排序與匯出。瀏覽器登入只加入帳號庫（帳號庫為空且本機尚未登入時的第一個帳號除外）；確認切換後寫入 App 與 `agy` 共用的系統憑證，macOS 上正在執行的 Antigravity 桌面 App 可在切換時重新啟動，Windows 與 Linux 上的 App 以及正在執行的 `agy` 需自行重新啟動。
 - 從 App 與 `agy` 的本機工作階段統計 token 用量、API 等價成本、熱力圖、最近工作階段與速率分析。成本依 models.dev 價格估算：Gemini 模型用 Google 價格，Antigravity 中的 Claude 模型用 Anthropic 價格；沒有內建價格表，價格目錄同步後才顯示成本，未知模型不給精確費用。
 
 **Grok**
@@ -173,7 +173,7 @@ Linux 需要 GTK3、AppIndicator、支援系統匣的桌面環境，以及可用
 - **Codex API 等價成本**：依本機工作階段日誌，使用內建價格表 `openai-builtin-2026-09-27` 計算；支援的目前費率來自 models.dev，並保留已核實的內建規則。未知模型不會回報精確費用。
 - **Claude 訂閱用量**：來自未公開的 OAuth usage 端點，只表示目前的 Claude 訂閱，不寫成官方計費介面。不讀取瀏覽器 Cookie 或 Console API 帳單，Desktop 設定檔僅由上述獨立且明確確認的功能管理。
 - **Claude API 等價成本**：依 Claude Code 本機工作階段日誌與價格表 `anthropic-builtin-2026-10-14` 計算。同一則回覆按訊息 ID 只計一次。快取寫入分為 5 分鐘與 1 小時，Fast 檔單獨計價。未知模型不報告精確費用。按日統計使用本地時區。
-- **Gemini 額度**：Antigravity 用戶端使用的未公開 Cloud Code 介面（`cloudcode-pa.googleapis.com` / `daily-cloudcode-pa.googleapis.com`），token 經 Google OAuth（`oauth2.googleapis.com`）續期，身分取自 ID token 或 Google userinfo，不寫成官方計費介面。訂閱方案取付費方案，沒有時取目前方案。Google 要求驗證或訂閱時保留上一次讀數。
+- **Gemini 額度**：預設開啟，可手動關閉。使用 Antigravity 用戶端的未公開 Cloud Code 介面（`cloudcode-pa.googleapis.com` / `daily-cloudcode-pa.googleapis.com`），每次讀取只發兩個請求（`loadCodeAssist` 與 `retrieveUserQuotaSummary`），不為帳號執行開通（onboarding），token 經 Google OAuth（`oauth2.googleapis.com`）續期，身分取自 ID token 或 Google userinfo，不寫成官方計費介面。訂閱方案取付費方案，沒有時取目前方案。Google 要求驗證或訂閱時保留上一次讀數。
 - **Gemini API 等價成本**：從 App（`~/.gemini/antigravity`）與 `agy`（`~/.gemini/antigravity-cli`）的本機工作階段資料庫讀取 token 用量，一律讀取私有暫存副本；只依已同步的 models.dev 目錄計價（Gemini 模型用 Google 價格，Claude 模型用 Anthropic 價格），Anthropic 快取寫入與未知模型不報告精確費用。加密的工作階段計為無法讀取。
 - **Grok 額度**：僅使用官方 CLI chat-proxy 的 `/v1/billing?format=credits` 端點。不讀取瀏覽器 Cookie，不從本機日誌推算額度，也不混入 API 帳單。
 - **Grok API 等價成本**：依本機 `turn_completed` 用量與價格表 `xai-builtin-2026-09-27` 計算，區分輸入、快取、輸出及長上下文費率。`costUsdTicks` 屬於訂閱額度記帳，不作為 API 等價成本。

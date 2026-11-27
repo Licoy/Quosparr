@@ -39,8 +39,8 @@ Quosparr は macOS、Windows、Linux 向けのネイティブなメニューバ�
 
 **Gemini**
 
-- Google Antigravity クライアント（新しいデスクトップ App と `agy` CLI）のクォータ：Gemini モデルと Claude モデルそれぞれの 5 時間・週次ウィンドウ、Argon の週次ウィンドウの残り割合とリセット時刻、サブスクリプションのティア（Free / Pro / Ultra）、モデル別のクォータ詳細を表示します。この値はクライアントが使う Cloud Code サービスから読み取るもので、公開された課金 API ではありません。
-- アカウント：ブラウザでの Google ログイン、現在のログインの取り込み、資格情報 JSON の貼り付け、アカウントファイルの取り込みに対応します。現在のログインは自動で追加され、別名、並べ替え、書き出し、現在以外のアカウントの更新も行えます。ブラウザログインはライブラリに追加するだけです（ライブラリが空でログインもない場合の最初のアカウントを除く）。確認して切り替えると App と `agy` が共有するシステムの資格情報に書き込みます。macOS では実行中の Antigravity デスクトップ App を切り替え時に再起動でき、Windows と Linux の App や実行中の `agy` は自分で起動し直す必要があります。
+- Google Antigravity クライアント（新しいデスクトップ App と `agy` CLI）のクォータ：Gemini モデルと Claude モデルそれぞれの 5 時間・週次ウィンドウ、Argon の週次ウィンドウの残り割合とリセット時刻、サブスクリプションのティア（Free / Pro / Ultra）を表示します。この値はクライアントが使う内部の Cloud Code サービスから読み取るもので公開 API ではなく、Google はサードパーティ製ツールがこの方法で取得するアカウントにフラグを付ける可能性があります。このリスクを受け入れない場合は、設定の「プロバイダーアカウント」の Gemini タブでオフにし、Antigravity でクォータを確認してください。取得するのは現在のアカウントだけで、手動更新したときのみ、最大 15 分に 1 回、App または `agy` の実行中に限ります。
+- アカウント：ブラウザでの Google ログイン、現在のログインの取り込み、資格情報 JSON の貼り付け、アカウントファイルの取り込みに対応します。現在のログインは自動で追加され、別名、並べ替え、書き出しも行えます。ブラウザログインはライブラリに追加するだけです（ライブラリが空でログインもない場合の最初のアカウントを除く）。確認して切り替えると App と `agy` が共有するシステムの資格情報に書き込みます。macOS では実行中の Antigravity デスクトップ App を切り替え時に再起動でき、Windows と Linux の App や実行中の `agy` は自分で起動し直す必要があります。
 - App と `agy` のローカルセッションから token 使用量、API 換算コスト、ヒートマップ、最近のセッション、速度分析を表示します。コストは models.dev の価格で見積もり、Gemini モデルは Google、Antigravity 内の Claude モデルは Anthropic の価格を使います。内蔵の価格表はないため、価格カタログの同期後にコストが表示され、未知のモデルに正確な費用は出しません。
 
 **Grok**
@@ -173,7 +173,7 @@ Linux には GTK3、AppIndicator、トレイに対応したデスクトップ、
 - **Codex の API 換算コスト**: ローカルのセッションログを、組み込みの価格表 `openai-builtin-2026-09-27` で計算します。対応する現在の料金は models.dev から取得し、検証済みの内蔵ルールを保持します。未知のモデルは正確なコストとして報告されません。
 - **Claude のサブスクリプション使用量**: 文書化されていない OAuth usage エンドポイントで、現在の Claude サブスクリプションだけを表します。公式の課金 API とは書きません。ブラウザの Cookie や Console の API 請求は読みません、Desktop プロファイルは上記の独立した明示確認付き機能でのみ管理します。
 - **Claude の API 換算コスト**: Claude Code のローカルセッションログと価格表 `anthropic-builtin-2026-10-14` で計算します。同じ応答はメッセージ ID で一度だけ数えます。キャッシュ書き込みは 5 分と 1 時間に分け、Fast 料金は別です。未知のモデルに正確な費用は出しません。日界はローカルタイムゾーンです。
-- **Gemini のクォータ**: Antigravity クライアントが使う文書化されていない Cloud Code エンドポイント（`cloudcode-pa.googleapis.com` / `daily-cloudcode-pa.googleapis.com`）です。トークンは Google OAuth（`oauth2.googleapis.com`）で更新し、アカウントの識別は ID トークンまたは Google userinfo から得ます。公式の課金 API とは書きません。ティアは有料ティア、なければ現在のティアです。Google が確認やサブスクリプションを求めた場合は前回の値を保持します。
+- **Gemini のクォータ**: 既定ではオンで、手動でオフにできます。Antigravity クライアントが使う文書化されていない Cloud Code エンドポイント（`cloudcode-pa.googleapis.com` / `daily-cloudcode-pa.googleapis.com`）を使い、1 回の取得は 2 つのリクエスト（`loadCodeAssist` と `retrieveUserQuotaSummary`）だけで、アカウントのオンボーディングは行いません。トークンは Google OAuth（`oauth2.googleapis.com`）で更新し、アカウントの識別は ID トークンまたは Google userinfo から得ます。公式の課金 API とは書きません。ティアは有料ティア、なければ現在のティアです。Google が確認やサブスクリプションを求めた場合は前回の値を保持します。
 - **Gemini の API 換算コスト**: App（`~/.gemini/antigravity`）と `agy`（`~/.gemini/antigravity-cli`）のローカル会話データベースから token 使用量を読み、常に非公開の一時コピーを使います。同期済みの models.dev カタログだけで計算し（Gemini モデルは Google、Claude モデルは Anthropic の価格）、Anthropic のキャッシュ書き込みと未知のモデルに正確な費用は出しません。暗号化された会話は読み取り不可として数えます。
 - **Grok のクォータ**: 公式 CLI の chat-proxy `/v1/billing?format=credits` エンドポイントのみを使います。ブラウザの Cookie は使わず、ローカルログからクォータを推測せず、API 課金も混ぜません。
 - **Grok の API 換算コスト**: ローカルの `turn_completed` 使用量を `xai-builtin-2026-09-27` で計算し、入力、キャッシュ、出力、長いコンテキストの料金を区別します。`costUsdTicks` はサブスクリプションの会計値であり、API 換算コストには使いません。

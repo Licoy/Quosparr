@@ -65,45 +65,32 @@ const summaryBody = `{"groups":[{"displayName":"Claude","buckets":[
  {"buckets":[{"bucketId":"gemini-5h"},{"bucketId":"gemini-argon-wtu-weekly","remainingFraction":0.5},
  {"bucketId":"mystery-weekly","displayName":"Mystery","remainingFraction":0.75}]}]}`
 
-const modelsBody = `{"models":{"gemini-3-pro":{"displayName":"Gemini 3 Pro","model":"MODEL_X","recommended":true,
- "quotaInfo":{"remainingFraction":0.4,"resetTime":"2026-11-14T00:00:00Z"}},"tab":{"displayName":"Tab"}}}`
-
 func testQuotaClient(base string) *QuotaClient {
 	return &QuotaClient{
 		BaseURL: base, ClientVersion: func() string { return "2.31.2" }, GOOS: "darwin", GOARCH: "arm64",
-		PollInterval: time.Millisecond, Now: func() time.Time { return testNow },
+		Now: func() time.Time { return testNow },
 	}
 }
 
-func TestQuotaFetchOnboardsAndParsesBuckets(t *testing.T) {
-	polls := 0
-	var server *cloudServer
-	server = newCloudServer(t, map[string]func(http.ResponseWriter, cloudCall){
+// A reading is loadCodeAssist and the summary, nothing else: no onboarding
+// for an account without a project, and no model list.
+func TestQuotaFetchSendsTwoRequestsAndParsesBuckets(t *testing.T) {
+	server := newCloudServer(t, map[string]func(http.ResponseWriter, cloudCall){
 		"/v1internal:loadCodeAssist": reply(`{"cloudaicompanionProject":"aicode-consumers","currentTier":{"id":"free-tier","name":"Free"},
 			"paidTier":{"id":"g1-ultra-tier","name":"Ultra","availableCredits":[{"creditType":"GOOGLE_ONE_AI","creditAmount":"1500","minimumCreditAmountForUsage":"10"}]},
 			"allowedTiers":[{"id":"legacy-tier"},{"id":"free-tier","isDefault":true}]}`),
-		"/v1internal:onboardUser": func(w http.ResponseWriter, call cloudCall) {
-			if call.body["tierId"] != "free-tier" {
-				t.Errorf("tierId = %v", call.body["tierId"])
-			}
-			_, _ = w.Write([]byte(`{"name":"operations/op-1","done":false}`))
-		},
-		"/v1internal/operations/op-1": func(w http.ResponseWriter, _ cloudCall) {
-			polls++
-			if polls < 2 {
-				_, _ = w.Write([]byte(`{"name":"operations/op-1","done":false}`))
-				return
-			}
-			_, _ = w.Write([]byte(`{"name":"operations/op-1","done":true,"response":{"cloudaicompanionProject":{"id":"proj-7"}}}`))
-		},
+		"/v1internal:onboardUser":              reply(`{"done":true}`),
 		"/v1internal:retrieveUserQuotaSummary": reply(summaryBody),
-		"/v1internal:fetchAvailableModels":     reply(modelsBody),
+		"/v1internal:fetchAvailableModels":     reply(`{"models":{}}`),
 	})
 	snap, err := testQuotaClient(server.URL).Fetch(context.Background(), "tok")
 	if err != nil {
 		t.Fatal(err)
 	}
-	if snap.Project != "proj-7" || snap.Source != SourceSummary || snap.Tier != (Tier{Kind: TierUltra, ID: "g1-ultra-tier", Name: "Ultra"}) {
+	if got := strings.Join(server.paths(), ","); got != "POST /v1internal:loadCodeAssist,POST /v1internal:retrieveUserQuotaSummary" {
+		t.Fatalf("calls = %s", got)
+	}
+	if snap.Project != "" || snap.Source != SourceSummary || snap.Tier != (Tier{Kind: TierUltra, ID: "g1-ultra-tier", Name: "Ultra"}) {
 		t.Fatalf("snapshot = %+v", snap)
 	}
 	if len(snap.Credits) != 1 || snap.Credits[0].Amount != 1500 || snap.Credits[0].MinimumForUsage != 10 {
@@ -132,7 +119,7 @@ func TestQuotaFetchOnboardsAndParsesBuckets(t *testing.T) {
 	if snap.Buckets[4].DisplayName != "Mystery" {
 		t.Fatal("unknown bucket keeps its display name")
 	}
-	if len(snap.Models) != 2 || snap.Models[0].ID != "gemini-3-pro" || *snap.Models[0].RemainingFraction != 0.4 || snap.Models[1].RemainingFraction != nil {
+	if len(snap.Models) != 0 {
 		t.Fatalf("models = %+v", snap.Models)
 	}
 
@@ -147,19 +134,20 @@ func TestQuotaFetchOnboardsAndParsesBuckets(t *testing.T) {
 		meta["pluginType"] != "GEMINI" || meta["ideVersion"] != "2.31.2" || meta["updateChannel"] != "stable" {
 		t.Fatalf("metadata = %v", meta)
 	}
-	for _, call := range server.calls {
-		if call.path == "/v1internal:retrieveUserQuotaSummary" || call.path == "/v1internal:fetchAvailableModels" {
-			if call.ua != "antigravity/hub/2.31.2 (aidev_client; os_type=darwin; arch=arm64)" || call.body["project"] != "proj-7" {
-				t.Fatalf("quota call: %q %v", call.ua, call.body)
-			}
-		}
+	summary := server.calls[1]
+	if summary.ua != "antigravity/hub/2.31.2 (aidev_client; os_type=darwin; arch=arm64)" || len(summary.body) != 0 {
+		t.Fatalf("quota call without project: %q %v", summary.ua, summary.body)
 	}
 }
 
-func TestQuotaFetchUsesProductionForGcpTermsAndEmptyBodyWithoutProject(t *testing.T) {
+func TestQuotaFetchUsesProductionForGcpTerms(t *testing.T) {
 	prod := newCloudServer(t, map[string]func(http.ResponseWriter, cloudCall){
-		"/v1internal:retrieveUserQuotaSummary": reply(`{"groups":[]}`),
-		"/v1internal:fetchAvailableModels":     reply(`{"models":{}}`),
+		"/v1internal:retrieveUserQuotaSummary": func(w http.ResponseWriter, call cloudCall) {
+			if call.body["project"] != "gcp-proj" {
+				t.Errorf("project = %v", call.body["project"])
+			}
+			_, _ = w.Write([]byte(`{"groups":[]}`))
+		},
 	})
 	daily := newCloudServer(t, map[string]func(http.ResponseWriter, cloudCall){
 		"/v1internal:loadCodeAssist": reply(`{"cloudaicompanionProject":{"id":"gcp-proj"},"currentTier":{"id":"standard-tier"},"allowedTiers":[{"id":"standard-tier","usesGcpTos":true}]}`),
@@ -171,28 +159,8 @@ func TestQuotaFetchUsesProductionForGcpTermsAndEmptyBodyWithoutProject(t *testin
 	if err != nil || snap.Tier.Kind != TierFree {
 		t.Fatalf("fetch: %+v %v", snap, err)
 	}
-	if got := strings.Join(prod.paths(), ","); got != "POST /v1internal:retrieveUserQuotaSummary,POST /v1internal:fetchAvailableModels" {
+	if got := strings.Join(prod.paths(), ","); got != "POST /v1internal:retrieveUserQuotaSummary" {
 		t.Fatalf("prod calls = %s", got)
-	}
-
-	personal := newCloudServer(t, map[string]func(http.ResponseWriter, cloudCall){
-		"/v1internal:loadCodeAssist":           reply(`{"currentTier":{"id":"free-tier"}}`),
-		"/v1internal:onboardUser":              reply(`{"done":true,"response":{}}`),
-		"/v1internal:retrieveUserQuotaSummary": reply(`{"groups":[]}`),
-		"/v1internal:fetchAvailableModels":     reply(`{"models":{}}`),
-	})
-	if _, err := testQuotaClient(personal.URL).Fetch(context.Background(), "tok"); err != nil {
-		t.Fatal(err)
-	}
-	personal.mu.Lock()
-	defer personal.mu.Unlock()
-	for _, call := range personal.calls {
-		if call.path == "/v1internal:onboardUser" && call.body["tierId"] != "LEGACY" {
-			t.Fatalf("fallback tier = %v", call.body["tierId"])
-		}
-		if call.path == "/v1internal:retrieveUserQuotaSummary" && len(call.body) != 0 {
-			t.Fatalf("body without project = %v", call.body)
-		}
 	}
 }
 
@@ -200,7 +168,6 @@ func TestQuotaFetchEnvironmentOverride(t *testing.T) {
 	server := newCloudServer(t, map[string]func(http.ResponseWriter, cloudCall){
 		"/v1internal:loadCodeAssist":           reply(`{"cloudaicompanionProject":"p","currentTier":{"id":"free-tier"}}`),
 		"/v1internal:retrieveUserQuotaSummary": reply(`{"groups":[]}`),
-		"/v1internal:fetchAvailableModels":     reply(`{"models":{}}`),
 	})
 	t.Setenv(CloudCodeURLEnv, server.URL)
 	c := testQuotaClient("")
@@ -248,33 +215,27 @@ func TestQuotaErrorsValidationUnauthorizedRateLimit(t *testing.T) {
 	if !errors.As(err, &rl) || !rl.HasRetryAfter || rl.RetryAfter != 2*time.Minute {
 		t.Fatalf("429: %v", err)
 	}
-	if strings.Contains(strings.Join(limited.paths(), ","), "fetchAvailableModels") {
-		t.Fatal("a 429 must not fall through to the model list")
+	if got := len(limited.paths()); got != 2 {
+		t.Fatalf("a 429 is not retried: %d calls", got)
 	}
 }
 
-func TestQuotaFallsBackToModelsAndRetriesThem(t *testing.T) {
-	attempts := 0
+// A failed summary is the reading's error: no model-list fallback, no retry.
+func TestQuotaSummaryFailureIsNotRetried(t *testing.T) {
 	server := newCloudServer(t, map[string]func(http.ResponseWriter, cloudCall){
 		"/v1internal:loadCodeAssist": reply(`{"cloudaicompanionProject":"p","currentTier":{"id":"g1-pro-tier"}}`),
 		"/v1internal:retrieveUserQuotaSummary": func(w http.ResponseWriter, _ cloudCall) {
-			w.WriteHeader(http.StatusNotFound)
+			w.WriteHeader(http.StatusServiceUnavailable)
 		},
-		"/v1internal:fetchAvailableModels": func(w http.ResponseWriter, _ cloudCall) {
-			attempts++
-			if attempts < 3 {
-				w.WriteHeader(http.StatusServiceUnavailable)
-				return
-			}
-			_, _ = w.Write([]byte(modelsBody))
-		},
+		"/v1internal:fetchAvailableModels": reply(`{"models":{}}`),
 	})
-	snap, err := testQuotaClient(server.URL).Fetch(context.Background(), "tok")
-	if err != nil {
-		t.Fatal(err)
+	_, err := testQuotaClient(server.URL).Fetch(context.Background(), "tok")
+	var status *StatusError
+	if !errors.As(err, &status) || status.StatusCode != http.StatusServiceUnavailable {
+		t.Fatalf("err = %v", err)
 	}
-	if snap.Source != SourceModels || len(snap.Buckets) != 0 || len(snap.Models) != 2 || attempts != 3 || snap.Tier.Kind != TierPro {
-		t.Fatalf("fallback = %+v attempts %d", snap, attempts)
+	if got := strings.Join(server.paths(), ","); got != "POST /v1internal:loadCodeAssist,POST /v1internal:retrieveUserQuotaSummary" {
+		t.Fatalf("calls = %s", got)
 	}
 }
 

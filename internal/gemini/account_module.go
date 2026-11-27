@@ -49,6 +49,9 @@ type Module struct {
 	OAuth OAuthClient
 	// Quota reads a snapshot; nil uses a production QuotaClient.
 	Quota QuotaFunc
+	// QuotaEnabled reports whether the user turned quota reads on; nil
+	// means off, so no Cloud Code request is ever sent.
+	QuotaEnabled func() bool
 	// RunningProcessIDs lists Antigravity processes; nil inspects the system.
 	RunningProcessIDs func(ctx context.Context) ([]int, error)
 	// AppVersion is stamped into exported packs.
@@ -389,21 +392,30 @@ func (m *Module) importOfficial(ctx context.Context) error {
 	return err
 }
 
+// runningPIDs lists the running Antigravity clients.
+func (m *Module) runningPIDs(ctx context.Context) ([]int, error) {
+	inspect := m.RunningProcessIDs
+	if inspect == nil {
+		inspect = SystemProcessIDs
+	}
+	pids, err := inspect(ctx)
+	if err != nil {
+		if ctx.Err() != nil {
+			return nil, ctx.Err()
+		}
+		return nil, &AccountIOError{Message: "Unable to inspect running Antigravity processes.", Cause: err}
+	}
+	return pids, nil
+}
+
 func (m *Module) makeCurrent(ctx context.Context, id string, allowWhileRunning bool) error {
 	if _, err := m.requireAccount(id); err != nil {
 		return err
 	}
 	if !allowWhileRunning {
-		inspect := m.RunningProcessIDs
-		if inspect == nil {
-			inspect = SystemProcessIDs
-		}
-		pids, err := inspect(ctx)
+		pids, err := m.runningPIDs(ctx)
 		if err != nil {
-			if ctx.Err() != nil {
-				return ctx.Err()
-			}
-			return &AccountIOError{Message: "Unable to inspect running Antigravity processes.", Cause: err}
+			return err
 		}
 		if len(pids) > 0 {
 			return &ProcessesRunningError{PIDs: pids}

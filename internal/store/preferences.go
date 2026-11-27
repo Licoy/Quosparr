@@ -136,6 +136,10 @@ type Preferences struct {
 	// local projects into the account Codex switches to. It is omitted while
 	// off.
 	ShareCodexDesktopProjects bool `json:"shareCodexDesktopProjects,omitempty"`
+	// GeminiQuotaEnabled is Go-only: read the Gemini quota through
+	// Antigravity's internal Cloud Code API, which the user may turn off. On
+	// by default and written only when turned off.
+	GeminiQuotaEnabled bool `json:"geminiQuotaEnabled"`
 
 	// extra holds keys this version does not know, written back unchanged so
 	// that older and newer apps sharing the domain do not erase each other's
@@ -176,6 +180,7 @@ func DefaultPreferences() Preferences {
 		ShowsCacheAnalysis:                        true,
 		ShowsCreditsBalance:                       true,
 		ShowsSkills:                               true,
+		GeminiQuotaEnabled:                        true,
 		TokenUsageChartStyle:                      ChartStyleHeatmap,
 		RateLimitResetTodayRefreshIntervalSeconds: DefaultRateLimitResetTodayRefreshIntervalSeconds,
 		AutomaticallyChecksForUpdates:             true,

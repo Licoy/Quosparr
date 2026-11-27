@@ -3,6 +3,7 @@ package app
 import (
 	"errors"
 	"fmt"
+	"math"
 
 	"github.com/licoy/quosparr/internal/gemini"
 	"github.com/licoy/quosparr/internal/l10n"
@@ -12,6 +13,9 @@ import (
 // shared classification. It never renders Error(), which may name an
 // account or a validation link.
 func geminiKnownReason(l l10n.Localizer, err error) string {
+	if text := geminiRefusalText(l, err); text != "" {
+		return text
+	}
 	for _, entry := range []struct {
 		err error
 		key l10n.Key
@@ -51,6 +55,31 @@ func geminiKnownReason(l l10n.Localizer, err error) string {
 		}
 	}
 	return geminiTypedReason(l, err)
+}
+
+// isGeminiRefusal reports whether err is a quota read the read policy
+// refused before any request.
+func isGeminiRefusal(err error) bool {
+	var cool *gemini.QuotaCooldownError
+	return errors.Is(err, gemini.ErrQuotaDisabled) || errors.Is(err, gemini.ErrQuotaCurrentOnly) ||
+		errors.Is(err, gemini.ErrClientNotRunning) || errors.As(err, &cool)
+}
+
+// geminiRefusalText explains a refusal (see isGeminiRefusal); "" for any
+// other error.
+func geminiRefusalText(l l10n.Localizer, err error) string {
+	var cool *gemini.QuotaCooldownError
+	switch {
+	case errors.Is(err, gemini.ErrQuotaDisabled):
+		return l.Text(l10n.KeyGeminiQuotaOff)
+	case errors.Is(err, gemini.ErrQuotaCurrentOnly):
+		return l.Text(l10n.KeyGeminiQuotaCurrentOnly)
+	case errors.Is(err, gemini.ErrClientNotRunning):
+		return l.Text(l10n.KeyGeminiQuotaClientNotRunning)
+	case errors.As(err, &cool):
+		return l.Textf(l10n.KeyGeminiQuotaCooldown, max(1, int(math.Ceil(cool.RetryAfter.Minutes()))))
+	}
+	return ""
 }
 
 func geminiTypedReason(l l10n.Localizer, err error) string {

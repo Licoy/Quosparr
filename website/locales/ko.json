@@ -40,7 +40,7 @@
       "구독 계정을 가져와 전환하며, 전환할 때 MCP 토큰은 유지"
     ],
     "gemini": [
-      "Antigravity 데스크톱 App과 agy CLI 할당량: Gemini·Claude 모델의 5시간·주간 창과 Argon 주간 창, 초기화 시간, Free / Pro / Ultra 등급, 모델별 세부 정보",
+      "Antigravity 데스크톱 App과 agy CLI 할당량(끌 수 있음): Gemini·Claude 모델의 5시간·주간 창과 Argon 주간 창, 초기화 시간, Free / Pro / Ultra 등급",
       "브라우저 Google 로그인이나 현재 로그인 가져오기로 계정을 추가하고, 전환하면 App과 agy가 함께 쓰는 로그인에 기록하며 macOS에서는 데스크톱 App도 다시 시작 가능",
       "App과 agy 로컬 세션 기반의 토큰 사용량, API 환산 비용, 히트맵, 최근 세션, 속도"
     ],

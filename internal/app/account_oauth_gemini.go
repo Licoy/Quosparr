@@ -64,16 +64,9 @@ func (flow geminiLoginFlow) run(a *geminiLoginAttempt, stage func(textKey)) (tex
 		return "", err
 	}
 	stage(xClaudeOAuthSaving)
-	account, err := flow.module.ImportBrowserLogin(a.ctx, result)
-	if err != nil {
+	// Quota is read only by a manual refresh, never right after a login.
+	if _, err := flow.module.ImportBrowserLogin(a.ctx, result); err != nil {
 		return "", &claudeLoginError{xOAuthStore, err}
-	}
-	stage(xClaudeOAuthQuotaLoading)
-	report := flow.module.Refresh(a.ctx, gemini.RefreshTarget{Kind: gemini.RefreshAccount, ID: account.ID})
-	for _, outcome := range report.Outcomes {
-		if outcome.Err != nil {
-			return xClaudeOAuthQuotaFailed, outcome.Err
-		}
 	}
 	return xClaudeOAuthAdded, nil
 }
